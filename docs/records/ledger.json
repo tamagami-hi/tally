@@ -220,6 +220,10 @@
     {
       "commit": "a456f1a",
       "note": "fix(records): landing lock; cut-over scripts"
+    },
+    {
+      "commit": "0e05776",
+      "note": "docs: cut-over note"
     }
   ]
 }
