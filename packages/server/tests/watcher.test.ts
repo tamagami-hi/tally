@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { initRecords, openRepo, type Config } from "@tally/core";
@@ -41,8 +41,21 @@ describe("the watcher", () => {
     await repo.commit("c.txt", "c", "feat: c");
     const started = Date.now();
     while (seen.length === before && Date.now() - started < 3000) await new Promise((done) => setTimeout(done, 20));
-    watcher.stop();
+    await watcher.stop();
     expect(seen.length).toBe(before + 1);
     expect(seen.at(-1)).toBe(3);
+    expect(watcher.lastFailure).toBeUndefined();
+  });
+
+  test("keeps a failing poll as its last failure instead of throwing, and stop waits for the tick in flight", async () => {
+    const repo = await makeRepo();
+    await initRecords(repo.root, config, (await repo.head()).slice(0, 7));
+    const watcher = new Watcher(await openRepo(repo.root), { intervalMs: 20 });
+    watcher.start();
+    await rm(join(repo.root, ".git"), { recursive: true, force: true });
+    const started = Date.now();
+    while (watcher.lastFailure === undefined && Date.now() - started < 3000) await new Promise((done) => setTimeout(done, 20));
+    await watcher.stop();
+    expect(watcher.lastFailure).toMatch(/git/);
   });
 });

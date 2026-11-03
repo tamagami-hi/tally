@@ -27,11 +27,10 @@ export function startServer(options: ServeOptions): Promise<Running> {
       watcher.start();
       done({
         url: `http://${options.host}:${info.port}/`,
-        close: () =>
-          new Promise((closed) => {
-            watcher.stop();
-            server.close(() => closed());
-          }),
+        close: async () => {
+          await watcher.stop();
+          await new Promise<void>((closed) => server.close(() => closed()));
+        },
       });
     });
   });

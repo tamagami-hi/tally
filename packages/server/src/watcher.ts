@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, collect, gitOut, listClaims, listLocks, listSessions, statePath, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
+import { Records, collect, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitGraph, type LaidCommit } from "./graph.ts";
 
 export interface LiveState {
@@ -55,6 +55,8 @@ export class Watcher {
   private last: string | undefined;
   private latest: Snapshot | undefined;
   private busy = false;
+  private inFlight: Promise<void> = Promise.resolve();
+  private failure: string | undefined;
 
   constructor(repo: Repo, options: { intervalMs?: number } = {}) {
     this.repo = repo;
@@ -79,23 +81,34 @@ export class Watcher {
     this.timer = setInterval(() => void this.tick(), this.intervalMs);
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     if (this.timer !== undefined) clearInterval(this.timer);
     this.timer = undefined;
+    await this.inFlight;
   }
 
-  private async tick(): Promise<void> {
-    if (this.busy) return;
+  get lastFailure(): string | undefined {
+    return this.failure;
+  }
+
+  private tick(): Promise<void> {
+    if (this.busy) return this.inFlight;
     this.busy = true;
-    try {
-      const now = await fingerprint(this.repo);
-      if (now !== this.last) {
-        this.last = now;
-        this.latest = await snapshot(this.repo);
-        for (const listener of this.listeners) listener(this.latest);
+    this.inFlight = (async () => {
+      try {
+        const now = await fingerprint(this.repo);
+        if (now !== this.last) {
+          this.last = now;
+          this.latest = await snapshot(this.repo);
+          for (const listener of this.listeners) listener(this.latest);
+        }
+        this.failure = undefined;
+      } catch (error: unknown) {
+        this.failure = messageOf(error);
+      } finally {
+        this.busy = false;
       }
-    } finally {
-      this.busy = false;
-    }
+    })();
+    return this.inFlight;
   }
 }

@@ -65,4 +65,16 @@ describe("committing the records", () => {
     expect(await commitRecords(repo, "x")).toBeNull();
     expect(await sh(git.root, ["status", "--porcelain", "-uall"])).toContain("docs/records/");
   });
+
+  test("waits for another git process's index.lock to go away before adding and committing", async () => {
+    const git = await makeRepo();
+    await initRecords(git.root, config(true), (await git.head()).slice(0, 7));
+    const repo = await openRepo(git.root);
+    await new Records(repo).update((ledger) => ({ ledger: { ...ledger, other: [{ commit: "abc1234", note: "x" }] }, message: "x" }));
+    const { rm, writeFile } = await import("node:fs/promises");
+    await writeFile(`${git.root}/.git/index.lock`, "");
+    setTimeout(() => void rm(`${git.root}/.git/index.lock`), 250);
+    expect(await commitRecords(repo, "after the lock")).toMatch(/^[0-9a-f]{7}$/);
+    expect(await sh(git.root, ["log", "-1", "--format=%s"])).toBe("records: after the lock");
+  });
 });

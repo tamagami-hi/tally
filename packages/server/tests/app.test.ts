@@ -76,7 +76,7 @@ describe("the HTTP API", () => {
     let more = "";
     const started = Date.now();
     while (!more.includes("event: snapshot") && Date.now() - started < 5000) more += decoder.decode((await reader.read()).value);
-    watcher.stop();
+    await watcher.stop();
     await reader.cancel();
     expect(more).toContain("event: snapshot");
   });
