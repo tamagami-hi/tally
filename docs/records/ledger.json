@@ -8,7 +8,56 @@
       "name": "core and cli at parity",
       "track": "main",
       "weight": 20,
-      "tasks": []
+      "tasks": [
+        {
+          "id": "scaffold and toolchain",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "schemas, store and git reader",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "ledger verbs, check and board import",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "status collect and render",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "landing protocol",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "cli parity",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "milestone add verb",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "P1 close",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        }
+      ]
     },
     {
       "id": "P2",
