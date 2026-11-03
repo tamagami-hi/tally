@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { land, other, plan, wait } from "../../src/ledger/ops.ts";
+import { addMilestone, land, other, plan, wait } from "../../src/ledger/ops.ts";
 import type { Ledger } from "../../src/schema/ledger.ts";
 
 const resolve = async (commit: string): Promise<string> => {
@@ -77,6 +77,24 @@ describe("land", () => {
   test("a commit that is not on main is refused before anything changes", async () => {
     await expect(land(base(), { milestone: "B2", task: "B2 data close", commit: "bad0000" }, resolve))
       .rejects.toThrow("bad0000 is not on main yet; record it after it lands");
+  });
+});
+
+describe("adding a milestone", () => {
+  const stages = ["A", "B", "C"];
+
+  test("appends an empty milestone to a known stage and refuses a second with the same id", () => {
+    const added = addMilestone(base(), { id: "B5", stage: "B", name: "full builder", track: "engine", weight: 14 }, stages);
+    expect(added.message).toBe("B5: added to stage B");
+    expect(added.ledger.milestones.at(-1)).toEqual({ id: "B5", stage: "B", name: "full builder", track: "engine", weight: 14, tasks: [] });
+    expect(() => addMilestone(added.ledger, { id: "B5", stage: "B", name: "x", track: "engine", weight: 1 }, stages)).toThrow("milestone B5 already exists");
+  });
+
+  test("keeps a wait, and refuses an unknown stage or a weight that is not a positive integer", () => {
+    const waiting = addMilestone(base(), { id: "C1", stage: "C", name: "candles", track: "-", weight: 34, waits: "the recorder" }, stages);
+    expect(waiting.ledger.milestones.at(-1)?.waits).toBe("the recorder");
+    expect(() => addMilestone(base(), { id: "D1", stage: "D", name: "x", track: "-", weight: 1 }, stages)).toThrow("no stage 'D'; known: A, B, C");
+    expect(() => addMilestone(base(), { id: "B5", stage: "B", name: "x", track: "-", weight: 0 }, stages)).toThrow("weight must be a positive integer, not 0");
   });
 });
 

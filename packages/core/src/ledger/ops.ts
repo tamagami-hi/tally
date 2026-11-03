@@ -34,7 +34,34 @@ export interface OtherInput {
   note: string;
 }
 
+export interface MilestoneInput {
+  id: string;
+  stage: string;
+  name: string;
+  track: string;
+  weight: number;
+  waits?: string;
+  group?: string;
+}
+
 const planned = (id: string, track: string): Task => ({ id, track, status: "planned", also: [] });
+
+export function addMilestone(ledger: Ledger, input: MilestoneInput, stages: readonly string[]): Changed {
+  if (ledger.milestones.some((milestone) => milestone.id === input.id)) throw new TallyError(`milestone ${input.id} already exists`);
+  if (!stages.includes(input.stage)) throw new TallyError(`no stage '${input.stage}'; known: ${stages.join(", ")}`);
+  if (!Number.isInteger(input.weight) || input.weight <= 0) throw new TallyError(`weight must be a positive integer, not ${input.weight}`);
+  const milestone = {
+    id: input.id,
+    stage: input.stage,
+    name: input.name,
+    track: input.track,
+    weight: input.weight,
+    ...(input.waits === undefined ? {} : { waits: input.waits }),
+    ...(input.group === undefined ? {} : { group: input.group }),
+    tasks: [],
+  };
+  return { ledger: { ...ledger, milestones: [...ledger.milestones, milestone] }, message: `${input.id}: added to stage ${input.stage}` };
+}
 
 export function plan(ledger: Ledger, input: PlanInput): Changed & { added: string[] } {
   const milestone = findMilestone(ledger, input.milestone);

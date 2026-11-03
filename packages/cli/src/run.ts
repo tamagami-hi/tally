@@ -5,6 +5,7 @@ import { importCommand } from "./commands/import.ts";
 import { initCommand } from "./commands/init.ts";
 import { landCommand } from "./commands/land.ts";
 import { ledgerCommand } from "./commands/ledger.ts";
+import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
 import { taskCommand } from "./commands/task.ts";
 import type { IO } from "./io.ts";
@@ -13,6 +14,7 @@ export const USAGE = `tally: the tracking harness
 
   tally init   --name NAME [--baseline SHA] | --config FILE      make docs/records/ here
   tally import board PATH [--force]                              bring a board.json into the ledger
+  tally milestone add <id> --stage S --name N --track T --weight W [--waits X] [--group G]
   tally task   plan  <milestone> --track <track> <task>...       add tasks, the close last
   tally task   land  <milestone> <task> <commit> [--track T] [--also C]...
   tally task   wait  <milestone> <task> <what>
@@ -47,6 +49,8 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await taskCommand(repo, args, io);
       case "ledger":
         return await ledgerCommand(repo, args, io);
+      case "milestone":
+        return await milestoneCommand(repo, args, io);
       case "status":
         return await statusCommand(repo, args, io);
       case "land":
