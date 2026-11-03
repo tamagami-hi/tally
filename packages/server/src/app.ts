@@ -3,6 +3,7 @@ import { extname, join, normalize } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { Records, type Config, type Repo } from "@tally/core";
+import { mcpHandler } from "@tally/mcp";
 import type { Watcher } from "./watcher.ts";
 
 export interface AppOptions {
@@ -43,6 +44,8 @@ export function createApp({ repo, watcher, webDir }: AppOptions): Hono {
   app.get("/api/ledger", async (c) => c.json(await new Records(repo).readLedger()));
   app.get("/api/config", (c) => c.json(redactedConfig(repo.config)));
   app.get("/api/*", (c) => c.json({ error: "not found" }, 404));
+  const mcp = mcpHandler(repo);
+  app.all("/mcp", (c) => mcp(c.req.raw));
   app.get("/events", (c) =>
     streamSSE(c, async (stream) => {
       const send = (snapshot: unknown): Promise<void> => stream.writeSSE({ event: "snapshot", data: JSON.stringify(snapshot) });

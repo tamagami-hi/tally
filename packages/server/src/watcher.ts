@@ -1,16 +1,32 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, collect, gitOut, worktrees, type Repo, type StatusData } from "@tally/core";
+import { Records, collect, gitOut, listClaims, listLocks, listSessions, statePath, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitGraph, type LaidCommit } from "./graph.ts";
+
+export interface LiveState {
+  sessions: Session[];
+  claims: Claim[];
+  locks: HeldLock[];
+}
 
 export interface Snapshot {
   status: StatusData;
   graph: LaidCommit[];
+  state: LiveState;
   takenAt: string;
 }
 
 export type Listener = (snapshot: Snapshot) => void;
+
+async function stamp(path: string): Promise<string> {
+  try {
+    const info = await stat(path);
+    return `${info.mtimeMs}:${info.size}`;
+  } catch {
+    return "none";
+  }
+}
 
 export async function fingerprint(repo: Repo): Promise<string> {
   const parts: string[] = [(await gitOut(repo.root, ["for-each-ref", "--format=%(refname) %(objectname)"])) ?? ""];
@@ -18,12 +34,8 @@ export async function fingerprint(repo: Repo): Promise<string> {
   for (const tree of (await worktrees(repo.root)).values()) {
     parts.push(tree, (await gitOut(tree, ["status", "--porcelain=v1", "--untracked-files=all"])) ?? "");
   }
-  try {
-    const info = await stat(join(repo.recordsDir, "ledger.json"));
-    parts.push(String(info.mtimeMs), String(info.size));
-  } catch {
-    parts.push("no ledger");
-  }
+  parts.push(await stamp(join(repo.recordsDir, "ledger.json")));
+  for (const name of ["sessions.json", "claims.json", "locks.json"]) parts.push(await stamp(statePath(repo, name)));
   return createHash("sha256").update(parts.join("\u0000")).digest("hex");
 }
 
@@ -31,7 +43,8 @@ export async function snapshot(repo: Repo): Promise<Snapshot> {
   const ledger = await new Records(repo).readLedger();
   const status = await collect(repo, ledger);
   const graph = await commitGraph(repo.root);
-  return { status, graph, takenAt: new Date().toISOString() };
+  const state: LiveState = { sessions: await listSessions(repo), claims: await listClaims(repo), locks: await listLocks(repo) };
+  return { status, graph, state, takenAt: new Date().toISOString() };
 }
 
 export class Watcher {

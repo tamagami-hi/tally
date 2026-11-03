@@ -138,6 +138,8 @@ h1, h2, h3, p { margin: 0; }
 .track.main { background: var(--accent-soft); border-color: transparent; }
 .track-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .track .path { color: var(--faint); font-size: 12px; margin-top: 6px; }
+.track .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.note.claim { align-items: center; }
 .track .commit { margin-top: 10px; font-weight: 600; }
 .track .commit .hash { font-family: var(--mono); font-weight: 500; color: var(--muted); margin-right: 6px; }
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }

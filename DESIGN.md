@@ -105,7 +105,7 @@ tracks ──── worktree ──── sessions (an agent, a model, a start t
 
 ## 6. The tools (MCP and CLI, one surface)
 
-Every verb exists twice with the same name and arguments: an MCP tool for agents, a `tally <verb>` command for scripts and humans. Inputs are the Zod schemas of `core`; errors name the record and the rule.
+Every verb exists twice with the same name and arguments: an MCP tool for agents, a `tally <verb>` command for scripts and humans. (Built in Phase 3, 2026-11-04: the MCP tools are spelled with underscores, `session_open`, `task_claim`, since tool names may not carry dots; claims live in the runtime state, not in `ledger.json`'s `claimedBy`, so a claim never makes a records commit; and the stdio shim is the server itself on stdio, `tally mcp`, sharing the live state through files with `tally serve`.) Inputs are the Zod schemas of `core`; errors name the record and the rule.
 
 | group | verbs | notes |
 | --- | --- | --- |

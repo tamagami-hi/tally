@@ -16,6 +16,8 @@ node packages/cli/dist/main.js --help
 
 A tracked repository gets `docs/records/config.json` and `docs/records/ledger.json` from `tally init`; every other command finds them above the current folder or through `--repo`.
 
+**Phase 3 is built:** the MCP server. `tally mcp` serves 25 tools on stdio and `tally serve` the same at `/mcp`: sessions bound to a worktree and a track (`session_open`), the board and the ledger verbs with scope (`board_get`, `task_plan|claim|release|wait|land|other`, `milestone_add`, `ledger_check`), the landing (`land_run`), evidence (`evidence_run|record|list`), hand-offs, named locks, the documents (`docs_list|read|search`) and `context_pack` at the project, track, milestone or task level. [GUIDE.md](GUIDE.md) says how to connect Claude Code or Kiro and how a session works; [RULES.md](RULES.md) is what the harness enforces. The board shows who is working, what they hold and which locks are taken.
+
 **Phase 2 is built:** `tally serve` runs the live board at `http://127.0.0.1:47560/`: the ledger, the tracks' worktrees and the commit graph, pushed over server-sent events as git or the ledger changes (a 2 s fingerprint poll of refs, working trees and `ledger.json`). The page has two layouts, chosen by orientation: three panels side by side on a 16:9 screen, one page at a time with a bottom tab bar on a 9:16 phone. Light and dark follow the system and can be switched. The Evidence page waits for Phase 4's records. The API: `GET /api/snapshot | /api/status | /api/graph | /api/ledger | /api/config` (env values redacted) and `GET /events`.
 
 ```bash

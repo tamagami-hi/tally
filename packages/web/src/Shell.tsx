@@ -48,17 +48,18 @@ function Failed({ error, onRetry }: { error: Error; onRetry: () => void }) {
 export function Shell({ snapshot, error, live, layout, scheme, onToggleScheme, onRetry }: ShellProps) {
   const [page, setPage] = useState<Page>("board");
   if (snapshot === undefined) return error === null ? <Loading /> : <Failed error={error} onRetry={onRetry} />;
-  const { status, graph } = snapshot;
+  const { status, graph, state } = snapshot;
+  const claims = state?.claims ?? [];
   const top = <TopBar status={status} live={live} takenAt={snapshot.takenAt} scheme={scheme} onToggleScheme={onToggleScheme} />;
   if (layout === "landscape") {
     return (
       <div className="shell landscape">
         {top}
         <Problems problems={status.problems} />
-        <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} /></Panel></div>
+        <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} state={state} /></Panel></div>
         <div className="column-main">
           <Hero status={status} />
-          <Panel title="Board" detail={`${status.rows.length} milestones`}><Board status={status} /></Panel>
+          <Panel title="Board" detail={`${status.rows.length} milestones`}><Board status={status} claims={claims} /></Panel>
         </div>
         <div className="column-right"><Panel title="Graph" detail={<Legend commits={graph} />} className="column-right"><Graph commits={graph} /></Panel></div>
       </div>
@@ -70,8 +71,8 @@ export function Shell({ snapshot, error, live, layout, scheme, onToggleScheme, o
       <Problems problems={status.problems} />
       <Hero status={status} />
       <main className="page">
-        {page === "board" ? <Panel title="Board" detail={`${status.rows.length} milestones`}><Board status={status} /></Panel> : null}
-        {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} /></Panel> : null}
+        {page === "board" ? <Panel title="Board" detail={`${status.rows.length} milestones`}><Board status={status} claims={claims} /></Panel> : null}
+        {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} state={state} /></Panel> : null}
         {page === "graph" ? <Panel title="Graph" detail={<Legend commits={graph} />}><Graph commits={graph} /></Panel> : null}
         {page === "evidence" ? <Panel title="Evidence"><Evidence /></Panel> : null}
       </main>

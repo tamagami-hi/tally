@@ -5,6 +5,7 @@ import { importCommand } from "./commands/import.ts";
 import { initCommand } from "./commands/init.ts";
 import { landCommand } from "./commands/land.ts";
 import { ledgerCommand } from "./commands/ledger.ts";
+import { mcpCommand } from "./commands/mcp.ts";
 import { serveCommand } from "./commands/serve.ts";
 import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
@@ -23,7 +24,8 @@ export const USAGE = `tally: the tracking harness
   tally ledger check                                             commits on main the ledger misses
   tally status [--markdown | --json] [--no-color]
   tally land   <track> [--message FILE] [--verified-code SHA] [files...]
-  tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR]   the live board and the API
+  tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR]   the live board, the API and /mcp
+  tally mcp                                                      the MCP server on stdio
 
   --repo PATH names the tracked repository; otherwise the one above the current folder.`;
 
@@ -61,6 +63,8 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await importCommand(repo, args, io);
       case "serve":
         return await serveCommand(repo, args, io);
+      case "mcp":
+        return await mcpCommand(repo, io);
       default:
         throw new TallyError(`tally: unknown command '${command}'\n\n${USAGE}`, 2);
     }

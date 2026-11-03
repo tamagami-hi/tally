@@ -1,9 +1,9 @@
 import { ArrowRightIcon, CheckIcon } from "@radix-ui/react-icons";
 import { percent, splitNote, tone } from "../format.ts";
-import type { MilestoneRow, StatusData } from "../types.ts";
+import type { LiveClaim, MilestoneRow, StatusData } from "../types.ts";
 import { Progress } from "./Progress.tsx";
 
-function Milestone({ row }: { row: MilestoneRow }) {
+function Milestone({ row, claims }: { row: MilestoneRow; claims: LiveClaim[] }) {
   const t = tone(row.share);
   const notes = row.notes.filter((note) => !(row.built !== undefined && note === "built"));
   return (
@@ -28,6 +28,12 @@ function Milestone({ row }: { row: MilestoneRow }) {
             </li>
           );
         })}
+        {claims.map((claim) => (
+          <li key={`${claim.task}:${claim.agent}`} className="note claim" title={`claimed since ${claim.since}`}>
+            <span className="chip chip-accent">{claim.agent}</span>
+            <span className="note-text">holds {claim.task} ({claim.track})</span>
+          </li>
+        ))}
       </ul>
       <div className="milestone-done">
         <Progress share={row.share} label={`${row.id} ${row.name}`} />
@@ -37,7 +43,7 @@ function Milestone({ row }: { row: MilestoneRow }) {
   );
 }
 
-export function Board({ status }: { status: StatusData }) {
+export function Board({ status, claims = [] }: { status: StatusData; claims?: LiveClaim[] }) {
   return (
     <section className="board" aria-label="Board">
       {status.stages.map((stage) => {
@@ -49,7 +55,7 @@ export function Board({ status }: { status: StatusData }) {
               <h3>Stage {stage.id}<span className="name">{stage.name}</span></h3>
               <span className={`chip mono chip-${tone(share)}`}>{percent(share)}</span>
             </div>
-            <ul>{rows.map((row) => <Milestone key={row.id} row={row} />)}</ul>
+            <ul>{rows.map((row) => <Milestone key={row.id} row={row} claims={claims.filter((c) => c.milestone === row.id)} />)}</ul>
           </div>
         );
       })}

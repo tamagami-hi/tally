@@ -69,9 +69,39 @@ export interface LaidCommit {
   width: number;
 }
 
+export interface LiveSession {
+  id: string;
+  track: string;
+  agent: string;
+  openedAt: string;
+}
+
+export interface LiveClaim {
+  milestone: string;
+  task: string;
+  track: string;
+  agent: string;
+  since: string;
+}
+
+export interface LiveLock {
+  name: string;
+  agent: string;
+  track: string;
+  note: string;
+  since: string;
+}
+
+export interface LiveState {
+  sessions: LiveSession[];
+  claims: LiveClaim[];
+  locks: LiveLock[];
+}
+
 export interface Snapshot {
   status: StatusData;
   graph: LaidCommit[];
+  state?: LiveState;
   takenAt: string;
 }
 
