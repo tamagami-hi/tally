@@ -193,7 +193,8 @@
         {
           "id": "decision verbs",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "55a9386",
           "also": []
         },
         {
