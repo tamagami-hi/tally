@@ -142,7 +142,8 @@
         {
           "id": "the guide and the rules",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "56ca322",
           "also": []
         },
         {
