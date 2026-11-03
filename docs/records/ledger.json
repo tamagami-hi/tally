@@ -9,6 +9,14 @@
       "track": "main",
       "weight": 20,
       "tasks": []
+    },
+    {
+      "id": "P2",
+      "stage": "B",
+      "name": "the server and the board",
+      "track": "main",
+      "weight": 20,
+      "tasks": []
     }
   ],
   "other": []
