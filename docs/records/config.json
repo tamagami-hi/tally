@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "name": "Tally",
+  "mainBranch": "main",
+  "docsDir": "docs",
+  "tracks": [],
+  "stages": [
+    {
+      "id": "B",
+      "name": "the build",
+      "weight": 100
+    }
+  ],
+  "commands": {
+    "test": [
+      "npm",
+      "test"
+    ],
+    "env": {},
+    "unset": []
+  },
+  "fingerprint": {
+    "paths": [
+      "packages",
+      "package.json",
+      "package-lock.json",
+      "tsconfig.base.json",
+      "vitest.config.ts"
+    ],
+    "exclude": [
+      "*.md"
+    ]
+  },
+  "identity": {
+    "name": "tamagami-hi",
+    "email": "193059379+tamagami-hi@users.noreply.github.com"
+  },
+  "records": {
+    "dir": "docs/records",
+    "commitPrefix": "records:",
+    "commit": true
+  },
+  "locks": [
+    "landing"
+  ]
+}

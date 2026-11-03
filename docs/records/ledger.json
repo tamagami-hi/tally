@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "baseline": "fcb77fc",
+  "milestones": [
+    {
+      "id": "P1",
+      "stage": "B",
+      "name": "core and cli at parity",
+      "track": "main",
+      "weight": 20,
+      "tasks": []
+    }
+  ],
+  "other": []
+}
