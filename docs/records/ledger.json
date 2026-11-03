@@ -106,7 +106,44 @@
       "name": "MCP, scope and context",
       "track": "main",
       "weight": 20,
-      "tasks": []
+      "tasks": [
+        {
+          "id": "MCP server and session scope",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "context packs and docs tools",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "locks",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "stdio shim",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "the guide and the rules",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "P3 close",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        }
+      ]
     },
     {
       "id": "P4",
