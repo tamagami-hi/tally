@@ -12,7 +12,8 @@
         {
           "id": "scaffold and toolchain",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "fcb77fc",
           "also": []
         },
         {
