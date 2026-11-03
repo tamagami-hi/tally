@@ -4,8 +4,8 @@
     cutover_from_board.py --repo PATH --config PATH [--board PATH] [--tracks-dir PATH]
                           [--landing-dir PATH] [--keep PATH] [--tally-cli CMD]
 
-Holds the old scripts' two locks (landing.lock in the landing dir, board.json.lock in the
-tracks dir) for the whole sequence, so nothing lands or records while the ledger changes hands:
+Holds the old scripts' two locks (landing.lock in the landing dir, by default the tracks dir, and
+board.json.lock in the tracks dir) for the whole sequence, so nothing lands or records while the ledger changes hands:
   1. the checkout is on main and clean; the old `ledger.py check` covers every commit on main
   2. tally init with the config, tally import board, tally ledger check
   3. parity, when the old status.py is there: its milestone shares and overall equal tally's
@@ -70,9 +70,9 @@ def arguments() -> argparse.Namespace:
     args = parser.parse_args()
     args.repo = args.repo.resolve()
     args.tracks_dir = (args.tracks_dir or args.repo / ".temp/tracks").resolve()
-    args.landing_dir = (args.landing_dir or args.repo / ".temp/stage-b-resume").resolve()
+    args.landing_dir = (args.landing_dir or args.tracks_dir).resolve()
     args.board = (args.board or args.tracks_dir / "board.json").resolve()
-    args.keep = (args.keep or args.tracks_dir / f"ledger-preservation/pre-tally-{date.today().isoformat()}").resolve()
+    args.keep = (args.keep or args.tracks_dir / f"kept/pre-tally-{date.today().isoformat()}").resolve()
     return args
 
 
