@@ -270,6 +270,10 @@
     {
       "commit": "ae58c92",
       "note": "fix(records,server): git add retry; watcher failures"
+    },
+    {
+      "commit": "bd3905b",
+      "note": "fix(server): failed snapshots retried"
     }
   ]
 }
