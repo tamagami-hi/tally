@@ -186,7 +186,8 @@
         {
           "id": "generated CLAUDE block",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "e79a92c",
           "also": []
         },
         {
