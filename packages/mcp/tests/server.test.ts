@@ -32,7 +32,7 @@ describe("the tally MCP server", () => {
   test("lists its tools and refuses writes without a session", async () => {
     const { client, call } = await connected();
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(["board_get", "context_pack", "docs_list", "docs_read", "docs_search", "evidence_list", "evidence_record", "evidence_run", "handoff_read", "handoff_write", "land_run", "ledger_check", "lock_acquire", "lock_list", "lock_release", "milestone_add", "session_close", "session_list", "session_open", "task_claim", "task_land", "task_other", "task_plan", "task_release", "task_wait"]);
+    expect(names).toEqual(["board_get", "context_pack", "docs_list", "docs_read", "docs_search", "evidence_list", "evidence_record", "evidence_run", "handoff_read", "handoff_write", "land_run", "ledger_check", "lock_acquire", "lock_list", "lock_release", "milestone_add", "question_add", "question_list", "session_close", "session_list", "session_open", "task_claim", "task_land", "task_other", "task_plan", "task_release", "task_wait"]);
     const refused = await call("task_claim", { sessionId: "nope", milestone: "B2", task: "4 manifest" });
     expect(refused.isError).toBe(true);
     expect(refused.text).toBe("no session nope; open one with session_open");

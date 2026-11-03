@@ -9,7 +9,7 @@ export interface GitResult {
 
 export function git(cwd: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<GitResult> {
   return new Promise((done) => {
-    execFile("git", [...args], { cwd, env: env ?? process.env, maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile("git", [...args], { cwd, env: { GIT_OPTIONAL_LOCKS: "0", ...(env ?? process.env) }, maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
       const code = error === null ? 0 : typeof (error as NodeJS.ErrnoException & { code?: unknown }).code === "number" ? (error as { code: number }).code : 1;
       done({ code, stdout: String(stdout), stderr: String(stderr) });
     });

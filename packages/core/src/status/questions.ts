@@ -1,5 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { readQuestions } from "../records/questions.ts";
+import type { Repo } from "../store/records.ts";
 
 export interface OpenQuestions {
   rows: string[];
@@ -22,7 +24,7 @@ async function questionFiles(dir: string): Promise<string[]> {
   return found.sort();
 }
 
-export async function openQuestions(docsDir: string): Promise<OpenQuestions> {
+export async function questionsFromMarkdown(docsDir: string): Promise<OpenQuestions> {
   const rows: string[] = [];
   let nextRow: number | null = null;
   for (const file of await questionFiles(docsDir)) {
@@ -33,4 +35,10 @@ export async function openQuestions(docsDir: string): Promise<OpenQuestions> {
     if (next !== null) nextRow = Math.max(nextRow ?? 0, Number(next[1]));
   }
   return { rows, nextRow };
+}
+
+export async function openQuestions(repo: Repo): Promise<OpenQuestions> {
+  const records = await readQuestions(repo);
+  if (records !== null) return { rows: records.open.map((q) => `${q.row} (${q.group})`), nextRow: records.nextRow };
+  return questionsFromMarkdown(join(repo.root, repo.config.docsDir));
 }

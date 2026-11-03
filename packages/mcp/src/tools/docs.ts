@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { contextPack, listDocs, readDoc, searchDocs, type Repo } from "@tally/core";
+import { addQuestion, contextPack, getSession, listDocs, readDoc, readQuestions, searchDocs, type Repo } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 
 export function registerDocTools(server: McpServer, repo: Repo): void {
@@ -21,6 +21,19 @@ export function registerDocTools(server: McpServer, repo: Repo): void {
     "docs_search",
     { description: "Case-insensitive search across the documents; each hit is a path, a line and its text.", inputSchema: { query: z.string(), limit: z.number().int().positive().max(200).default(50) } },
     ({ query, limit }) => attempt(async () => ok({ hits: await searchDocs(repo, query, limit) })),
+  );
+  server.registerTool(
+    "question_add",
+    { description: "Add a question row for the operator (a choice that changes what a result means or costs): the question and the conservative behaviour built meanwhile. Takes the next row under the lock.", inputSchema: { sessionId: z.string(), group: z.string(), question: z.string(), meanwhile: z.string() } },
+    ({ sessionId, group, question, meanwhile }) => attempt(async () => {
+      const session = await getSession(repo, sessionId);
+      return ok(await addQuestion(repo, { group, question, meanwhile, by: session.agent }));
+    }),
+  );
+  server.registerTool(
+    "question_list",
+    { description: "The open question rows, the next row number, and how many were answered.", inputSchema: {} },
+    () => attempt(async () => ok((await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] })),
   );
   server.registerTool(
     "context_pack",

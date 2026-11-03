@@ -6,6 +6,7 @@ import { initCommand } from "./commands/init.ts";
 import { landCommand } from "./commands/land.ts";
 import { ledgerCommand } from "./commands/ledger.ts";
 import { mcpCommand } from "./commands/mcp.ts";
+import { questionCommand } from "./commands/question.ts";
 import { serveCommand } from "./commands/serve.ts";
 import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
@@ -16,6 +17,8 @@ export const USAGE = `tally: the tracking harness
 
   tally init   --name NAME [--baseline SHA] | --config FILE      make docs/records/ here
   tally import board PATH [--force]                              bring a board.json into the ledger
+  tally import decisions|questions PATH --group G                bring a markdown table into the records
+  tally question add --group G <question> <meanwhile> | answer <row> <decision> | list
   tally milestone add <id> --stage S --name N --track T --weight W [--waits X] [--group G]
   tally task   plan  <milestone> --track <track> <task>...       add tasks, the close last
   tally task   land  <milestone> <task> <commit> [--track T] [--also C]...
@@ -65,6 +68,8 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await serveCommand(repo, args, io);
       case "mcp":
         return await mcpCommand(repo, io);
+      case "question":
+        return await questionCommand(repo, args, io);
       default:
         throw new TallyError(`tally: unknown command '${command}'\n\n${USAGE}`, 2);
     }

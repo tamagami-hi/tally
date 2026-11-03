@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { isAncestor, logLines, verifyCommit } from "../git/refs.ts";
 import { gitOut } from "../git/run.ts";
 import { unrecorded } from "../ledger/check.ts";
@@ -44,7 +43,7 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
   const origin = await gitOut(root, ["rev-parse", "--short", `origin/${main}`]);
   const unpushed = origin === null ? 0 : Number((await gitOut(root, ["rev-list", "--count", `origin/${main}..${main}`])) ?? "0");
   const today = ((await gitOut(root, ["log", "--since=midnight", "--format=%h", main])) ?? "").split("\n").filter((l) => l.length > 0).length;
-  const questions = await openQuestions(join(root, config.docsDir));
+  const questions = await openQuestions(repo);
   return {
     name: config.name,
     time: stamp(now),

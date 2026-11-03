@@ -74,7 +74,7 @@ export async function contextPack(repo: Repo, input: PackInput): Promise<Pack> {
 async function project(repo: Repo, ledger: Ledger, claims: Claim[], locks: HeldLock[], sessions: Session[]): Promise<Pack> {
   const rules = await optional(join(repo.root, "RULES.md"));
   const claude = await optional(join(repo.root, "CLAUDE.md"));
-  const questions = await openQuestions(join(repo.root, repo.config.docsDir));
+  const questions = await openQuestions(repo);
   const parts = {
     name: repo.config.name,
     mainBranch: repo.config.mainBranch,
