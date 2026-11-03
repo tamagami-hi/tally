@@ -55,7 +55,7 @@ export async function branches(root: string, mainBranch: string, now = Date.now(
     rows.push({
       branch: name,
       track: name.replace(/^track\//, ""),
-      path: tree === undefined ? "" : tree === root ? "." : tree,
+      path: tree === undefined ? "" : tree === root ? "." : relative(root, tree),
       head,
       subject,
       ct: Number(ct),

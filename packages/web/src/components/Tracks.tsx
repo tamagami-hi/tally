@@ -1,19 +1,21 @@
-import { Badge, Flex, Text } from "@radix-ui/themes";
+import { statusClass } from "../format.ts";
 import type { StatusData, TrackRow } from "../types.ts";
 
-function Files({ track }: { track: TrackRow }) {
-  if (track.files.length === 0) return null;
+function Changes({ track }: { track: TrackRow }) {
+  const adds = track.files.reduce((n, f) => n + (Number(f.add) || 0), 0);
+  const dels = track.files.reduce((n, f) => n + (Number(f.del) || 0), 0);
   return (
-    <details className="files">
+    <details className="changes" open={track.files.length <= 12}>
       <summary>
-        <Text size="1" color="amber">{track.dirty} {track.dirty === 1 ? "file" : "files"} open</Text>
+        <span>CHANGES</span>
+        <span className="mono"><span className="add">+{adds}</span> <span className="del">-{dels}</span></span>
       </summary>
       <ul>
         {track.files.map((file) => (
           <li key={file.path} className="file">
-            <Text size="1" className="mono status">{file.status}</Text>
-            <Text size="1" className="mono path" truncate title={file.path}>{file.path}</Text>
-            <Text size="1" className="mono diff" color="gray">{file.add === "" ? "" : `+${file.add} -${file.del}`}</Text>
+            <span className={`status ${statusClass(file.status)}`}>{file.status === "??" ? "?" : file.status}</span>
+            <span className="truncate" title={file.path}>{file.path}</span>
+            <span className="diff">{file.add === "" ? "" : <><span className="add">+{file.add}</span> <span className="del">-{file.del}</span></>}</span>
           </li>
         ))}
       </ul>
@@ -22,34 +24,32 @@ function Files({ track }: { track: TrackRow }) {
 }
 
 function Track({ track }: { track: TrackRow }) {
+  const state = !track.worktree ? <span className="chip chip-idle">no worktree</span> : track.dirty === 0 ? <span className="chip chip-done">clean</span> : <span className="chip chip-active">{track.dirty} uncommitted</span>;
   return (
     <li className={`track ${track.isMain ? "main" : ""}`}>
-      <Flex align="baseline" gap="2" wrap="wrap">
-        <Text size="3" weight="bold">{track.track}</Text>
-        <Text size="1" color="gray" className="mono">{track.head}</Text>
-        <Text size="1" color="gray" style={{ marginLeft: "auto" }}>{track.when}</Text>
-      </Flex>
-      <Text size="2" color="gray" truncate title={track.subject} className="subject">{track.subject}</Text>
-      <Flex gap="2" align="center" wrap="wrap" mt="2">
-        {track.isMain ? null : (
-          <Badge color={track.ahead > 0 ? "amber" : "gray"} variant="soft" size="1" className="mono">+{track.ahead} / -{track.behind}</Badge>
-        )}
-        {track.worktree ? (
-          track.dirty === 0 ? <Badge color="grass" variant="soft" size="1">clean</Badge> : <Files track={track} />
-        ) : (
-          <Badge color="gray" variant="outline" size="1">no worktree</Badge>
-        )}
-      </Flex>
+      <div className="track-top">
+        <span className={`chip mono ${track.isMain ? "chip-accent" : "chip-remote"}`}>{track.branch}</span>
+        {state}
+      </div>
+      <div className="path">{track.isMain ? "the operator's checkout" : track.path || "no worktree"}</div>
+      <div className="commit truncate" title={track.subject}><span className="hash">{track.head}</span>{track.subject}</div>
+      <dl className="kv">
+        <dt>Last commit</dt><dd className="v">{track.when}</dd>
+        {track.isMain ? null : <><dt>Ahead / behind main</dt><dd className="v">+{track.ahead} / -{track.behind}</dd></>}
+      </dl>
+      {track.worktree && track.dirty === 0 ? <div className="clean-line">✓ Nothing uncommitted</div> : null}
+      {track.dirty > 0 ? <Changes track={track} /> : null}
     </li>
   );
 }
 
 export function Tracks({ status }: { status: StatusData }) {
+  const dirty = status.tracks.filter((t) => t.dirty > 0).length;
   return (
-    <section className="tracks" aria-label="Tracks">
-      <ul>
-        {status.tracks.map((track) => <Track key={track.branch} track={track} />)}
-      </ul>
+    <section className="tracks" aria-label="Tracks" data-summary={`${status.tracks.length} · ${dirty} with uncommitted work`}>
+      {status.tracks.map((track) => <Track key={track.branch} track={track} />)}
     </section>
   );
 }
+
+export const tracksSummary = (status: StatusData): string => `${status.tracks.length} · ${status.tracks.filter((t) => t.dirty > 0).length} with uncommitted work`;

@@ -66,7 +66,8 @@ describe("collecting the status", () => {
     const tracks = status.tracks.map((t) => [t.track, t.dirty, t.behind, t.worktree]);
     expect(tracks).toEqual([["main", 1, 0, true], ["data", 1, 0, true]]);
     expect(status.tracks[0]!.files).toEqual([{ status: "M", path: "docs/records/ledger.json", add: expect.any(String), del: expect.any(String) }]);
-    expect(status.tracks[1]!.path).toBe(join(repo.root, ".temp/worktrees/data"));
+    expect(status.tracks[1]!.path).toBe(".temp/worktrees/data");
+    expect(status.tracks[0]!.path).toBe(".");
   });
 
   test("renders the terminal tables and the markdown without colour", async () => {

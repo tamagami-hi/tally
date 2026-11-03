@@ -1,20 +1,19 @@
-import { Flex, Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 
 interface PanelProps {
   title: string;
-  detail?: string;
-  area: string;
+  detail?: ReactNode;
+  className?: string;
   children: ReactNode;
 }
 
-export function Panel({ title, detail, area, children }: PanelProps) {
+export function Panel({ title, detail, className = "", children }: PanelProps) {
   return (
-    <section className={`panel panel-${area}`}>
-      <Flex align="baseline" gap="2" className="panel-head">
-        <Text size="2" weight="bold">{title}</Text>
-        {detail === undefined ? null : <Text size="1" color="gray">{detail}</Text>}
-      </Flex>
+    <section className={`panel ${className}`}>
+      <div className="panel-head">
+        <h2>{title}</h2>
+        {detail === undefined ? null : <span className="muted small">{detail}</span>}
+      </div>
       <div className="panel-body">{children}</div>
     </section>
   );

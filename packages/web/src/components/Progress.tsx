@@ -1,21 +1,26 @@
-import { Flex, Progress as RadixProgress, Text } from "@radix-ui/themes";
-import { color, percent, tone } from "../format.ts";
+import { percent, tone } from "../format.ts";
 
 interface ProgressProps {
   share: number;
   label?: string;
-  size?: "1" | "2" | "3";
-  width?: string;
+  big?: boolean;
+  withPercent?: boolean;
 }
 
-export function Progress({ share, label, size = "2", width = "100%" }: ProgressProps) {
+export function Bar({ share, big = false }: { share: number; big?: boolean }) {
+  return (
+    <span className={`bar ${tone(share)} ${big ? "big" : ""}`} role="presentation">
+      <i style={{ width: `${Math.round(share * 100)}%` }} />
+    </span>
+  );
+}
+
+export function Progress({ share, label, big = false, withPercent = true }: ProgressProps) {
   const t = tone(share);
   return (
-    <Flex align="center" gap="3" style={{ width }} aria-label={label === undefined ? undefined : `${label} ${percent(share)}`}>
-      <RadixProgress value={Math.round(share * 100)} size={size} color={color[t]} variant="soft" style={{ flex: 1 }} />
-      <Text size={size === "3" ? "4" : "2"} weight="medium" className="mono" style={{ minWidth: "3.2em", textAlign: "right" }} color={t === "idle" ? "gray" : undefined}>
-        {percent(share)}
-      </Text>
-    </Flex>
+    <div className="progress" aria-label={label === undefined ? undefined : `${label} ${percent(share)}`}>
+      <Bar share={share} big={big} />
+      {withPercent ? <span className={`pct ${t}`}>{percent(share)}</span> : null}
+    </div>
   );
 }
