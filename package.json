@@ -11,9 +11,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "tsc -b packages/core packages/cli",
+    "build": "npm run build -w packages/web && tsc -b packages/core packages/server packages/cli",
     "test": "vitest run",
-    "typecheck": "tsc -b packages/core packages/cli --noEmit",
+    "typecheck": "tsc -b packages/core packages/server packages/cli --noEmit && npm run typecheck -w packages/web",
     "coverage": "vitest run --coverage"
   },
   "devDependencies": {

@@ -6,6 +6,7 @@
     "tally": "./dist/main.js"
   },
   "dependencies": {
-    "@tally/core": "0.1.0"
+    "@tally/core": "0.1.0",
+    "@tally/server": "0.1.0"
   }
 }

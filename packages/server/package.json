@@ -1,0 +1,16 @@
+{
+  "name": "@tally/server",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "@tally/core": "0.1.0",
+    "hono": "^4.10.0"
+  }
+}

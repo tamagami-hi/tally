@@ -45,10 +45,14 @@ describe("committing the records", () => {
     const order: string[] = [];
     const { withLock } = await import("../../src/store/lock.ts");
     const { statePath } = await import("../../src/land/paths.ts");
+    let acquired = (): void => undefined;
+    const holding = new Promise<void>((done) => { acquired = done; });
     const held = withLock(statePath(repo, "locks", "landing.lock"), async () => {
+      acquired();
       await new Promise((done) => setTimeout(done, 300));
       order.push("released");
     });
+    await holding;
     const committed = commitRecords(repo, "x").then((sha) => order.push(sha === null ? "nothing" : "committed"));
     await Promise.all([held, committed]);
     expect(order).toEqual(["released", "committed"]);

@@ -16,6 +16,8 @@ node packages/cli/dist/main.js --help
 
 A tracked repository gets `docs/records/config.json` and `docs/records/ledger.json` from `tally init`; every other command finds them above the current folder or through `--repo`.
 
+**Phase 2 is built:** `tally serve` runs the live board at `http://127.0.0.1:47560/`: the ledger, the tracks' worktrees and the commit graph, pushed over server-sent events as git or the ledger changes (a 2 s fingerprint poll of refs, working trees and `ledger.json`). The page has two layouts, chosen by orientation: three panels side by side on a 16:9 screen, one page at a time with a bottom tab bar on a 9:16 phone. Light and dark follow the system and can be switched. The Evidence page waits for Phase 4's records. The API: `GET /api/snapshot | /api/status | /api/graph | /api/ledger | /api/config` (env values redacted) and `GET /events`.
+
 ```bash
 tally init --config examples/three-tracks.config.json --baseline <first commit>
 tally import board .temp/tracks/board.json   # or: scripts/cutover_from_board.py --repo . --config <file>
@@ -41,6 +43,8 @@ tally land data --message .temp/data/msg.txt crates/acme-core/src/store/manifest
 | `packages/core/src/status` | the summary, tracks, questions, the tables |
 | `packages/core/src/land` | the landing protocol and its refusals |
 | `packages/core/src/records` | the records commit |
+| `packages/server/src` | Hono: the API, the event stream, the git watcher, the commit graph layout, static serving of the web build |
+| `packages/web/src` | Vite + React + Radix Themes: the board (`Shell`, `Header`, `Board`, `Tracks`, `Graph`, `Evidence`), the live hook, the two layouts in `styles.css` |
 | `packages/cli/src` | `tally`: argument parsing and one file per command |
 | `packages/*/tests` | Vitest, mirroring `src`; temp git repositories as fixtures |
 | `examples/` | a config per tracked repository |
