@@ -7,6 +7,16 @@ export interface IO {
   isTTY: boolean;
 }
 
+function quietWhenClosed(stream: NodeJS.WriteStream): void {
+  stream.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EPIPE") process.exit(process.exitCode ?? 0);
+    throw error;
+  });
+}
+
+quietWhenClosed(process.stdout);
+quietWhenClosed(process.stderr);
+
 export const processIO: IO = {
   out: (line) => process.stdout.write(`${line}\n`),
   err: (line) => process.stderr.write(`${line}\n`),
