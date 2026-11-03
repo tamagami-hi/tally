@@ -212,5 +212,10 @@
       ]
     }
   ],
-  "other": []
+  "other": [
+    {
+      "commit": "3541e2f",
+      "note": "fix(cli): quiet EPIPE"
+    }
+  ]
 }
