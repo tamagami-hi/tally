@@ -17,6 +17,14 @@
       "track": "main",
       "weight": 20,
       "tasks": []
+    },
+    {
+      "id": "P3",
+      "stage": "B",
+      "name": "MCP, scope and context",
+      "track": "main",
+      "weight": 20,
+      "tasks": []
     }
   ],
   "other": []
