@@ -274,6 +274,10 @@
     {
       "commit": "bd3905b",
       "note": "fix(server): failed snapshots retried"
+    },
+    {
+      "commit": "14f0ad2",
+      "note": "test(server): a commit is two observable states"
     }
   ]
 }
