@@ -224,6 +224,10 @@
     {
       "commit": "0e05776",
       "note": "docs: cut-over note"
+    },
+    {
+      "commit": "ed67f82",
+      "note": "fix(scripts): board lock after the old check"
     }
   ]
 }
