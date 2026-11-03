@@ -19,7 +19,7 @@ Tracking today is spread over five places, each with its own format, and each fa
 
 **The same fact has up to nine homes.** A milestone part's "built" is written in CLAUDE.md, `docs/README.md`, the build order's status line, the architecture plan's status line, the plan's own status line, the decisions file's status column, the build log, the hand-off note and the ledger. A test count appears in the run record, the verification note, the review, the fixes note, the commit body, the build log, `code-checks.md` and CLAUDE.md. Evidence is kept raw under `.temp/`, then copied whole into `docs/.../reports/` at the close. Every copy is a read for the next agent and a place to drift.
 
-**What already works, and is kept:** the ledger's shape (milestone → task → commit, `also`, `waits`), the run record's shape (`command, cwd, started, seconds, exit`, which every track already writes), the review's shape (`verdict, findings[{severity, file, line, summary, fix}]`), the landing protocol, the locks (`landing`, `checks`, `evidence-host`, `board.json`), the status page's layout, and the rule that progress is counted from one ledger only.
+**What already works, and is kept:** the ledger's shape (milestone → task → commit, `also`, `waits`), the run record's shape (`command, cwd, started, seconds, exit`, which every track already writes), the review's shape (`verdict, findings[{severity, file, line, summary, fix}]`), the landing protocol, the locks (`landing`, `checks`, `evidence`, `board.json`), the status page's layout, and the rule that progress is counted from one ledger only.
 
 ## 2. Principles
 
@@ -183,7 +183,7 @@ One page, routed, served by `tally serve` at `http://127.0.0.1:47560/` (a free p
 
 The tracks are mid-task. The cut-over is one quiet moment between landings, and every step before it changes nothing they call.
 
-1. **Phase 1, parity (core + cli).** `tally` reads and writes `ledger.json` with `board.json`'s meaning; `tally status` prints `status.py`'s tables; `tally land` does what `land.py` does; `tally import board` converts `board.json`. Tests: a golden import of today's `board.json`; the five `close-last` checks of `ledger-preservation/`; `land`'s refusals one by one. Nothing in the tracks changes.
+1. **Phase 1, parity (core + cli).** `tally` reads and writes `ledger.json` with `board.json`'s meaning; `tally status` prints `status.py`'s tables; `tally land` does what `land.py` does; `tally import board` converts `board.json`. Tests: a golden import of today's `board.json`; the old scripts' five close-last checks; `land`'s refusals one by one. Nothing in the tracks changes.
 2. **Cut-over A (one minute, under the landing lock).** Import `board.json` → `docs/records/ledger.json`; make `ledger.py` and `land.py` one-line wrappers that exec `tally` with the same arguments and print the same lines, so the tracks' instructions stay true. Commit the records on `main` once (`records: import the progress ledger`).
 3. **Phase 2, the server and the board.** `tally serve`, SSE, the Board, Tracks, Graph and Evidence pages. `status.py --html --watch` is retired when the board shows the same.
 4. **Phase 3, MCP, scope, context.** Sessions, claims, locks, `context.pack`, `docs.*`, the stdio shim, the MCP entries for Claude Code and Kiro. The guide and the harness's rules are written here, and the tracks' next prompts point at them.
