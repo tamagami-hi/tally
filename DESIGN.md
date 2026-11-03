@@ -1,6 +1,6 @@
 # Tally: the tracking harness, design
 
-**Status: proposed 2026-11-03, for the operator's approval. Nothing is built.** `tally` is a working name; change it anywhere.
+**Status: proposed and approved 2026-11-03 (every recommendation of §12 as written); Phase 1 is built and the first tracked repository was cut over the same day.** This copy names no project: that repository keeps its own copy of the design with its names, paths and locks beside its tracking notes. `tally` is a working name; change it anywhere.
 
 Tally is one service, written in TypeScript, that holds everything `docs/` is responsible for as records agents read and write through an MCP server and a CLI, shows the whole build live in the browser, and hands each agent session exactly the context its level needs. The code lives outside the repository it tracks (`.temp/tally/` now, its own repository later); the records live inside the tracked repository, under `docs/records/`, as JSON files git keeps.
 
@@ -12,12 +12,12 @@ Tracking today is spread over five places, each with its own format, and each fa
 | --- | --- | --- | --- |
 | `.temp/tracks/board.json` | the progress ledger: milestones, tasks, the commit that landed each, waits | JSON, one file, `flock` | `ledger.py plan/land/wait/other/check` |
 | `.temp/tracks/status*.py` | the status: progress bars, tracks, commit graph, open questions | Python → terminal, markdown, or `status.html` + `status-data.js` rewritten every second | the operator, by hand |
-| `.temp/stage-b-resume/land.py` | the landing: rebase, `cargo test --locked`, commit with the operator's identity, `--ff-only`, under `landing.lock` | Python | each track |
-| `.temp/tracks/track-rules.md`, `.temp/stage-b-resume/*.md` | the operator's standing instructions and hand-off notes | Markdown, 17k + 15k | the operator, orchestrators |
+| a resume folder's `land.py` | the landing: rebase, `cargo test --locked`, commit with the operator's identity, `--ff-only`, under `landing.lock` | Python | each track |
+| `.temp/tracks/track-rules.md` and the resume folder's notes | the operator's standing instructions and hand-off notes | Markdown, 17k + 15k | the operator, orchestrators |
 | `.temp/worktrees/<t>/.temp/<t>/` | per-milestone task lists, verification notes, reviews, fixes, follow-ups, open items; per-task `red/green/clippy/fmt/land` run records (`*.json`: command, cwd, started, seconds, exit; `*.log`) | 4,733 files, 81 MB, three conventions | each track's steps |
 | `docs/` (git) | decisions (3 files), questions (3), build logs (3), `code-checks.md`, plans with status lines, `README.md`s with status columns, `reports/<date>/` | 47 Markdown files, 5 MB, of which 3.7 MB is one evidence bundle of 195 copied logs | each track's docs commit, by §4 of parallel-build |
 
-**The same fact has up to nine homes.** "B4 DATA is built" is written in CLAUDE.md, `docs/README.md`, `build-order.md`'s status line, `architecture.md`'s status line, the plan's own status line, the decisions file's status column, the build log, the hand-off note and the ledger. A test count appears in the run record, the verification note, the review, the fixes note, the commit body, the build log, `code-checks.md` and CLAUDE.md. Evidence is kept raw under `.temp/`, then copied whole into `docs/.../reports/` at the close. Every copy is a read for the next agent and a place to drift.
+**The same fact has up to nine homes.** A milestone part's "built" is written in CLAUDE.md, `docs/README.md`, the build order's status line, the architecture plan's status line, the plan's own status line, the decisions file's status column, the build log, the hand-off note and the ledger. A test count appears in the run record, the verification note, the review, the fixes note, the commit body, the build log, `code-checks.md` and CLAUDE.md. Evidence is kept raw under `.temp/`, then copied whole into `docs/.../reports/` at the close. Every copy is a read for the next agent and a place to drift.
 
 **What already works, and is kept:** the ledger's shape (milestone → task → commit, `also`, `waits`), the run record's shape (`command, cwd, started, seconds, exit`, which every track already writes), the review's shape (`verdict, findings[{severity, file, line, summary, fix}]`), the landing protocol, the locks (`landing`, `checks`, `evidence-host`, `board.json`), the status page's layout, and the rule that progress is counted from one ledger only.
 
@@ -29,7 +29,7 @@ Tracking today is spread over five places, each with its own format, and each fa
 4. **Scoped by worktree.** A session binds to one worktree and one track. It writes only its track's tasks and evidence; it reads everything.
 5. **Git is the history.** The server is the live view and the only writer of `docs/records/`; it commits the records it changes. No database.
 6. **Logs stay where they fall; records point at them.** A run's log is kept in the track's `.temp/` with its SHA-256 in the record. A close bundles the logs a report cites, once, by record id, into `docs/<group>/reports/<date>/`.
-7. **The harness is repository-agnostic.** Everything about Example (tracks, worktree root, groups, the test command, the fingerprint paths, the lock names) is in `docs/records/config.json`. A second repository gets its own.
+7. **The harness is repository-agnostic.** Everything about the tracked repository (tracks, worktree root, groups, the test command, the fingerprint paths, the lock names) is in `docs/records/config.json`. A second repository gets its own.
 8. **Never:** push, deploy, read a `.env`, touch an archive, delete a `.temp/` folder, rewrite `main`. The harness inherits the tracked repository's rules 1 to 4 and 8 and adds none of its own powers.
 
 ## 3. The shape
@@ -45,7 +45,7 @@ Tracking today is spread over five places, each with its own format, and each fa
                                      │ git     watcher     │  refs, worktrees, dirty files, graph; polled every 2 s
                                      │ scope   sessions    │  worktree ⇄ track binding, claims, live state (.temp)
                                      │ land    protocol    │  rebase → test → commit → ff → record → records commit
-                                     │ locks   named       │  landing, checks, evidence-host, …; held by a session
+                                     │ locks   named       │  landing, checks, evidence, …; held by a session
                                      │ views   renderers   │  status, CLAUDE block, build log md, report index
                                      └────────────────────┘
                                                │
@@ -77,7 +77,7 @@ Every file carries `"schema": 1`. A reader refuses another major version; a fiel
 | `checks.json` | `{fingerprint, fingerprintFull, verifiedBy, recorded, checks[{name, result, command, log?}], suites[{name, count, coverage}], modules[{name, files[], tests[], entryPoints[], gaps[]}]}` | `code-checks.md` |
 | `reviews/<milestone>-<track>.json` | `{verdict, at, head, findings[…]}`, plus `fixes[{finding, commit}]`, `followup`, `open[]` | `<M>-review.json/md`, `-fixes.md`, `-followup.md`, `-open.md` |
 | `evidence/<milestone>.json` | run records: `[{id, task, track, kind: red|green|clippy|fmt|sweep|coverage|land|evidence, command, cwd, started, seconds, exit, log: {path, sha256, bytes}, summary?: {passed, failed, ignored, …}, note?}]` | every `*.json` + `*.log` pair under `.temp/<track>/` (the logs stay) |
-| `handoffs/<track>.json` | `{current: {task, from, at, lines[]}, history[]}`, at most about 60 lines each | `stage-b-resume/*.md`, `checkpoint.md`, `proof.md` |
+| `handoffs/<track>.json` | `{current: {task, from, at, lines[]}, history[]}`, at most about 60 lines each | the resume notes, `checkpoint.md`, `proof.md` |
 | `plans.json` | `[{path, group, milestones[], status: next|completed, movedAt?}]` | every plan's status line and `docs/README.md`'s status column |
 | `reports/<date>/<name>.json` | a report's manifest: the records it cites by id, the logs it bundled with their hashes, the narrative's path | `reports/<date>/<name>/README.md` indexes and the copied logs |
 
@@ -98,7 +98,7 @@ tracks ──── worktree ──── sessions (an agent, a model, a start t
 - **Claims.** `task.claim` marks the task `claimed` by the session and shows it live; `task.release` undoes it; a landing clears it. One task claimed per session.
 - **Context packs.** `context.pack({level})` assembles, from the homes, exactly what a session at that level reads at its start, and nothing it can find in the commits:
   - **L0 project:** RULES.md, CLAUDE.md (its static part), the config, the open questions.
-  - **L1 track:** its worktree and branch, its tasks (planned, claimed, waiting), the shared files it may edit and when (parallel-build §4, as records), its current hand-off.
+  - **L1 track:** its worktree and branch, its tasks (planned, claimed, waiting), the shared files it may edit and when (the repository's parallel-build plan §4, as records), its current hand-off.
   - **L2 milestone:** the plan paths and §s the milestone names, its task list, the review checklist (Delivers, Tests, Evidence mapped to tasks), its evidence so far.
   - **L3 task:** the task, the files it touches, the tests written first, its attempts, what it waits on.
   Each pack is a view: assembled on request, never saved, so there is nothing to drift.
@@ -120,7 +120,7 @@ Every verb exists twice with the same name and arguments: an MCP tool for agents
 | checks | `checks.get`, `checks.set({…})`, `checks.fingerprint()` | `set` refuses a fingerprint that is not what `git log` prints for the config's paths at `main`; `fingerprint` answers whether the record stands |
 | review | `review.submit`, `review.fixes`, `review.followup` | one review per milestone per track |
 | handoff | `handoff.write({lines[]})`, `handoff.read({track})` | at most about 60 lines; the previous one moves to history |
-| locks | `lock.acquire(name, note)`, `lock.release(name)`, `lock.list` | `landing`, `checks`, `evidence-host`, …; a lock dies with its session |
+| locks | `lock.acquire(name, note)`, `lock.release(name)`, `lock.list` | `landing`, `checks`, `evidence`, …; a lock dies with its session |
 | docs | `docs.read(path)`, `docs.search(query)`, `docs.list` | Markdown and records, read-only; paths are inside `docs/`, RULES.md, CLAUDE.md, README.md |
 | context | `context.pack({level, milestone?, task?})` | §5 |
 | views | `views.claude()`, `views.readme()`, `views.plan(path)` | the generated blocks (§8) |
@@ -148,12 +148,12 @@ One page, routed, served by `tally serve` at `http://127.0.0.1:47560/` (a free p
 | today | becomes |
 | --- | --- |
 | CLAUDE.md "Where the project stands", "Open questions" | a block between `<!-- tally:standing -->` markers, written by `views.claude()` at each landing and close; the rest of CLAUDE.md stays the operator's prose |
-| `docs/README.md`'s status column, each plan's status line, `build-order.md`'s and `architecture.md`'s status paragraphs | `plans.json` and the ledger; the Markdown keeps a one-line pointer to the Docs page and the record |
+| `docs/README.md`'s status column, each plan's status line, the build order's and the architecture plan's status paragraphs | `plans.json` and the ledger; the Markdown keeps a one-line pointer to the Docs page and the record |
 | `code-checks.md` | `checks.json`, rendered on the Checks page and by `tally checks render` for anyone who wants the Markdown |
 | the build logs' sections | `buildlog.json` entries, rendered on demand |
 | the decisions' status column | `decision.setStatus` at the commit that builds it; rendered |
 | the evidence bundle copied into `reports/` | `reports/<date>/<name>.json` citing record ids; `evidence.bundle` copies only the logs the report cites |
-| `track-rules.md` and the standing orders | the harness's rules (§9) and the config; what is Example's stays in RULES.md and parallel-build |
+| `track-rules.md` and the standing orders | the harness's rules (§9) and the config; what is the tracked repository's stays in its RULES.md and its parallel-build plan |
 
 ## 9. The harness's rules (its RULES.md, in brief)
 
@@ -198,7 +198,7 @@ These change what a record means, where it is stored for good, or a rule of the 
 
 | # | decision | recommended |
 | --- | --- | --- |
-| 1 | **Where the records live.** (a) `docs/records/` on `main`, committed by the harness at each landing; (b) a separate branch or the existing `first-repository-records/` repository; (c) in `.temp/` with snapshots into `docs/` at each close. | **(a)**: tracked by git in the docs folder as asked; no rebase conflict, since tracks never edit the files; the cost is one `records:` docs-only commit per landing on `main` |
+| 1 | **Where the records live.** (a) `docs/records/` on `main`, committed by the harness at each landing; (b) a separate branch or an existing records-archive repository; (c) in `.temp/` with snapshots into `docs/` at each close. | **(a)**: tracked by git in the docs folder as asked; no rebase conflict, since tracks never edit the files; the cost is one `records:` docs-only commit per landing on `main` |
 | 2 | **Records commits on `main`.** Rule 16 says one commit per task; a `records:` commit is no task's. | allow them as the ledger's own, recorded in `other[]`, docs-only, the operator's identity; amend rule 16 and "The progress ledger" |
 | 3 | **Which Markdown becomes records.** Decisions, questions, build logs, `code-checks.md`, status lines, report indexes: yes. Plans, references, manuals, RULES.md, CLAUDE.md, READMEs: stay prose. | as listed; build logs imported as blobs first |
 | 4 | **Generated blocks in CLAUDE.md and `docs/README.md`.** | yes, between markers, written by the harness only |
