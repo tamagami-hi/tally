@@ -4,7 +4,7 @@ import { unrecorded } from "../ledger/check.ts";
 import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import { openQuestions } from "./questions.ts";
-import { summarize, type MilestoneRow } from "./summary.ts";
+import { summarize, type MilestoneRow, type OnMain } from "./summary.ts";
 import { branches, type TrackRow } from "./tracks.ts";
 
 export interface StatusData {
@@ -29,14 +29,17 @@ function stamp(now: Date): string {
   return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}:${two(now.getMinutes())}`;
 }
 
+export function onMainOf(repo: Repo): OnMain {
+  return async (commit) => {
+    const full = await verifyCommit(repo.root, commit);
+    return full !== null && (await isAncestor(repo.root, full, repo.config.mainBranch));
+  };
+}
+
 export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Promise<StatusData> {
   const { root, config } = repo;
   const main = config.mainBranch;
-  const onMain = async (commit: string): Promise<boolean> => {
-    const full = await verifyCommit(root, commit);
-    return full !== null && (await isAncestor(root, full, main));
-  };
-  const summary = await summarize(ledger, config.stages, onMain);
+  const summary = await summarize(ledger, config.stages, onMainOf(repo));
   const missing = unrecorded(ledger, await logLines(root, `${ledger.baseline}..${main}`), config.records.commitPrefix);
   const problems = [...summary.problems];
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);

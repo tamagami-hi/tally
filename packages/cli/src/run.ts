@@ -15,6 +15,7 @@ import { serveCommand } from "./commands/serve.ts";
 import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
 import { taskCommand } from "./commands/task.ts";
+import { viewsCommand } from "./commands/views.ts";
 import type { IO } from "./io.ts";
 
 export const USAGE = `tally: the tracking harness
@@ -36,6 +37,7 @@ export const USAGE = `tally: the tracking harness
   tally task   other <commit> <note>
   tally ledger check                                             commits on main the ledger misses
   tally status [--markdown | --json] [--no-color]
+  tally views  claude [--check]                                  write the standing block between CLAUDE.md's tally:standing markers
   tally land   <track> [--message FILE] [--verified-code SHA] [files...]
   tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR]   the live board, the API and /mcp
   tally mcp                                                      the MCP server on stdio
@@ -88,6 +90,8 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await plansCommand(repo, args, io);
       case "report":
         return await reportCommand(repo, args, io);
+      case "views":
+        return await viewsCommand(repo, args, io);
       default:
         throw new TallyError(`tally: unknown command '${command}'\n\n${USAGE}`, 2);
     }

@@ -64,3 +64,6 @@ export { plansFileSchema, readPlans, scanPlans } from "./records/plans.ts";
 export type { Plan, PlansFile } from "./records/plans.ts";
 export { readReportManifest, reportManifestSchema, writeReportManifest } from "./records/reports.ts";
 export type { ReportInput, ReportManifest } from "./records/reports.ts";
+export { STANDING_END, STANDING_START, replaceStanding, standingBlock, standingNow, writeClaudeView } from "./views/claude.ts";
+export type { StandingInput } from "./views/claude.ts";
+export { onMainOf } from "./status/collect.ts";

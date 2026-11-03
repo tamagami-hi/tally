@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { addQuestion, contextPack, getSession, listDocs, readDoc, readQuestions, searchDocs, type Repo } from "@tally/core";
+import { TallyError, addQuestion, contextPack, getSession, isOperator, listDocs, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView, type Repo } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 
 export function registerDocTools(server: McpServer, repo: Repo): void {
@@ -34,6 +34,17 @@ export function registerDocTools(server: McpServer, repo: Repo): void {
     "question_list",
     { description: "The open question rows, the next row number, and how many were answered.", inputSchema: {} },
     () => attempt(async () => ok((await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] })),
+  );
+  server.registerTool(
+    "views_claude",
+    { description: "The standing block CLAUDE.md carries between its tally:standing markers, computed from the records now; with write (operator session only) it is written into the repository's CLAUDE.md.", inputSchema: { sessionId: z.string(), write: z.boolean().default(false) } },
+    ({ sessionId, write }) => attempt(async () => {
+      const session = await getSession(repo, sessionId);
+      if (write && !isOperator(repo, session)) throw new TallyError("only an operator session writes CLAUDE.md");
+      const block = await standingNow(repo);
+      const result = write ? await writeClaudeView(repo) : await writeClaudeView(repo, { check: true });
+      return ok({ ...result, block }, block);
+    }),
   );
   server.registerTool(
     "context_pack",

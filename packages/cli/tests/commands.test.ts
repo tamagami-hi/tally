@@ -195,3 +195,26 @@ describe("evidence, plans and reports through the command line", () => {
     expect(await run(["plans", "frob"], console)).toBe(2);
   });
 });
+
+describe("the CLAUDE view through the command line", () => {
+  test("writes the standing block between the markers, says when it is current, and check exits 1 when stale", async () => {
+    const repo = await fresh();
+    await run(["init", "--name", "Tally"], io(repo.root));
+    await sh(repo.root, ["add", "-A"]);
+    await sh(repo.root, ["commit", "-q", "-m", "records: init"]);
+    const console = io(repo.root);
+    expect(await run(["views", "claude"], console)).toBe(1);
+    expect(console.errors[0]).toMatch(/CLAUDE.md does not exist/);
+    await writeFile(join(repo.root, "CLAUDE.md"), "# C\n\nprose\n\n<!-- tally:standing -->\nold\n<!-- /tally:standing -->\n\n## Next\n");
+    expect(await run(["views", "claude", "--check"], console)).toBe(1);
+    expect(console.lines.at(-1)).toMatch(/standing block is stale/);
+    expect(await run(["views", "claude"], console)).toBe(0);
+    expect(console.lines.at(-1)).toMatch(/standing block written$/);
+    const text = await readFile(join(repo.root, "CLAUDE.md"), "utf8");
+    expect(text.startsWith("# C\n\nprose\n\n<!-- tally:standing -->\n**Where the ledger stands**")).toBe(true);
+    expect(text.endsWith("<!-- /tally:standing -->\n\n## Next\n")).toBe(true);
+    expect(await run(["views", "claude", "--check"], console)).toBe(0);
+    expect(console.lines.at(-1)).toMatch(/standing block is current/);
+    expect(await run(["views", "frob"], console)).toBe(2);
+  });
+});
