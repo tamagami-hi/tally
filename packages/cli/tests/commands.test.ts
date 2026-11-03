@@ -154,3 +154,44 @@ describe("checks and build logs through the command line", () => {
     expect(await run(["buildlog", "frob"], log)).toBe(2);
   });
 });
+
+describe("evidence, plans and reports through the command line", () => {
+  test("import evidence indexes a folder for a planned task, import plans scans docs, and report manifest cites them", async () => {
+    const repo = await fresh();
+    await run(["init", "--name", "Tally"], io(repo.root));
+    await sh(repo.root, ["add", "-A"]);
+    await sh(repo.root, ["commit", "-q", "-m", "records: init"]);
+    const console = io(repo.root);
+    expect(await run(["milestone", "add", "P9", "--stage", "A", "--name", "x", "--track", "main", "--weight", "1"], console)).toBe(1);
+    await writeFile(join(repo.root, "c.json"), JSON.stringify({ schema: 1, name: "T", tracks: [], stages: [{ id: "B", name: "b", weight: 1 }], commands: { test: ["true"] }, fingerprint: { paths: ["src"] }, identity: { name: "o", email: "o@example.com" }, records: { commit: false } }));
+    await sh(repo.root, ["rm", "-rq", "docs/records"]);
+    await sh(repo.root, ["commit", "-q", "-m", "chore: again"]);
+    expect(await run(["init", "--config", "c.json"], console)).toBe(0);
+    expect(await run(["milestone", "add", "P9", "--stage", "B", "--name", "x", "--track", "main", "--weight", "1"], console)).toBe(0);
+    expect(await run(["task", "plan", "P9", "--track", "main", "t1", "P9 close"], console)).toBe(0);
+    await mkdir(join(repo.root, ".temp", "main", "t1"), { recursive: true });
+    await writeFile(join(repo.root, ".temp", "main", "t1", "red.json"), JSON.stringify({ command: ["cargo", "test"], cwd: repo.root, started: 1793712038, seconds: 1.5, exit: 101 }));
+    await writeFile(join(repo.root, ".temp", "main", "t1", "red.log"), "0 passed; 2 failed; 0 ignored\n");
+    expect(await run(["import", "evidence", ".temp/main/t1"], console)).toBe(2);
+    expect(await run(["import", "evidence", ".temp/main/t1", "--milestone", "P9", "--task", "t1", "--kind", "bogus"], console)).toBe(2);
+    expect(await run(["import", "evidence", ".temp/main/t1", "--milestone", "P9", "--task", "t1"], console)).toBe(0);
+    expect(console.lines.at(-1)).toMatch(/^indexed 1 run records \(1 with logs\) of P9 't1' from .*t1; 0 already indexed, 0 json files not run records$/);
+    await mkdir(join(repo.root, "docs", "engine", "next"), { recursive: true });
+    await writeFile(join(repo.root, "docs", "engine", "next", "sim.md"), "# The simulator\n\n**Status: planned.**\n");
+    expect(await run(["plans", "list"], console)).toBe(0);
+    expect(console.lines.at(-1)).toBe("no plans recorded yet; run tally import plans");
+    expect(await run(["import", "plans"], console)).toBe(0);
+    expect(console.lines.at(-1)).toBe("scanned the plans: 1 in next/, 0 in completed/");
+    expect(await run(["plans", "list"], console)).toBe(0);
+    expect(console.lines.at(-1)).toBe("next      engine       docs/engine/next/sim.md  The simulator");
+    await mkdir(join(repo.root, "docs", "engine", "reports", "2026-11-04", "r"), { recursive: true });
+    await writeFile(join(repo.root, "docs", "engine", "reports", "2026-11-04", "r.md"), "# r\n");
+    await writeFile(join(repo.root, "docs", "engine", "reports", "2026-11-04", "r", "a.log"), "a\n");
+    expect(await run(["report", "manifest", "2026-11-04", "r", "--group", "engine", "--narrative", "docs/engine/reports/2026-11-04/r.md", "--bundle", "docs/engine/reports/2026-11-04/r", "--evidence", "P9:t1", "--decision", "SIM-6", "--question", "36"], console)).toBe(0);
+    expect(console.lines.at(-1)).toMatch(/r\.json: cites 1 evidence records, 1 decisions, 1 questions; 1 bundled files hashed$/);
+    expect(await run(["report", "manifest", "2026-11-04", "r", "--group", "engine", "--narrative", "x.md", "--question", "soon"], console)).toBe(2);
+    expect(await run(["report", "manifest", "2026-11-04", "r"], console)).toBe(2);
+    expect(await run(["report", "frob"], console)).toBe(2);
+    expect(await run(["plans", "frob"], console)).toBe(2);
+  });
+});

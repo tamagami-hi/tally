@@ -8,7 +8,9 @@ import { initCommand } from "./commands/init.ts";
 import { landCommand } from "./commands/land.ts";
 import { ledgerCommand } from "./commands/ledger.ts";
 import { mcpCommand } from "./commands/mcp.ts";
+import { plansCommand } from "./commands/plans.ts";
 import { questionCommand } from "./commands/question.ts";
+import { reportCommand } from "./commands/report.ts";
 import { serveCommand } from "./commands/serve.ts";
 import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
@@ -21,6 +23,9 @@ export const USAGE = `tally: the tracking harness
   tally import board PATH [--force]                              bring a board.json into the ledger
   tally import decisions|questions PATH --group G                bring a markdown table into the records
   tally import checks PATH | buildlog PATH --group G             bring code-checks.md or a build-log.md into the records
+  tally import evidence DIR --milestone M --task T [--kind K] [--flat]   index a folder of run records (*.json + *.log), logs left in place
+  tally import plans | tally plans list                          the plans under docs/*/next and docs/*/completed
+  tally report manifest DATE NAME --group G --narrative P [--bundle DIR] [--fingerprint F] [--evidence M[:T]]... [--decision ID]... [--question N]...
   tally checks get | render | fingerprint | set --file F         the code-check record; fingerprint exits 1 when stale
   tally buildlog render --group G | append --group G --milestone M --title T --date D --file BODY [--commit C]...
   tally question add --group G <question> <meanwhile> | answer <row> <decision> | list
@@ -79,6 +84,10 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await checksCommand(repo, args, io);
       case "buildlog":
         return await buildlogCommand(repo, args, io);
+      case "plans":
+        return await plansCommand(repo, args, io);
+      case "report":
+        return await reportCommand(repo, args, io);
       default:
         throw new TallyError(`tally: unknown command '${command}'\n\n${USAGE}`, 2);
     }

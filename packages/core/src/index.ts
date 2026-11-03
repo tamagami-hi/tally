@@ -58,3 +58,9 @@ export { checksFileSchema, checksFingerprint, fingerprintAtMain, importChecks, p
 export type { ChecksFile, ChecksModule } from "./records/checks.ts";
 export { appendBuildlog, buildlogFileSchema, importBuildlog, parseBuildlog, readBuildlog, renderBuildlog } from "./records/buildlog.ts";
 export type { AppendInput, BuildlogEntry, BuildlogFile } from "./records/buildlog.ts";
+export { importEvidence, kindOf, walkJson } from "./records/import-evidence.ts";
+export type { ImportOptions, Imported } from "./records/import-evidence.ts";
+export { plansFileSchema, readPlans, scanPlans } from "./records/plans.ts";
+export type { Plan, PlansFile } from "./records/plans.ts";
+export { readReportManifest, reportManifestSchema, writeReportManifest } from "./records/reports.ts";
+export type { ReportInput, ReportManifest } from "./records/reports.ts";

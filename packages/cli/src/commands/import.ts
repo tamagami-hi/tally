@@ -1,12 +1,30 @@
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { CONFIG_FILE, RECORDS_DIR, Records, TallyError, commitRecords, configSchema, fromBoard, importBuildlog, importChecks, importDecisions, importQuestions, writeJsonAtomic, type Repo } from "@tally/core";
+import { CONFIG_FILE, RECORDS_DIR, Records, TallyError, commitRecords, configSchema, fromBoard, evidenceKinds, importBuildlog, importChecks, importDecisions, importEvidence, importQuestions, scanPlans, writeJsonAtomic, type EvidenceKind, type Repo } from "@tally/core";
 import { flag, need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
 
 export async function importCommand(repo: Repo, argv: readonly string[], io: IO): Promise<number> {
-  const parsed = parse(argv, { force: { type: "boolean" }, group: { type: "string" } });
-  const kind = need(parsed, 0, "what to import (board, decisions, questions, checks, buildlog)");
+  const parsed = parse(argv, { force: { type: "boolean" }, group: { type: "string" }, milestone: { type: "string" }, task: { type: "string" }, kind: { type: "string" }, flat: { type: "boolean" } });
+  const kind = need(parsed, 0, "what to import (board, decisions, questions, checks, buildlog, evidence, plans)");
+  if (kind === "evidence") {
+    const milestone = text(parsed, "milestone");
+    const task = text(parsed, "task");
+    if (milestone === undefined || task === undefined) throw new TallyError("tally import evidence needs --milestone and --task", 2);
+    const given = text(parsed, "kind");
+    if (given !== undefined && !(evidenceKinds as readonly string[]).includes(given)) throw new TallyError(`--kind must be one of ${evidenceKinds.join(", ")}`, 2);
+    const dir = resolve(io.cwd, need(parsed, 1, "the folder of run records"));
+    const done = await importEvidence(repo, dir, { milestone, task, flat: flag(parsed, "flat"), ...(given === undefined ? {} : { kind: given as EvidenceKind }) });
+    io.out(`indexed ${done.indexed} run records (${done.withLogs} with logs) of ${milestone} '${task}' from ${dir}; ${done.skipped} already indexed, ${done.ignored} json files not run records`);
+    if (done.commit !== null) io.out(`records: ${done.commit}`);
+    return 0;
+  }
+  if (kind === "plans") {
+    const done = await scanPlans(repo);
+    io.out(`scanned the plans: ${done.next} in next/, ${done.completed} in completed/`);
+    if (done.commit !== null) io.out(`records: ${done.commit}`);
+    return 0;
+  }
   if (kind === "checks") {
     const file = resolve(io.cwd, need(parsed, 1, "the code-checks markdown file"));
     const done = await importChecks(repo, file);
@@ -38,7 +56,7 @@ export async function importCommand(repo: Repo, argv: readonly string[], io: IO)
     }
     return 0;
   }
-  if (kind !== "board") throw new TallyError(`tally import: unknown source '${kind}'; use board, decisions, questions, checks or buildlog`, 2);
+  if (kind !== "board") throw new TallyError(`tally import: unknown source '${kind}'; use board, decisions, questions, checks, buildlog, evidence or plans`, 2);
   const path = resolve(io.cwd, need(parsed, 1, "the board.json path"));
   const board = JSON.parse(await readFile(path, "utf8")) as unknown;
   const names = Object.fromEntries(repo.config.stages.map((stage) => [stage.id, stage.name]));
