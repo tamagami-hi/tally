@@ -37,6 +37,23 @@ describe("committing the records", () => {
     expect(await sh(git.root, ["status", "--porcelain"])).toBe("?? stray.txt");
   });
 
+  test("waits for the landing lock, so a landing in flight never sees main move under it", async () => {
+    const git = await makeRepo();
+    await initRecords(git.root, config(true), (await git.head()).slice(0, 7));
+    const repo = await openRepo(git.root);
+    await new Records(repo).update((ledger) => ({ ledger: { ...ledger, other: [{ commit: "abc1234", note: "x" }] }, message: "x" }));
+    const order: string[] = [];
+    const { withLock } = await import("../../src/store/lock.ts");
+    const { statePath } = await import("../../src/land/paths.ts");
+    const held = withLock(statePath(repo, "locks", "landing.lock"), async () => {
+      await new Promise((done) => setTimeout(done, 300));
+      order.push("released");
+    });
+    const committed = commitRecords(repo, "x").then((sha) => order.push(sha === null ? "nothing" : "committed"));
+    await Promise.all([held, committed]);
+    expect(order).toEqual(["released", "committed"]);
+  });
+
   test("does nothing when the config turns records commits off", async () => {
     const git = await makeRepo();
     await initRecords(git.root, config(false), (await git.head()).slice(0, 7));

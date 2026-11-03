@@ -1,13 +1,17 @@
 import { git, gitMust } from "../git/run.ts";
+import { statePath } from "../land/paths.ts";
+import { withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 
 export async function commitRecords(repo: Repo, message: string): Promise<string | null> {
   const { config, root } = repo;
   if (!config.records.commit) return null;
-  await gitMust(root, ["add", "--", config.records.dir]);
-  const staged = await git(root, ["diff", "--cached", "--quiet", "--", config.records.dir]);
-  if (staged.code === 0) return null;
-  const identity = ["-c", `user.name=${config.identity.name}`, "-c", `user.email=${config.identity.email}`];
-  await gitMust(root, [...identity, "commit", "-q", "-m", `${config.records.commitPrefix} ${message}`, "--", config.records.dir]);
-  return gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
+  return withLock(statePath(repo, "locks", "landing.lock"), async () => {
+    await gitMust(root, ["add", "--", config.records.dir]);
+    const staged = await git(root, ["diff", "--cached", "--quiet", "--", config.records.dir]);
+    if (staged.code === 0) return null;
+    const identity = ["-c", `user.name=${config.identity.name}`, "-c", `user.email=${config.identity.email}`];
+    await gitMust(root, [...identity, "commit", "-q", "-m", `${config.records.commitPrefix} ${message}`, "--", config.records.dir]);
+    return gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
+  });
 }
