@@ -114,7 +114,8 @@
         {
           "id": "MCP server and session scope",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "56ca322",
           "also": []
         },
         {
