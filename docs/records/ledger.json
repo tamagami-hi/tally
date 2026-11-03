@@ -264,6 +264,10 @@
     {
       "commit": "c5dbc28",
       "note": "feat(core): Phase 3 core, ahead of the MCP surface"
+    },
+    {
+      "commit": "ae58c92",
+      "note": "fix(records,server): git add retry; watcher failures"
     }
   ]
 }
