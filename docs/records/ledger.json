@@ -33,6 +33,14 @@
       "track": "main",
       "weight": 20,
       "tasks": []
+    },
+    {
+      "id": "P5",
+      "stage": "B",
+      "name": "its own repository",
+      "track": "main",
+      "weight": 20,
+      "tasks": []
     }
   ],
   "other": []
