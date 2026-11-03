@@ -99,7 +99,8 @@
           "id": "P2 close",
           "track": "main",
           "status": "planned",
-          "also": []
+          "also": [],
+          "waits": "web: evidence viewer"
         }
       ]
     },
