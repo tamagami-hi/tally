@@ -2,7 +2,7 @@
 
 The tracking harness for parallel agent builds: a ledger of milestones and tasks that is counted from git, a landing protocol for worktree tracks, a status view, and (from Phase 2) a live board and an MCP server. [DESIGN.md](DESIGN.md) is the architecture and the plan; this page is how to run what exists.
 
-**Phase 1 is built:** `@tally/core` and the `tally` command line reach parity with the scripts they replace (`ledger.py`, `status.py`, `land.py` of Example's `.temp/`). Nothing is served yet.
+**Phase 1 is built, and Example is cut over** (2026-11-03): `@tally/core` and the `tally` command line reach parity with the scripts they replace (`ledger.py`, `status.py`, `land.py` of Example's `.temp/`), its ledger lives in `docs/records/` on `main` (`records: import the progress ledger`), and `scripts/wrappers/` are the drop-in scripts that hand the old command lines to tally (`scripts/cutover_first_repository.py` installed them under the tracks' locks). Nothing is served yet.
 
 ## Run
 
