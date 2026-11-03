@@ -252,6 +252,10 @@
     {
       "commit": "6a115a6",
       "note": "feat(web): redesign in the old page's language"
+    },
+    {
+      "commit": "c5dbc28",
+      "note": "feat(core): Phase 3 core, ahead of the MCP surface"
     }
   ]
 }
