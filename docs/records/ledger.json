@@ -232,6 +232,10 @@
     {
       "commit": "736052c",
       "note": "chore: generic examples and scripts"
+    },
+    {
+      "commit": "5060074",
+      "note": "docs: generic public design"
     }
   ]
 }
