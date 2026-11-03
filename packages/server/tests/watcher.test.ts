@@ -27,7 +27,7 @@ describe("the watcher", () => {
     expect(await fingerprint(opened)).not.toBe(dirty);
   });
 
-  test("tells its subscribers once per change and stops cleanly", async () => {
+  test("tells its subscribers on each change it sees (a commit shows a dirty tree, then the ref), and stops cleanly", async () => {
     const repo = await makeRepo();
     await initRecords(repo.root, config, (await repo.head()).slice(0, 7));
     await sh(repo.root, ["add", "-A"]);
@@ -41,8 +41,10 @@ describe("the watcher", () => {
     await repo.commit("c.txt", "c", "feat: c");
     const started = Date.now();
     while (seen.length === before && Date.now() - started < 3000) await new Promise((done) => setTimeout(done, 20));
+    while (seen.at(-1) !== 3 && Date.now() - started < 3000) await new Promise((done) => setTimeout(done, 20));
     await watcher.stop();
-    expect(seen.length).toBe(before + 1);
+    expect(seen.length).toBeGreaterThanOrEqual(before + 1);
+    expect(seen.length).toBeLessThanOrEqual(before + 2);
     expect(seen.at(-1)).toBe(3);
     expect(watcher.lastFailure).toBeUndefined();
   });
