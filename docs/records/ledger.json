@@ -91,9 +91,9 @@
         {
           "id": "web: evidence viewer",
           "track": "main",
-          "status": "planned",
-          "also": [],
-          "waits": "evidence records (P4)"
+          "status": "landed",
+          "commit": "18ba5b3",
+          "also": []
         },
         {
           "id": "P2 close",
