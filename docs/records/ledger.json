@@ -151,7 +151,38 @@
       "name": "the records",
       "track": "main",
       "weight": 20,
-      "tasks": []
+      "tasks": [
+        {
+          "id": "import decisions and questions",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "import checks and build logs",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "evidence index and report manifests",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "generated CLAUDE block",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "P4 close",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        }
+      ]
     },
     {
       "id": "P5",
