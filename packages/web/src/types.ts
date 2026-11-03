@@ -98,6 +98,26 @@ export interface LiveState {
   locks: LiveLock[];
 }
 
+export interface EvidenceRecord {
+  id: string;
+  task: string;
+  track: string;
+  agent: string;
+  kind: string;
+  command: string[];
+  cwd: string;
+  started: string;
+  seconds: number;
+  exit: number;
+  log?: { path: string; sha256: string; bytes: number };
+  summary?: Record<string, number | string | boolean>;
+  note?: string;
+}
+
+export interface EvidenceIndex {
+  milestones: { milestone: string; records: EvidenceRecord[] }[];
+}
+
 export interface Snapshot {
   status: StatusData;
   graph: LaidCommit[];

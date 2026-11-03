@@ -4,11 +4,12 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, test } from "vitest";
 import { Shell, type ShellProps } from "../src/Shell.tsx";
 import { snapshot } from "./fixture.ts";
+import { index } from "./Evidence.test.tsx";
 
 afterEach(cleanup);
 
 function draw(overrides: Partial<ShellProps> = {}) {
-  const props: ShellProps = { snapshot, error: null, live: "connected", layout: "landscape", scheme: "light", onToggleScheme: () => undefined, onRetry: () => undefined, ...overrides };
+  const props: ShellProps = { snapshot, error: null, live: "connected", layout: "landscape", scheme: "light", evidence: { milestones: [] }, onToggleScheme: () => undefined, onRetry: () => undefined, ...overrides };
   return render(<Shell {...props} />);
 }
 
@@ -51,6 +52,16 @@ describe("the shell in landscape", () => {
     expect(screen.getByText("not pushed · 2")).toBeInTheDocument();
   });
 
+  test("switches the main column between the board and the evidence", () => {
+    draw({ evidence: index });
+    expect(screen.getByLabelText("Board")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Evidence" }));
+    expect(screen.queryByLabelText("Board")).toBeNull();
+    expect(screen.getByText("data review fixes D1-D3")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Board" }));
+    expect(screen.getByLabelText("Board")).toBeInTheDocument();
+  });
+
   test("shows the ledger's problems as an alert", () => {
     draw({ snapshot: { ...snapshot, status: { ...snapshot.status, problems: ["commits on main not in the ledger: abc1234 x"] } } });
     expect(screen.getByRole("alert")).toHaveTextContent("Ledger needs attention");
@@ -70,6 +81,10 @@ describe("the shell in portrait", () => {
     expect(screen.getByRole("radio", { name: "Graph" })).toHaveAttribute("aria-checked", "true");
     fireEvent.click(screen.getByRole("radio", { name: "Evidence" }));
     expect(screen.getByText(/No evidence records yet/)).toBeInTheDocument();
+    cleanup();
+    draw({ layout: "portrait", evidence: index });
+    fireEvent.click(screen.getByRole("radio", { name: "Evidence" }));
+    expect(screen.getByText("data review fixes D1-D3")).toBeInTheDocument();
   });
 });
 

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { Records, initRecords, openRepo, type Config } from "@tally/core";
+import { Records, initRecords, openRepo, writeJsonAtomic, type Config } from "@tally/core";
 import { createApp } from "../src/app.ts";
 import { Watcher } from "../src/watcher.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
@@ -54,6 +54,27 @@ describe("the HTTP API", () => {
     const redacted = await (await app.request("/api/config")).json() as { commands: { env: Record<string, string> } };
     expect(redacted.commands.env).toEqual({ SECRET_URL: "(set)" });
     expect((await app.request("/api/nothing")).status).toBe(404);
+  });
+
+  test("lists the evidence records per milestone and serves a log in place, saying whether it still matches its hash", async () => {
+    const { app, repo, root } = await fixture();
+    expect(await (await app.request("/api/evidence")).json()).toEqual({ milestones: [] });
+    await mkdir(join(root, ".temp", "logs"), { recursive: true });
+    await writeFile(join(root, ".temp", "logs", "red.log"), "0 passed; 3 failed\n");
+    const log = { path: join(root, ".temp", "logs", "red.log"), sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", bytes: 19 };
+    const record = { id: "a".repeat(32), task: "t2", track: "data", agent: "a", kind: "red", command: ["cargo", "test"], cwd: root, started: "2026-11-04T00:00:00.000Z", seconds: 1, exit: 101, log };
+    const gone = { ...record, id: "b".repeat(32), log: { ...log, path: join(root, ".temp", "logs", "gone.log") } };
+    await writeJsonAtomic(join(repo.recordsDir, "evidence", "A1.json"), { schema: 1, milestone: "A1", records: [record, gone, { ...record, id: "c".repeat(32), log: undefined }] });
+    const index = await (await app.request("/api/evidence")).json() as { milestones: { milestone: string; records: unknown[] }[] };
+    expect(index.milestones.map((m) => [m.milestone, m.records.length])).toEqual([["A1", 3]]);
+    expect(((await (await app.request("/api/evidence/A1")).json()) as { records: unknown[] }).records).toHaveLength(3);
+    const served = await app.request(`/api/evidence/log/${"a".repeat(32)}`);
+    expect(served.status).toBe(200);
+    expect(served.headers.get("x-tally-log")).toBe("changed");
+    expect(await served.text()).toBe("0 passed; 3 failed\n");
+    expect((await app.request(`/api/evidence/log/${"b".repeat(32)}`)).status).toBe(410);
+    expect((await app.request(`/api/evidence/log/${"c".repeat(32)}`)).status).toBe(404);
+    expect((await app.request("/api/evidence/log/nope")).status).toBe(404);
   });
 
   test("serves the web page at the root and for client routes", async () => {

@@ -1,7 +1,7 @@
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { initRecords, openRepo, type Config } from "@tally/core";
+import { initRecords, openRepo, writeJsonAtomic, type Config } from "@tally/core";
 import { Watcher, fingerprint } from "../src/watcher.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
 
@@ -24,7 +24,10 @@ describe("the watcher", () => {
     const dirty = await fingerprint(opened);
     expect(dirty).not.toBe(first);
     await repo.commit("new.txt", "x", "feat: new");
-    expect(await fingerprint(opened)).not.toBe(dirty);
+    const committed = await fingerprint(opened);
+    expect(committed).not.toBe(dirty);
+    await writeJsonAtomic(join(opened.recordsDir, "evidence", "A1.json"), { schema: 1, milestone: "A1", records: [] });
+    expect(await fingerprint(opened)).not.toBe(committed);
   });
 
   test("tells its subscribers on each change it sees (a commit shows a dirty tree, then the ref), and stops cleanly", async () => {

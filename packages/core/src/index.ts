@@ -39,8 +39,8 @@ export { acquireLock, listLocks, releaseLock, releaseLocksOf } from "./state/loc
 export type { HeldLock } from "./state/locks.ts";
 export { MAX_HANDOFF_LINES, readHandoff, safeName, writeHandoff } from "./records/handoffs.ts";
 export type { Handoff, HandoffInput, HandoffNote } from "./records/handoffs.ts";
-export { evidenceKinds, listEvidence, readEvidence, recordEvidence } from "./records/evidence.ts";
-export type { EvidenceInput, EvidenceKind, RunRecord } from "./records/evidence.ts";
+export { evidenceFiles, evidenceKinds, findEvidence, listEvidence, readAllEvidence, readEvidence, recordEvidence } from "./records/evidence.ts";
+export type { EvidenceInput, EvidenceKind, MilestoneEvidence, RunRecord } from "./records/evidence.ts";
 export { runEvidence, summarize as summarizeRun } from "./records/run.ts";
 export type { RunInput } from "./records/run.ts";
 export { contextPack } from "./context/pack.ts";

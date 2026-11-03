@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { Records, type Config, type Repo } from "@tally/core";
+import { Records, findEvidence, readAllEvidence, readEvidence, type Config, type Repo } from "@tally/core";
 import { mcpHandler } from "@tally/mcp";
 import type { Watcher } from "./watcher.ts";
 
@@ -43,6 +44,16 @@ export function createApp({ repo, watcher, webDir }: AppOptions): Hono {
   app.get("/api/graph", async (c) => c.json((await watcher.current()).graph));
   app.get("/api/ledger", async (c) => c.json(await new Records(repo).readLedger()));
   app.get("/api/config", (c) => c.json(redactedConfig(repo.config)));
+  app.get("/api/evidence", async (c) => c.json({ milestones: await readAllEvidence(repo) }));
+  app.get("/api/evidence/log/:id", async (c) => {
+    const found = await findEvidence(repo, c.req.param("id"));
+    if (found === null || found.record.log === undefined) return c.json({ error: "no log for that record" }, 404);
+    const body = await file(found.record.log.path);
+    if (body === null) return c.json({ error: `the log is gone: ${found.record.log.path}` }, 410);
+    const hash = createHash("sha256").update(body).digest("hex");
+    return c.body(new Uint8Array(body), 200, { "content-type": "text/plain; charset=utf-8", "x-tally-log": hash === found.record.log.sha256 ? "unchanged" : "changed" });
+  });
+  app.get("/api/evidence/:milestone", async (c) => c.json(await readEvidence(repo, c.req.param("milestone"))));
   app.get("/api/*", (c) => c.json({ error: "not found" }, 404));
   const mcp = mcpHandler(repo);
   app.all("/mcp", (c) => mcp(c.req.raw));

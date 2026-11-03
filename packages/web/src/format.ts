@@ -25,3 +25,27 @@ export function sinceText(iso: string, now = Date.now()): string {
 }
 
 export const statusClass = (mark: string): string => (mark === "M" ? "m" : mark === "A" ? "a" : mark === "D" ? "d" : "u");
+
+const KIND_TONES: Record<string, string> = { red: "warn", green: "done", land: "accent", clippy: "idle", fmt: "idle", coverage: "idle", sweep: "idle", evidence: "idle" };
+
+export const kindTone = (kind: string): string => KIND_TONES[kind] ?? "line";
+
+export function secondsText(seconds: number): string {
+  if (seconds < 60) return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)} s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ${Math.round(seconds - minutes * 60)} s`;
+}
+
+export function summaryText(summary: Record<string, number | string | boolean>): string {
+  const counts = ["passed", "failed", "ignored"].filter((key) => typeof summary[key] === "number").map((key) => `${summary[key]} ${key}`);
+  const rest = Object.entries(summary).filter(([key, value]) => !["passed", "failed", "ignored"].includes(key) && typeof value !== "number").map(([key, value]) => `${key} ${String(value).slice(0, 7)}`);
+  return [...counts, ...rest].join(" · ");
+}
+
+export function countsText(records: readonly { kind: string }[]): string {
+  const counts = new Map<string, number>();
+  for (const record of records) counts.set(record.kind, (counts.get(record.kind) ?? 0) + 1);
+  return [...counts].map(([kind, count]) => `${count} ${kind}`).join(" · ");
+}
+
+export const bytesText = (bytes: number): string => `${bytes.toLocaleString("en-US")} bytes`;

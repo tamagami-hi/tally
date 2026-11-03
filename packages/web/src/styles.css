@@ -178,6 +178,26 @@ h1, h2, h3, p { margin: 0; }
 .empty { border: 1px dashed var(--line); border-radius: var(--radius); padding: 22px; color: var(--muted); display: flex; gap: 12px; align-items: flex-start; margin-top: 8px; }
 .empty svg { flex: none; margin-top: 2px; }
 .empty b { color: var(--ink); }
+.panel-head .muted { display: inline-flex; align-items: center; gap: 10px; }
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 99px; padding: 2px; gap: 2px; }
+.segmented button { padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.segmented button[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); }
+.evidence-skeleton { height: 160px; margin-top: 8px; }
+.evidence-task { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.evidence-task:last-child { border-bottom: 0; }
+.evidence-task-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.evidence-task-head .label { font-weight: 600; }
+.runs { display: grid; gap: 8px; margin-top: 8px; }
+.run { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); gap: 4px 10px; align-items: center; font-size: 12.5px; padding: 8px 10px; border-radius: 10px; background: var(--hover); }
+.run.warn { box-shadow: inset 3px 0 0 var(--warn); }
+.run.done { box-shadow: inset 3px 0 0 var(--done); }
+.run .cmd { grid-column: 1 / -1; color: var(--muted); }
+.run .meta { grid-column: 1 / -1; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; color: var(--muted); }
+.log summary { cursor: pointer; list-style: none; }
+.log summary::-webkit-details-marker { display: none; }
+.log summary .mono { color: var(--accent); text-decoration: underline dotted; }
+.log pre { margin: 6px 0 0; padding: 10px; background: var(--track); border-radius: 10px; font: 11.5px/1.45 var(--mono); max-height: 320px; overflow: auto; white-space: pre-wrap; }
+.log-failed { color: var(--warn); margin-top: 4px; }
 
 .shell.portrait { display: flex; flex-direction: column; gap: 14px; min-height: 100dvh; padding: 16px 16px calc(24px + 68px + env(safe-area-inset-bottom)); }
 .shell.portrait .topbar h1 { font-size: 20px; }

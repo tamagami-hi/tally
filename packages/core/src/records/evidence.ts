@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
@@ -109,4 +109,35 @@ export async function recordEvidence(repo: Repo, session: Session, ledger: Ledge
 export async function listEvidence(repo: Repo, milestone: string, task?: string): Promise<RunRecord[]> {
   const file = await readEvidence(repo, milestone);
   return task === undefined ? file.records : file.records.filter((r) => r.task === task);
+}
+
+export interface MilestoneEvidence {
+  milestone: string;
+  records: RunRecord[];
+}
+
+export async function evidenceFiles(repo: Repo): Promise<string[]> {
+  const dir = join(repo.recordsDir, "evidence");
+  try {
+    return (await readdir(dir)).filter((name) => name.endsWith(".json")).sort().map((name) => join(dir, name));
+  } catch {
+    return [];
+  }
+}
+
+export async function readAllEvidence(repo: Repo): Promise<MilestoneEvidence[]> {
+  const all: MilestoneEvidence[] = [];
+  for (const path of await evidenceFiles(repo)) {
+    const file = await readJson(path, evidenceFileSchema);
+    all.push({ milestone: file.milestone, records: file.records });
+  }
+  return all;
+}
+
+export async function findEvidence(repo: Repo, id: string): Promise<{ milestone: string; record: RunRecord } | null> {
+  for (const { milestone, records } of await readAllEvidence(repo)) {
+    const record = records.find((r) => r.id === id);
+    if (record !== undefined) return { milestone, record };
+  }
+  return null;
 }

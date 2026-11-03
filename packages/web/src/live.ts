@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { Layout, Live, Snapshot } from "./types.ts";
+import type { EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
 
 export const SNAPSHOT_KEY = ["snapshot"];
 
@@ -26,6 +26,17 @@ export function useSnapshot(): { snapshot: Snapshot | undefined; error: Error | 
     return () => source.close();
   }, [client]);
   return { snapshot: query.data, error: query.error, live, retry: () => void query.refetch() };
+}
+
+async function fetchEvidence(): Promise<EvidenceIndex> {
+  const response = await fetch("/api/evidence");
+  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  return (await response.json()) as EvidenceIndex;
+}
+
+export function useEvidence(version: string | undefined): EvidenceIndex | undefined {
+  const query = useQuery({ queryKey: ["evidence", version], queryFn: fetchEvidence, staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
+  return query.data;
 }
 
 const PORTRAIT = "(orientation: portrait), (max-width: 1023px)";
