@@ -1,4 +1,4 @@
-import { rm, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { initRecords, openRepo, type Config } from "@tally/core";
@@ -57,5 +57,28 @@ describe("the watcher", () => {
     while (watcher.lastFailure === undefined && Date.now() - started < 3000) await new Promise((done) => setTimeout(done, 20));
     await watcher.stop();
     expect(watcher.lastFailure).toMatch(/git/);
+  });
+
+  test("a snapshot that fails is taken again on the next poll, so no change is lost", async () => {
+    const repo = await makeRepo();
+    await initRecords(repo.root, config, (await repo.head()).slice(0, 7));
+    await sh(repo.root, ["add", "-A"]);
+    await sh(repo.root, ["commit", "-q", "-m", "records: init"]);
+    const watcher = new Watcher(await openRepo(repo.root), { intervalMs: 20 });
+    const seen: string[] = [];
+    watcher.subscribe((snapshot) => seen.push(snapshot.status.main));
+    const ledger = join(repo.root, "docs", "records", "ledger.json");
+    const good = await readFile(ledger, "utf8");
+    await writeFile(ledger, "{ not json");
+    watcher.start();
+    const started = Date.now();
+    while (watcher.lastFailure === undefined && Date.now() - started < 3000) await new Promise((done) => setTimeout(done, 10));
+    expect(watcher.lastFailure).toMatch(/not valid JSON/);
+    expect(seen).toEqual([]);
+    await writeFile(ledger, good);
+    while (seen.length === 0 && Date.now() - started < 3000) await new Promise((done) => setTimeout(done, 10));
+    await watcher.stop();
+    expect(seen.length).toBe(1);
+    expect(watcher.lastFailure).toBeUndefined();
   });
 });

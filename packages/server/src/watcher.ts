@@ -98,9 +98,10 @@ export class Watcher {
       try {
         const now = await fingerprint(this.repo);
         if (now !== this.last) {
+          const fresh = await snapshot(this.repo);
           this.last = now;
-          this.latest = await snapshot(this.repo);
-          for (const listener of this.listeners) listener(this.latest);
+          this.latest = fresh;
+          for (const listener of this.listeners) listener(fresh);
         }
         this.failure = undefined;
       } catch (error: unknown) {
