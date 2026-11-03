@@ -228,6 +228,10 @@
     {
       "commit": "ed67f82",
       "note": "fix(scripts): board lock after the old check"
+    },
+    {
+      "commit": "736052c",
+      "note": "chore: generic examples and scripts"
     }
   ]
 }
