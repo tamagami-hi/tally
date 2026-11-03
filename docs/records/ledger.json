@@ -248,6 +248,10 @@
     {
       "commit": "3c83e25",
       "note": "chore: neutral defaults"
+    },
+    {
+      "commit": "6a115a6",
+      "note": "feat(web): redesign in the old page's language"
     }
   ]
 }
