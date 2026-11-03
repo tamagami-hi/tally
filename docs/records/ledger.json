@@ -190,7 +190,26 @@
       "name": "its own repository",
       "track": "main",
       "weight": 20,
-      "tasks": []
+      "tasks": [
+        {
+          "id": "own repository and remote",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "tally init for a second repository",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "P5 close",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        }
+      ]
     }
   ],
   "other": []
