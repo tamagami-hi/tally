@@ -84,7 +84,6 @@ def collect():'''
 def main():
     with open(RESUME / "landing.lock", "a") as landing, open(TRACKS / "board.json.lock", "a") as board_lock:
         fcntl.flock(landing, fcntl.LOCK_EX)
-        fcntl.flock(board_lock, fcntl.LOCK_EX)
         if git("branch", "--show-current") != "main":
             sys.exit("operator checkout is not on main")
         if git("status", "--porcelain"):
@@ -93,6 +92,7 @@ def main():
         print(before.stdout.strip())
         if before.returncode:
             sys.exit("the old ledger misses a commit; record it first")
+        fcntl.flock(board_lock, fcntl.LOCK_EX)
         board = json.loads((TRACKS / "board.json").read_text())
 
         tally("init", "--config", str(TALLY / "examples/first-repository.config.json"), "--baseline", board["baseline"])
