@@ -77,7 +77,8 @@
         {
           "id": "server: HTTP API and SSE",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "f8e4922",
           "also": []
         },
         {
