@@ -135,7 +135,8 @@
         {
           "id": "stdio shim",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "56ca322",
           "also": []
         },
         {
