@@ -1,0 +1,25 @@
+{
+  "name": "tally",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The tracking harness: records, ledger, landing and status for parallel agent builds",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -b packages/core packages/cli",
+    "test": "vitest run",
+    "typecheck": "tsc -b packages/core packages/cli --noEmit",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  }
+}

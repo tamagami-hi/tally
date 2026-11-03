@@ -1,0 +1,11 @@
+{
+  "name": "@tally/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "tally": "./dist/main.js"
+  },
+  "dependencies": {
+    "@tally/core": "0.1.0"
+  }
+}

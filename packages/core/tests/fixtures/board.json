@@ -1,0 +1,418 @@
+{
+ "baseline": "d0ff4a5",
+ "stage_weights": {
+  "A": 32,
+  "B": 52,
+  "C": 16
+ },
+ "milestones": [
+  {
+   "id": "A0-A7",
+   "stage": "A",
+   "name": "the thin slice",
+   "track": "all",
+   "weight": 100,
+   "built": "073f80a..19a7c3b, gate passed 2026-10-31"
+  },
+  {
+   "id": "B1",
+   "stage": "B",
+   "name": "matrix reader",
+   "track": "data",
+   "weight": 7,
+   "built": "6752fe4..dd43951"
+  },
+  {
+   "id": "B3",
+   "stage": "B",
+   "name": "matrix registry",
+   "track": "data",
+   "weight": 7,
+   "built": "6b6b4a4..f2380c7"
+  },
+  {
+   "id": "B6",
+   "stage": "B",
+   "name": "Python worker",
+   "track": "product",
+   "weight": 6,
+   "built": "fbcafb9..526140e"
+  },
+  {
+   "id": "B4",
+   "stage": "B",
+   "name": "simulator",
+   "track": "data+engine+product",
+   "weight": 14,
+   "items": [
+    {
+     "id": "data 1 derived bars",
+     "track": "data",
+     "commit": "2bf69ba"
+    },
+    {
+     "id": "data 2 matrix day",
+     "track": "data",
+     "commit": "99c97e5"
+    },
+    {
+     "id": "data 3 clock over sources",
+     "track": "data",
+     "commit": "a86244f"
+    },
+    {
+     "id": "data 4 view over sources",
+     "track": "data",
+     "commit": "a76b5be"
+    },
+    {
+     "id": "data 5 warm-up",
+     "track": "data",
+     "commit": "6154835"
+    },
+    {
+     "id": "data 6 replay seek/speed",
+     "track": "data",
+     "commit": "75a12ad"
+    },
+    {
+     "id": "data review fixes D1-D3",
+     "track": "data",
+     "commit": "a092dda",
+     "also": [
+      "7d2cd43",
+      "5de7088",
+      "6a58938"
+     ]
+    },
+    {
+     "id": "data part close",
+     "track": "data",
+     "commit": "37666b0"
+    },
+    {
+     "id": "T1 fill models",
+     "track": "engine",
+     "commit": "2827efa"
+    },
+    {
+     "id": "T2 limit/stop",
+     "track": "engine",
+     "commit": "3800ce0"
+    },
+    {
+     "id": "T3 day stepper",
+     "track": "engine",
+     "commit": "ba63b0a"
+    },
+    {
+     "id": "T4 expiry settlement",
+     "track": "engine",
+     "commit": "f7d2150",
+     "also": [
+      "29bffbe"
+     ]
+    },
+    {
+     "id": "T5 BTST/positional rules",
+     "track": "engine",
+     "commit": "2fe503a"
+    },
+    {
+     "id": "T6 overnight carry",
+     "track": "engine",
+     "commit": "f0a780b"
+    },
+    {
+     "id": "T7a future/equity documents",
+     "track": "engine",
+     "commit": "ed80ae5"
+    },
+    {
+     "id": "T7b1 matrix quotes and trades",
+     "track": "engine",
+     "commit": "a03496a"
+    },
+    {
+     "id": "T7b2 future/equity legs run",
+     "track": "engine",
+     "commit": null,
+     "waits": "Remaining mixed/equity/matrix-DTE execution; questions 36/37; future holding, expiry and archive-lot comparison remain guarded for T7c"
+    },
+    {
+     "id": "SIM-6/SIM-7 answers",
+     "track": "engine",
+     "commit": "bf03d30"
+    },
+    {
+     "id": "T9 store against archive",
+     "track": "engine",
+     "commit": null,
+     "waits": "B2"
+    },
+    {
+     "id": "product replay session (acme-app, with B8)",
+     "track": "product",
+     "commit": null,
+     "waits": "B8"
+    },
+    {
+     "id": "T7b2a homogeneous-future runner checkpoint (partial)",
+     "track": "engine",
+     "commit": "7e7c5de"
+    },
+    {
+     "id": "T8 candle_close",
+     "track": "engine",
+     "commit": null,
+     "waits": "stopped per operator after provider rate limit; unfinished changes retained"
+    },
+    {
+     "id": "B4 close",
+     "track": "engine",
+     "commit": null,
+     "waits": "product replay session (acme-app, with B8)"
+    }
+   ]
+  },
+  {
+   "id": "B9",
+   "stage": "B",
+   "name": "accounts and admin",
+   "track": "product",
+   "weight": 8,
+   "items": [
+    {
+     "id": "1 accounts",
+     "track": "product",
+     "commit": "6faee56"
+    },
+    {
+     "id": "2 usage and jobs",
+     "track": "product",
+     "commit": "2b0be99",
+     "also": [
+      "521dad8"
+     ]
+    },
+    {
+     "id": "3 SIM-4 tables",
+     "track": "product",
+     "commit": "62b4a90"
+    },
+    {
+     "id": "4 lot-size CSV import",
+     "track": "product",
+     "commit": "5e712c5"
+    },
+    {
+     "id": "5 market events/settings",
+     "track": "product",
+     "commit": "6911181"
+    },
+    {
+     "id": "6 audit log",
+     "track": "product",
+     "commit": "0a07eee"
+    },
+    {
+     "id": "7 strategy copies",
+     "track": "product",
+     "commit": "64ef3dd"
+    },
+    {
+     "id": "8a rate limits",
+     "track": "product",
+     "commit": "58b59d3"
+    },
+    {
+     "id": "8b job admission and quotas",
+     "track": "product",
+     "commit": null,
+     "waits": "analysis/sweep byte accounting remains; automatic follow-up admission landed in 8b2"
+    },
+    {
+     "id": "9 admin market page",
+     "track": "product",
+     "commit": null
+    },
+    {
+     "id": "10 isolation table/CSRF",
+     "track": "product",
+     "commit": null
+    },
+    {
+     "id": "11 B2's acme-app part",
+     "track": "product",
+     "commit": null,
+     "waits": "B2"
+    },
+    {
+     "id": "8b1 run and adjustment admission",
+     "track": "product",
+     "commit": "295591d"
+    },
+    {
+     "id": "8b2 automatic follow-up admission",
+     "track": "product",
+     "commit": "179e964"
+    },
+    {
+     "id": "8b3 analysis and sweep byte accounting",
+     "track": "product",
+     "commit": null,
+     "waits": "stopped per operator after provider rate limit; unfinished changes retained"
+    },
+    {
+     "id": "B9 close",
+     "track": "product",
+     "commit": null
+    }
+   ]
+  },
+  {
+   "id": "B2",
+   "stage": "B",
+   "name": "replay store",
+   "track": "data+product",
+   "weight": 11,
+   "items": [
+    {
+     "id": "1 byte contract for codec experiments",
+     "track": "data",
+     "commit": "e66f464"
+    },
+    {
+     "id": "2 block/codec primitives",
+     "track": "data",
+     "commit": "6b746e6"
+    },
+    {
+     "id": "3 source grid and security presence",
+     "track": "data",
+     "commit": "a7caeea"
+    },
+    {
+     "id": "4 manifest and atomic publication",
+     "track": "data",
+     "commit": null,
+     "waits": "stopped per operator after provider rate limit; unfinished changes retained"
+    },
+    {
+     "id": "5 streaming chain transcoder",
+     "track": "data",
+     "commit": null
+    },
+    {
+     "id": "6 streaming matrix transcoder",
+     "track": "data",
+     "commit": null
+    },
+    {
+     "id": "7 mmap day readers",
+     "track": "data",
+     "commit": null
+    },
+    {
+     "id": "8 archive fallback/day-source adapter",
+     "track": "data",
+     "commit": null
+    },
+    {
+     "id": "9 budget and pinned-day eviction",
+     "track": "data",
+     "commit": null
+    },
+    {
+     "id": "10 headless codec/layout measurements",
+     "track": "data",
+     "commit": null
+    },
+    {
+     "id": "11 B2 targets on the evidence host",
+     "track": "data",
+     "commit": null
+    },
+    {
+     "id": "product transcode job and storage routes (B9 task 11)",
+     "track": "product",
+     "commit": null,
+     "waits": "B2's store on main"
+    },
+    {
+     "id": "B2 data close",
+     "track": "data",
+     "commit": null,
+     "waits": "product transcode job and storage routes (B9 task 11)"
+    }
+   ]
+  },
+  {
+   "id": "B5",
+   "stage": "B",
+   "name": "full builder",
+   "track": "engine",
+   "weight": 14,
+   "items": []
+  },
+  {
+   "id": "B7",
+   "stage": "B",
+   "name": "analytics",
+   "track": "engine+product",
+   "weight": 14,
+   "items": []
+  },
+  {
+   "id": "B10",
+   "stage": "B",
+   "name": "market data API",
+   "track": "data",
+   "weight": 5,
+   "items": []
+  },
+  {
+   "id": "B8",
+   "stage": "B",
+   "name": "full dashboard",
+   "track": "product",
+   "weight": 14,
+   "items": []
+  },
+  {
+   "id": "C1",
+   "stage": "C",
+   "name": "candles",
+   "track": "-",
+   "weight": 34,
+   "items": [],
+   "waits": "the recorder's candle files"
+  },
+  {
+   "id": "C2",
+   "stage": "C",
+   "name": "SPAN margin",
+   "track": "-",
+   "weight": 33,
+   "items": [],
+   "waits": "the operator"
+  },
+  {
+   "id": "C3",
+   "stage": "C",
+   "name": "first deploy",
+   "track": "-",
+   "weight": 33,
+   "items": [],
+   "waits": "the operator and the .env"
+  }
+ ],
+ "other_commits": {
+  "0f26333": "README status at the gate",
+  "694cdc5": "Stage A gate report",
+  "19fefcc": "CLAUDE.md: gate and Stage B start",
+  "b04a0ad": "rule: keep .temp folders",
+  "34238a0": "answers to rows 28, 33-35",
+  "bf8e993": "rule: the progress ledger"
+ }
+}
