@@ -27,7 +27,7 @@ tally status                 # terminal tables; --markdown for a chat, --json fo
 tally serve                  # the live board at http://127.0.0.1:47560/
 ```
 
-The board shows the stages and milestones with their tasks' progress, every branch with its worktree's uncommitted work, the commit graph (unpushed commits on the orange lane, hollow), the ledger's problems, and who is working: each session on its track, each claimed task, each held lock. It updates over server-sent events whenever a ref, a working tree, the ledger or the live state changes. On a 16:9 screen it is three columns; on a 9:16 phone it is one page at a time behind a bottom tab bar. The same process serves the API (`/api/snapshot`, `/api/status`, `/api/graph`, `/api/ledger`, `/api/config`) and the MCP endpoint (`/mcp`).
+The board shows the stages and milestones with their tasks' progress, every branch with its worktree's uncommitted work, the commit graph (unpushed commits on the orange lane, hollow), the ledger's problems, and who is working: each session on its track, each claimed task, each held lock. It updates over server-sent events whenever a ref, a working tree, the ledger or the live state changes. On a 16:9 screen it is three columns; on a 9:16 phone it is one page at a time behind a bottom tab bar. The Evidence page lists each milestone's run records by task, each log opened in place from where it fell. The same process serves the API (`/api/snapshot`, `/api/status`, `/api/graph`, `/api/ledger`, `/api/config`, `/api/evidence`, `/api/evidence/<milestone>`, `/api/evidence/log/<id>`) and the MCP endpoint (`/mcp`).
 
 ## 3. Connect an agent
 
@@ -71,19 +71,34 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 
 Every change to a record becomes a docs-only `records:` commit on main at once, made by the harness with the configured identity under the landing lock, so the ledger is never ahead of or behind git.
 
-## 6. Parallel tracks
+## 6. A milestone's close
+
+| step | tool |
+| --- | --- |
+| index the run records a track kept on its own | `tally import evidence <dir> --milestone M --task T [--kind K] [--flat]`: each `*.json` of the shape `{command, cwd, started, seconds, exit}` becomes a record of that task, its kind read from the file name (red, green, clippy, fmt, land, coverage, sweep) unless `--kind` says, its sibling `.log` hashed and left in place; a second run indexes nothing twice |
+| the code as last verified | `tally checks set --file <record.json>` (the MCP tool `checks_set`), refused unless the record's fingerprint is what `tally checks fingerprint` prints for main (`git log -1 --format=%h <main> -- <the config's code paths>`); `checks get` is the record and `checks render` the Markdown a reader expects |
+| the build log's dated section | `tally buildlog append --group G --milestone M --title "T" --date YYYY-MM-DD --file body.md [--commit C]...` (`buildlog_append`), one section per milestone and group; `tally buildlog render --group G` (`buildlog_render`) is the group's log as Markdown |
+| a decision built | `tally decision setStatus <id> --group G --status "built in M (<commit>)" [--by WHO]`; adding or replacing a decision is the operator's alone: `tally decision add\|replace <id> --group G --text "..." --since "..." --status "..." [--why "..."] --operator` |
+| the report's manifest | `tally report manifest <date> <name> --group G --narrative <path> [--bundle <dir>] [--fingerprint F] [--evidence M[:T]]... [--decision ID]... [--question N]...`: `docs/records/reports/<date>/<name>.json` cites the records by id and hashes every file of the bundle; the copied logs stay where they are |
+| the plans | `tally import plans` rescans `docs/<group>/next` and `docs/<group>/completed` into `plans.json` with each plan's title and status line; `tally plans list` |
+| CLAUDE.md | `tally views claude` writes the standing block between `<!-- tally:standing -->` and `<!-- /tally:standing -->` from the ledger, the tracks and the open questions, and touches nothing else; `--check` exits 1 when the block is stale (`views_claude` shows it to any session and writes it for an operator session) |
+
+Bringing an existing repository's Markdown over: `tally import decisions PATH --group G`, `tally import questions PATH --group G`, `tally import checks PATH` and `tally import buildlog PATH --group G`. Each import refuses a file that does not render back byte for byte from its record, so the Markdown can be frozen the day it is imported.
+
+## 7. Parallel tracks
 
 Each track has its worktree and its branch; each session binds to one. A track session writes only its track's tasks, evidence and hand-off; it reads everything. A task is held by one session at a time, and a session holds one task at a time. The named locks (`lock_acquire`, `lock_release`, `lock_list`) coordinate what the config says needs one, such as an evidence host; a lock dies with its session. `board_get` with `scope: "mine"` is your slice of the board.
 
 When a task of yours waits on another track, `task_wait` names what it waits for and the board draws it; move to a task that does not wait.
 
-## 7. Operating
+## 8. Operating
 
+- Decisions are the operator's: `tally decision add` and `replace` take `--operator`, and no MCP call enters one; `tally question answer <row> <decision>` answers a question row.
 - Milestones are the operator's: `milestone_add` needs an operator session; `tally milestone add` from the shell is the same.
 - `tally status` from a phone over SSH is the terminal view; the board is the same picture live.
 - A records commit on main is normal; the check and the status pass over them by prefix.
 - The old scripts of a repository that was cut over keep working: they hand their command lines to tally.
 
-## 8. Another repository
+## 9. Another repository
 
 Copy `examples/three-tracks.config.json`, set the tracks, stages, test command, fingerprint paths and identity, run `tally init --config`, commit `docs/records/`, serve. Nothing in tally knows the first repository's names; everything repository-specific is in that one config.
