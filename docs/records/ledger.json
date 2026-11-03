@@ -236,6 +236,10 @@
     {
       "commit": "5060074",
       "note": "docs: generic public design"
+    },
+    {
+      "commit": "ebcca24",
+      "note": "docs: last names out"
     }
   ]
 }
