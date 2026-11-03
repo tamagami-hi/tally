@@ -218,3 +218,30 @@ describe("the CLAUDE view through the command line", () => {
     expect(await run(["views", "frob"], console)).toBe(2);
   });
 });
+
+describe("decisions through the command line", () => {
+  test("list, add and replace with --operator, setStatus by whoever builds it", async () => {
+    const repo = await fresh();
+    await run(["init", "--name", "Tally"], io(repo.root));
+    await sh(repo.root, ["add", "-A"]);
+    await sh(repo.root, ["commit", "-q", "-m", "records: init"]);
+    const console = io(repo.root);
+    expect(await run(["decision", "list"], console)).toBe(0);
+    expect(console.lines.at(-1)).toBe("0 decisions; 0 replaced");
+    expect(await run(["decision", "add", "PRJ-1", "--group", "platform", "--text", "**A platform.**", "--since", "the operator, 2026-11-04", "--status", "decided, not built"], console)).toBe(1);
+    expect(console.errors.at(-1)).toBe("a decision is the operator's; pass --operator to record one");
+    expect(await run(["decision", "add", "PRJ-1", "--group", "platform", "--text", "**A platform.**", "--since", "the operator, 2026-11-04", "--status", "decided, not built", "--operator"], console)).toBe(0);
+    expect(console.lines.at(-2)).toBe("decision PRJ-1 (platform) added: decided, not built");
+    expect(await run(["decision", "setStatus", "PRJ-1", "--group", "platform", "--status", "built in A7 (`19a7c3b`)", "--by", "product"], console)).toBe(0);
+    expect(console.lines.at(-2)).toBe("decision PRJ-1 (platform): built in A7 (`19a7c3b`) [built]");
+    expect(await run(["decision", "replace", "PRJ-1", "--group", "platform", "--text", "**A wider platform.**", "--since", "the operator, 2026-11-05", "--status", "in force", "--operator"], console)).toBe(2);
+    expect(await run(["decision", "replace", "PRJ-1", "--group", "platform", "--text", "**A wider platform.**", "--since", "the operator, 2026-11-05", "--status", "in force", "--why", "widened", "--operator"], console)).toBe(0);
+    expect(console.lines.at(-2)).toMatch(/^decision PRJ-1 \(platform\) replaced; the old row is kept as replaced \d{4}-\d{2}-\d{2}, by PRJ-1$/);
+    expect(await run(["decision", "list", "--group", "platform"], console)).toBe(0);
+    expect(console.lines.at(-2)).toBe("platform:PRJ-1 [in force] **A wider platform.**");
+    expect(console.lines.at(-1)).toBe("1 decisions; 1 replaced");
+    expect(await run(["decision", "add", "X", "--group", "g"], console)).toBe(2);
+    expect(await run(["decision", "set-status", "X", "--group", "g"], console)).toBe(2);
+    expect(await run(["decision", "frob"], console)).toBe(2);
+  });
+});

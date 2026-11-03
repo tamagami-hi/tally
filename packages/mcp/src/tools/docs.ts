@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { TallyError, addQuestion, contextPack, getSession, isOperator, listDocs, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView, type Repo } from "@tally/core";
+import { TallyError, addQuestion, contextPack, getSession, isOperator, listDocs, readDecisions, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView, type Repo } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 
 export function registerDocTools(server: McpServer, repo: Repo): void {
@@ -34,6 +34,15 @@ export function registerDocTools(server: McpServer, repo: Repo): void {
     "question_list",
     { description: "The open question rows, the next row number, and how many were answered.", inputSchema: {} },
     () => attempt(async () => ok((await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] })),
+  );
+  server.registerTool(
+    "decision_list",
+    { description: "The decisions in force and the replaced rows, by group; decisions are entered only by the operator, with `tally decision add|replace --operator`.", inputSchema: { group: z.string().optional() } },
+    ({ group }) => attempt(async () => {
+      const file = await readDecisions(repo);
+      const keep = <T extends { group: string }>(rows: T[]): T[] => (group === undefined ? rows : rows.filter((r) => r.group === group));
+      return ok({ decisions: keep(file.decisions), replaced: keep(file.replaced) });
+    }),
   );
   server.registerTool(
     "views_claude",

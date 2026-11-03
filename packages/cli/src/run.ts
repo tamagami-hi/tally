@@ -3,6 +3,7 @@ import { TallyError, findRepoRoot, messageOf, openRepo } from "@tally/core";
 import { splitRepo } from "./args.ts";
 import { buildlogCommand } from "./commands/buildlog.ts";
 import { checksCommand } from "./commands/checks.ts";
+import { decisionCommand } from "./commands/decision.ts";
 import { importCommand } from "./commands/import.ts";
 import { initCommand } from "./commands/init.ts";
 import { landCommand } from "./commands/land.ts";
@@ -30,6 +31,8 @@ export const USAGE = `tally: the tracking harness
   tally checks get | render | fingerprint | set --file F         the code-check record; fingerprint exits 1 when stale
   tally buildlog render --group G | append --group G --milestone M --title T --date D --file BODY [--commit C]...
   tally question add --group G <question> <meanwhile> | answer <row> <decision> | list
+  tally decision list [--group G] | add|replace <id> --group G --text T --since S --status ST [--section X] [--why W] --operator
+  tally decision setStatus <id> --group G --status ST [--by WHO | --operator]
   tally milestone add <id> --stage S --name N --track T --weight W [--waits X] [--group G]
   tally task   plan  <milestone> --track <track> <task>...       add tasks, the close last
   tally task   land  <milestone> <task> <commit> [--track T] [--also C]...
@@ -84,6 +87,8 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await questionCommand(repo, args, io);
       case "checks":
         return await checksCommand(repo, args, io);
+      case "decision":
+        return await decisionCommand(repo, args, io);
       case "buildlog":
         return await buildlogCommand(repo, args, io);
       case "plans":

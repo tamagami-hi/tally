@@ -34,7 +34,7 @@ describe("the tally MCP server", () => {
   test("lists its tools and refuses writes without a session", async () => {
     const { client, call } = await connected();
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(["board_get", "buildlog_append", "buildlog_render", "checks_fingerprint", "checks_get", "checks_set", "context_pack", "docs_list", "docs_read", "docs_search", "evidence_list", "evidence_record", "evidence_run", "handoff_read", "handoff_write", "land_run", "ledger_check", "lock_acquire", "lock_list", "lock_release", "milestone_add", "question_add", "question_list", "session_close", "session_list", "session_open", "task_claim", "task_land", "task_other", "task_plan", "task_release", "task_wait", "views_claude"]);
+    expect(names).toEqual(["board_get", "buildlog_append", "buildlog_render", "checks_fingerprint", "checks_get", "checks_set", "context_pack", "decision_list", "docs_list", "docs_read", "docs_search", "evidence_list", "evidence_record", "evidence_run", "handoff_read", "handoff_write", "land_run", "ledger_check", "lock_acquire", "lock_list", "lock_release", "milestone_add", "question_add", "question_list", "session_close", "session_list", "session_open", "task_claim", "task_land", "task_other", "task_plan", "task_release", "task_wait", "views_claude"]);
     const refused = await call("task_claim", { sessionId: "nope", milestone: "B2", task: "4 manifest" });
     expect(refused.isError).toBe(true);
     expect(refused.text).toBe("no session nope; open one with session_open");
@@ -129,5 +129,6 @@ describe("the tally MCP server", () => {
     const operator = (await call("session_open", { worktree: root, track: "main", agent: "op" })).structured!["id"] as string;
     expect((await call("views_claude", { sessionId: operator, write: true })).structured).toMatchObject({ changed: true });
     expect((await call("views_claude", { sessionId: operator })).structured).toMatchObject({ changed: false });
+    expect((await call("decision_list", { group: "engine" })).structured).toEqual({ decisions: [], replaced: [] });
   });
 });
