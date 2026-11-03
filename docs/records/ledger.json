@@ -73,7 +73,32 @@
       "name": "the server and the board",
       "track": "main",
       "weight": 20,
-      "tasks": []
+      "tasks": [
+        {
+          "id": "server: HTTP API and SSE",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "web: board, tracks, graph",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "web: evidence viewer",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
+          "id": "P2 close",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        }
+      ]
     },
     {
       "id": "P3",
