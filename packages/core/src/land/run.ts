@@ -36,7 +36,7 @@ export function spawnTests(cwd: string, command: readonly string[], env: NodeJS.
 
 export const defaultDeps: LandDeps = { runTests: spawnTests, log: (line) => process.stdout.write(`${line}\n`) };
 
-async function environment(repo: Repo, tree: string, track: string): Promise<NodeJS.ProcessEnv> {
+export async function landingEnvironment(repo: Repo, tree: string, track: string): Promise<NodeJS.ProcessEnv> {
   const env: NodeJS.ProcessEnv = { ...process.env, ...repo.config.commands.env };
   for (const name of repo.config.commands.unset) delete env[name];
   if (repo.config.commands.tmpdir !== undefined) {
@@ -65,7 +65,7 @@ export async function landTrack(repo: Repo, options: LandOptions, deps: LandDeps
       if ((await fingerprint(tree, config)) !== options.verifiedCode) throw new TallyError("track code differs from the verification; task preserved");
       deps.log(`reusing recorded verification of unchanged code ${options.verifiedCode}`);
     } else {
-      await deps.runTests(tree, config.commands.test, await environment(repo, tree, track.name));
+      await deps.runTests(tree, config.commands.test, await landingEnvironment(repo, tree, track.name));
     }
     if (options.messageFile !== undefined) {
       await gitMust(tree, ["add", "--", ...options.files]);
