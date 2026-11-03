@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""The progress ledger is docs/records/ledger.json, kept by tally (2026-11-03).
-
-This wrapper keeps the old command lines working by handing them to tally:
+"""A drop-in for a `ledger.py` that kept a board.json: hands the same command lines to tally.
 
     ledger.py plan  <milestone> --track <track> <task> [<task> ...]   -> tally task plan ...
     ledger.py land  <milestone> <task> <commit> [--track <track>] [--also <commit> ...]
@@ -10,19 +8,32 @@ This wrapper keeps the old command lines working by handing them to tally:
     ledger.py other <commit> <note>                                   -> tally task other ...
     ledger.py check                                                   -> tally ledger check
 
-tally prints the same line ledger.py printed, then `records: <sha>` for the docs-only
-commit that saved the change on main. The ledger.py this replaced is kept at
-.temp/tracks/ledger-preservation/pre-tally-2026-11-03/ledger.py; board.json there is frozen.
+The repository is TALLY_REPO, or the nearest folder above this script that holds
+docs/records/config.json. The tally command is TALLY_CLI (for example
+`node /path/to/tally/packages/cli/dist/main.js`); the cut-over script fills it in.
 """
 import os
 import sys
+from pathlib import Path
 
-ROOT = "/path/to/repository"
-TALLY = ROOT + "/.temp/tally/packages/cli/dist/main.js"
+TALLY = os.environ.get("TALLY_CLI") or "__TALLY_CLI__"
+if TALLY == "__TALLY_CLI__":
+    TALLY = "tally"
 
 
-def spread_also(args):
-    out, i = [], 0
+def repo_root() -> str:
+    given = os.environ.get("TALLY_REPO")
+    if given:
+        return given
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "docs/records/config.json").exists():
+            return str(parent)
+    sys.exit("ledger.py: no docs/records/config.json above this script; set TALLY_REPO")
+
+
+def spread_also(args: list[str]) -> list[str]:
+    out: list[str] = []
+    i = 0
     while i < len(args):
         if args[i] == "--also":
             i += 1
@@ -35,7 +46,7 @@ def spread_also(args):
     return out
 
 
-def main():
+def main() -> int:
     args = sys.argv[1:]
     if not args or args[0] in ("-h", "--help"):
         print(__doc__.strip())
@@ -50,7 +61,9 @@ def main():
     else:
         print(f"ledger.py: unknown verb {verb!r}; use plan, land, wait, other or check", file=sys.stderr)
         return 2
-    os.execvp("node", ["node", TALLY, "--repo", ROOT, *command])
+    tally = TALLY.split()
+    os.execvp(tally[0], [*tally, "--repo", repo_root(), *command])
+    return 1
 
 
 if __name__ == "__main__":

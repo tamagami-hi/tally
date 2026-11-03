@@ -1,14 +1,28 @@
 #!/usr/bin/env python3
-"""The landing is tally's since 2026-11-03: `tally land <track> [--message FILE] [--verified-code SHA] [files...]`.
+"""A drop-in for a `land.py`: `tally land <track> [--message FILE] [--verified-code SHA] [files...]`.
 
-Same arguments, same refusals, same `<track> landed at <sha>` line; the lock is
-.temp/tally/state/locks/landing.lock, which tally's records commits also take.
-The land.py this replaced is kept at .temp/tracks/ledger-preservation/pre-tally-2026-11-03/land.py.
+Same arguments, same refusals, same `<track> landed at <sha>` line. The repository
+is TALLY_REPO, or the nearest folder above this script that holds
+docs/records/config.json; the tally command is TALLY_CLI, filled in by the cut-over.
 """
 import os
 import sys
+from pathlib import Path
 
-ROOT = "/path/to/repository"
-TALLY = ROOT + "/.temp/tally/packages/cli/dist/main.js"
+TALLY = os.environ.get("TALLY_CLI") or "__TALLY_CLI__"
+if TALLY == "__TALLY_CLI__":
+    TALLY = "tally"
 
-os.execvp("node", ["node", TALLY, "--repo", ROOT, "land", *sys.argv[1:]])
+
+def repo_root() -> str:
+    given = os.environ.get("TALLY_REPO")
+    if given:
+        return given
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "docs/records/config.json").exists():
+            return str(parent)
+    sys.exit("land.py: no docs/records/config.json above this script; set TALLY_REPO")
+
+
+tally = TALLY.split()
+os.execvp(tally[0], [*tally, "--repo", repo_root(), "land", *sys.argv[1:]])
