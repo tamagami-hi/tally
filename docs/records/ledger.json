@@ -240,6 +240,10 @@
     {
       "commit": "ebcca24",
       "note": "docs: last names out"
+    },
+    {
+      "commit": "3c83e25",
+      "note": "chore: neutral defaults"
     }
   ]
 }
