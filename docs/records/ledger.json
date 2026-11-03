@@ -191,6 +191,12 @@
           "also": []
         },
         {
+          "id": "decision verbs",
+          "track": "main",
+          "status": "planned",
+          "also": []
+        },
+        {
           "id": "P4 close",
           "track": "main",
           "status": "planned",
