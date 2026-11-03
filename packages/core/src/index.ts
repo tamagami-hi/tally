@@ -54,3 +54,7 @@ export { addQuestion, answerQuestion, importQuestions, parseQuestions, questions
 export type { Question, QuestionsFile } from "./records/questions.ts";
 export { parseTables, renderRow, splitCells } from "./records/markdown.ts";
 export type { Table } from "./records/markdown.ts";
+export { checksFileSchema, checksFingerprint, fingerprintAtMain, importChecks, parseChecks, readChecks, renderChecks, setChecks } from "./records/checks.ts";
+export type { ChecksFile, ChecksModule } from "./records/checks.ts";
+export { appendBuildlog, buildlogFileSchema, importBuildlog, parseBuildlog, readBuildlog, renderBuildlog } from "./records/buildlog.ts";
+export type { AppendInput, BuildlogEntry, BuildlogFile } from "./records/buildlog.ts";

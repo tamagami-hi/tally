@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -6,6 +6,8 @@ import { describe, expect, test } from "vitest";
 import { createTallyServer } from "../src/server.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
+import { parseChecks } from "../../core/src/records/checks.ts";
+import { CHECKS } from "../../core/tests/fixtures/records.ts";
 
 interface Called {
   text: string;
@@ -32,7 +34,7 @@ describe("the tally MCP server", () => {
   test("lists its tools and refuses writes without a session", async () => {
     const { client, call } = await connected();
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
-    expect(names).toEqual(["board_get", "context_pack", "docs_list", "docs_read", "docs_search", "evidence_list", "evidence_record", "evidence_run", "handoff_read", "handoff_write", "land_run", "ledger_check", "lock_acquire", "lock_list", "lock_release", "milestone_add", "question_add", "question_list", "session_close", "session_list", "session_open", "task_claim", "task_land", "task_other", "task_plan", "task_release", "task_wait"]);
+    expect(names).toEqual(["board_get", "buildlog_append", "buildlog_render", "checks_fingerprint", "checks_get", "checks_set", "context_pack", "docs_list", "docs_read", "docs_search", "evidence_list", "evidence_record", "evidence_run", "handoff_read", "handoff_write", "land_run", "ledger_check", "lock_acquire", "lock_list", "lock_release", "milestone_add", "question_add", "question_list", "session_close", "session_list", "session_open", "task_claim", "task_land", "task_other", "task_plan", "task_release", "task_wait"]);
     const refused = await call("task_claim", { sessionId: "nope", milestone: "B2", task: "4 manifest" });
     expect(refused.isError).toBe(true);
     expect(refused.text).toBe("no session nope; open one with session_open");
@@ -98,5 +100,26 @@ describe("the tally MCP server", () => {
     expect(pack.text).toContain("# B2 / 4 manifest (track data)");
     expect(pack.text).toContain("- green exit 0");
     expect(pack.text).toContain("next: publication");
+  });
+
+  test("checks and build logs answer through the tools, and set is guarded by main's fingerprint", async () => {
+    const { call, root, trees } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    expect((await call("checks_get")).text).toBe("no checks.json yet; import one with tally import checks");
+    const record = parseChecks(CHECKS);
+    const refused = await call("checks_set", { sessionId: data, record });
+    expect(refused.text).toMatch(/is not what git log prints for the config's paths at main/);
+    await mkdir(join(root, "src"), { recursive: true });
+    await writeFile(join(root, "src", "a.rs"), "a");
+    await sh(root, ["add", "src/a.rs"]);
+    await sh(root, ["commit", "-q", "-m", "feat: a"]);
+    const atMain = await sh(root, ["rev-parse", "--short=7", "HEAD"]);
+    expect((await call("checks_set", { sessionId: data, record: { ...record, fingerprint: atMain } })).structured).toMatchObject({ fingerprint: atMain });
+    expect((await call("checks_fingerprint")).structured).toEqual({ record: atMain, main: atMain, stands: true });
+    expect(((await call("checks_get")).structured!["modules"] as unknown[]).length).toBe(2);
+    const appended = await call("buildlog_append", { sessionId: data, group: "data", milestone: "B2", title: "The store", date: "2026-11-05", markdown: "Built." });
+    expect(appended.structured).toMatchObject({ entry: { milestone: "B2", markdown: "Built." } });
+    expect((await call("buildlog_render", { group: "data" })).text).toBe("# data: build log\n\n## B2. The store, 2026-11-05\n\nBuilt.\n");
+    expect((await call("buildlog_append", { sessionId: data, group: "data", milestone: "B2", title: "x", date: "2026-11-05", markdown: "x" })).text).toBe("data's build log already has a section for B2");
   });
 });

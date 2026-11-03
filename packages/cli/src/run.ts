@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 import { TallyError, findRepoRoot, messageOf, openRepo } from "@tally/core";
 import { splitRepo } from "./args.ts";
+import { buildlogCommand } from "./commands/buildlog.ts";
+import { checksCommand } from "./commands/checks.ts";
 import { importCommand } from "./commands/import.ts";
 import { initCommand } from "./commands/init.ts";
 import { landCommand } from "./commands/land.ts";
@@ -18,6 +20,9 @@ export const USAGE = `tally: the tracking harness
   tally init   --name NAME [--baseline SHA] | --config FILE      make docs/records/ here
   tally import board PATH [--force]                              bring a board.json into the ledger
   tally import decisions|questions PATH --group G                bring a markdown table into the records
+  tally import checks PATH | buildlog PATH --group G             bring code-checks.md or a build-log.md into the records
+  tally checks get | render | fingerprint | set --file F         the code-check record; fingerprint exits 1 when stale
+  tally buildlog render --group G | append --group G --milestone M --title T --date D --file BODY [--commit C]...
   tally question add --group G <question> <meanwhile> | answer <row> <decision> | list
   tally milestone add <id> --stage S --name N --track T --weight W [--waits X] [--group G]
   tally task   plan  <milestone> --track <track> <task>...       add tasks, the close last
@@ -70,6 +75,10 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await mcpCommand(repo, io);
       case "question":
         return await questionCommand(repo, args, io);
+      case "checks":
+        return await checksCommand(repo, args, io);
+      case "buildlog":
+        return await buildlogCommand(repo, args, io);
       default:
         throw new TallyError(`tally: unknown command '${command}'\n\n${USAGE}`, 2);
     }

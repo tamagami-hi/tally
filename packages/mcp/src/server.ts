@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Repo } from "@tally/core";
+import { registerCheckTools } from "./tools/checks.ts";
 import { registerDocTools } from "./tools/docs.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerRecordTools } from "./tools/records.ts";
@@ -16,6 +17,7 @@ export function createTallyServer(repo: Repo): McpServer {
   registerLedgerTools(server, repo);
   registerRecordTools(server, repo);
   registerDocTools(server, repo);
+  registerCheckTools(server, repo);
   return server;
 }
 
