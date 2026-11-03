@@ -216,6 +216,10 @@
     {
       "commit": "3541e2f",
       "note": "fix(cli): quiet EPIPE"
+    },
+    {
+      "commit": "a456f1a",
+      "note": "fix(records): landing lock; cut-over scripts"
     }
   ]
 }
