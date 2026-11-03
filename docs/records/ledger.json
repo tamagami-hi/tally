@@ -179,7 +179,8 @@
         {
           "id": "evidence index and report manifests",
           "track": "main",
-          "status": "planned",
+          "status": "landed",
+          "commit": "92e2bc8",
           "also": []
         },
         {
