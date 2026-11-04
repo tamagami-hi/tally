@@ -9,6 +9,7 @@ import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import type { Config } from "../../core/src/schema/config.ts";
 import { parseChecks } from "../../core/src/records/checks.ts";
+import { answerQuestion } from "../../core/src/records/questions.ts";
 import { CHECKS } from "../../core/tests/fixtures/records.ts";
 
 interface Called {
@@ -175,6 +176,27 @@ describe("the tally MCP server", () => {
 
     expect(foreign.text).toMatch(/may not write track engine/);
     expect(unplanned.text).toMatch(/may not write track engine/);
+  });
+
+  test("question_list returns the open rows and a count, and the answered rows only when asked", async () => {
+    const { call, repo, trees } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    await call("question_add", { sessionId: data, group: "engine", question: "first?", meanwhile: "wait" });
+    await call("question_add", { sessionId: data, group: "engine", question: "second?", meanwhile: "wait" });
+    await answerQuestion(repo, 1, "SIM-1");
+
+    const open = await call("question_list");
+    const all = await call("question_list", { answered: true });
+
+    expect(open.structured).toMatchObject({ nextRow: 3, answeredCount: 1, open: [{ row: 2, question: "second?" }] });
+    expect(open.structured).not.toHaveProperty("answered");
+    expect(all.structured).toMatchObject({ answeredCount: 1, open: [{ row: 2 }], answered: [{ row: 1, decision: "SIM-1" }] });
+  });
+
+  test("question_list with no record yet is empty", async () => {
+    const { call } = await connected();
+
+    expect((await call("question_list")).structured).toEqual({ schema: 1, nextRow: 1, open: [], answeredCount: 0 });
   });
 
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {

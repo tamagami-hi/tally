@@ -32,8 +32,11 @@ export function registerDocTools(server: McpServer, repo: Repo): void {
   );
   server.registerTool(
     "question_list",
-    { description: "The open question rows, the next row number, and how many were answered.", inputSchema: {} },
-    () => attempt(async () => ok((await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] })),
+    { description: "The open question rows, the next row number and how many were answered; `answered: true` adds the answered rows.", inputSchema: { answered: z.boolean().default(false) } },
+    ({ answered }) => attempt(async () => {
+      const { answered: rows, ...open } = (await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] };
+      return ok({ ...open, answeredCount: rows.length, ...(answered ? { answered: rows } : {}) });
+    }),
   );
   server.registerTool(
     "decision_list",
