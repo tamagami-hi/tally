@@ -29,6 +29,8 @@ export interface WaitInput {
   what: string;
 }
 
+export type UnwaitInput = Omit<WaitInput, "what">;
+
 export interface OtherInput {
   commit: string;
   note: string;
@@ -119,6 +121,18 @@ export function wait(ledger: Ledger, input: WaitInput): Changed {
   return {
     ledger: replaceMilestone(ledger, { ...milestone, tasks }),
     message: `${input.milestone} '${input.task}': waits for ${input.what}`,
+  };
+}
+
+export function unwait(ledger: Ledger, input: UnwaitInput): Changed {
+  const milestone = findMilestone(ledger, input.milestone);
+  const found = findTask(milestone, input.task);
+  if (found === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
+  if (found.waits === undefined) throw new TallyError(`'${input.task}' in ${input.milestone} waits for nothing`);
+  const tasks = milestone.tasks.map((task) => (task === found ? withoutWait(task) : task));
+  return {
+    ledger: replaceMilestone(ledger, { ...milestone, tasks }),
+    message: `${input.milestone} '${input.task}': no longer waits for ${found.waits}`,
   };
 }
 

@@ -201,6 +201,23 @@ describe("the command line", () => {
     expect(await sh(repo.root, ["rev-parse", "main"])).toBe(before);
   });
 
+  test("task unwait clears the wait, the status stops showing it, and it needs the milestone and the task", async () => {
+    const { repo } = await withTrack();
+    const console = io(repo.root);
+    await run(["task", "wait", "B2", "1 codecs", "the recorder"], console);
+
+    expect(await run(["task", "unwait", "B2", "1 codecs"], console)).toBe(0);
+
+    expect(console.lines.at(-2)).toBe("B2 '1 codecs': no longer waits for the recorder");
+    expect(console.lines.at(-1)).toMatch(/^records: [0-9a-f]{7}$/);
+    const status = io(repo.root);
+    await run(["status", "--json"], status);
+    expect((JSON.parse(status.lines[0] ?? "") as { rows: { notes: string[] }[] }).rows[0]?.notes).toEqual(["data next: 1 codecs"]);
+    expect(await run(["task", "unwait", "B2"], console)).toBe(2);
+    expect(await run(["task", "unwait", "B2", "1 codecs"], console)).toBe(1);
+    expect(console.errors.at(-1)).toBe("'1 codecs' in B2 waits for nothing");
+  });
+
   test("task land releases the task's claim, so the session's next claim goes through", async () => {
     const { repo, tree } = await withTrack();
     const opened = await openRepo(repo.root);

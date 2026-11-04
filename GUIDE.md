@@ -68,7 +68,7 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 | land it on main | `land_run` with the explicit files and the commit message file: rebase, the configured tests, a commit as the operator, a fast-forward; refused when the checkout is dirty, the branch is wrong, files are staged that you did not name, or main moved under you. With `milestone` and `task` it records that task at the hash it made, the landing's earlier commits in `also`, and releases the claim, an unplanned task being added as `task_land` adds it (from the shell, `tally land <track> --message F --milestone M --task T <paths...>`). A landing that succeeds but cannot record says so with the commit, and is still a landing |
 | record a landing made without them | `task_land` or `tally task land` with the commit (and `also` for follow-ups); the claim is released, whoever holds it, since a landed task cannot be worked |
 | leave what the next session cannot find in the commits | `handoff_write` (at most 60 lines) |
-| wait on something | `task_wait`; a commit that is no task's: `task_other` |
+| wait on something | `task_wait`, cleared by `task_unwait` (`tally task unwait <milestone> <task>`); a commit that is no task's: `task_other` |
 | check | `ledger_check` must say the ledger covers every commit on main |
 
 Every change to a record is written to `docs/records/` at once, so the board and every session see it. By default it also becomes a docs-only `records:` commit on main, made by the harness with the configured identity under the landing lock. With `records.batch: true` in the config, the changes wait on disk and go in as one commit: when the last open session closes, or on `tally records commit`, which must run before a push if a session is still open.

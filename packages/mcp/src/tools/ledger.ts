@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   COVERED, Records, TallyError, addMilestone, assertMayWrite, claimTask, collect, commitRecords, findMilestone, findTask, getSession, isOperator,
-  listClaims, listLocks, logLines, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unrecorded, wait, type Ledger, type Repo, type Session,
+  listClaims, listLocks, logLines, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unrecorded, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 
@@ -10,8 +10,9 @@ async function recorded(repo: Repo, message: string): Promise<{ message: string;
   return { message, commit: await commitRecords(repo, message) };
 }
 
-function taskTrack(ledger: Ledger, milestone: string, task: string): string | undefined {
-  return findTask(findMilestone(ledger, milestone), task)?.track;
+function assertMayWriteTask(repo: Repo, session: Session, ledger: Ledger, milestone: string, task: string): void {
+  const track = findTask(findMilestone(ledger, milestone), task)?.track;
+  if (track !== undefined) assertMayWrite(repo, session, track);
 }
 
 function scopedTrack(repo: Repo, session: Session, given: string | undefined): string {
@@ -81,11 +82,17 @@ export function registerLedgerTools(server: McpServer, repo: Repo): void {
     "task_wait",
     { description: "Mark a task as waiting on something (another track's task, a question row).", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), what: z.string() } },
     ({ sessionId, milestone, task, what }) => attempt(async () => {
-      const session = await getSession(repo, sessionId);
-      const ledger = await records.readLedger();
-      const track = taskTrack(ledger, milestone, task);
-      if (track !== undefined) assertMayWrite(repo, session, track);
+      assertMayWriteTask(repo, await getSession(repo, sessionId), await records.readLedger(), milestone, task);
       const message = await records.update((current) => wait(current, { milestone, task, what }));
+      return ok(await recorded(repo, message));
+    }),
+  );
+  server.registerTool(
+    "task_unwait",
+    { description: "Clear a task's wait, so the board shows it as ready again.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string() } },
+    ({ sessionId, milestone, task }) => attempt(async () => {
+      assertMayWriteTask(repo, await getSession(repo, sessionId), await records.readLedger(), milestone, task);
+      const message = await records.update((current) => unwait(current, { milestone, task }));
       return ok(await recorded(repo, message));
     }),
   );

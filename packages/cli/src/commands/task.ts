@@ -1,4 +1,4 @@
-import { Records, commitRecords, other, plan, recordTask, resolveOnMain, wait, type Repo } from "@tally/core";
+import { Records, commitRecords, other, plan, recordTask, resolveOnMain, unwait, wait, type Repo } from "@tally/core";
 import { list, need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
 import { TallyError } from "@tally/core";
@@ -38,6 +38,12 @@ export async function taskCommand(repo: Repo, argv: readonly string[], io: IO): 
       await recorded(repo, io, await records.update((ledger) => wait(ledger, input)));
       return 0;
     }
+    case "unwait": {
+      const parsed = parse(rest, {});
+      const input = { milestone: need(parsed, 0, "milestone"), task: need(parsed, 1, "task") };
+      await recorded(repo, io, await records.update((ledger) => unwait(ledger, input)));
+      return 0;
+    }
     case "other": {
       const parsed = parse(rest, {});
       const input = { commit: need(parsed, 0, "commit"), note: need(parsed, 1, "note") };
@@ -45,6 +51,6 @@ export async function taskCommand(repo: Repo, argv: readonly string[], io: IO): 
       return 0;
     }
     default:
-      throw new TallyError(`tally task: unknown verb '${verb ?? ""}'; use plan, land, wait or other`, 2);
+      throw new TallyError(`tally task: unknown verb '${verb ?? ""}'; use plan, land, wait, unwait or other`, 2);
   }
 }

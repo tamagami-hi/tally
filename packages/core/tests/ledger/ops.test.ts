@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { addMilestone, land, other, plan, wait } from "../../src/ledger/ops.ts";
+import { addMilestone, land, other, plan, unwait, wait } from "../../src/ledger/ops.ts";
 import type { Ledger } from "../../src/schema/ledger.ts";
 
 const resolve = async (commit: string): Promise<string> => {
@@ -104,6 +104,21 @@ describe("wait and other", () => {
     expect(waited.ledger.milestones[0]!.tasks[1]!.waits).toBe("product transcode job");
     expect(waited.message).toBe("B2 'B2 data close': waits for product transcode job");
     expect(() => wait(base(), { milestone: "B2", task: "nope", what: "x" })).toThrow("'nope' is not planned in B2");
+  });
+
+  test("unwait clears a task's wait and leaves the rest of the task and the original ledger alone", () => {
+    const waited = wait(base(), { milestone: "B2", task: "B2 data close", what: "product transcode job" }).ledger;
+
+    const cleared = unwait(waited, { milestone: "B2", task: "B2 data close" });
+
+    expect(cleared.ledger.milestones[0]!.tasks[1]).toEqual({ id: "B2 data close", track: "data", status: "planned", also: [] });
+    expect(cleared.message).toBe("B2 'B2 data close': no longer waits for product transcode job");
+    expect(waited.milestones[0]!.tasks[1]!.waits).toBe("product transcode job");
+  });
+
+  test("unwait refuses a task that is not planned or waits for nothing", () => {
+    expect(() => unwait(base(), { milestone: "B2", task: "nope" })).toThrow("'nope' is not planned in B2");
+    expect(() => unwait(base(), { milestone: "B2", task: "B2 data close" })).toThrow("'B2 data close' in B2 waits for nothing");
   });
 
   test("other records a commit once, replacing an earlier note for the same commit", async () => {
