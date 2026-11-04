@@ -59,6 +59,21 @@ describe("indexing a track's existing run records", () => {
   });
 });
 
+describe("indexing a track's folder that holds its landing checkout", () => {
+  test("passes over the checkout, whose files are a commit's and no run's", async () => {
+    const tracked = await makeTracked();
+    const dir = join(tracked.trees["data"]!, ".temp", "data");
+    const run = JSON.stringify({ command: ["x"], cwd: tracked.trees["data"]!, started: 5, seconds: 1, exit: 0 });
+    await mkdir(join(dir, "landing"), { recursive: true });
+    await writeFile(join(dir, "landing", "green.json"), run);
+    await writeFile(join(dir, "green.json"), run);
+
+    const found = await importEvidence(tracked.repo, dir, { milestone: "B2", task: "4 manifest" });
+
+    expect(found).toMatchObject({ indexed: 1, ignored: 0 });
+  });
+});
+
 describe("indexing a red that was not one", () => {
   test("a run named red with no failed test is indexed as other, keeping where it came from", async () => {
     const tracked = await makeTracked();

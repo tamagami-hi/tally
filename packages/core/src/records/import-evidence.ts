@@ -26,7 +26,7 @@ const runShape = z
   .loose();
 
 const KINDS: [RegExp, EvidenceKind][] = [[/clippy/, "clippy"], [/fmt|format/, "fmt"], [/land/, "land"], [/coverage|llvm-cov/, "coverage"], [/sweep/, "sweep"], [/red|failing/, "red"], [/green|passing/, "green"]];
-const SKIPPED_FOLDERS = new Set(["tmp", "node_modules", "target"]);
+const SKIPPED_FOLDERS = new Set(["tmp", "node_modules", "target", "landing"]);
 
 export function kindOf(name: string): EvidenceKind {
   const low = basename(name).toLowerCase();
