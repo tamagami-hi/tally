@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { listEvidence, recordEvidence } from "../../src/records/evidence.ts";
@@ -6,6 +6,7 @@ import { readHandoff, writeHandoff } from "../../src/records/handoffs.ts";
 import { runEvidence, summarize } from "../../src/records/run.ts";
 import { Records } from "../../src/store/records.ts";
 import { openSession } from "../../src/state/sessions.ts";
+import { busyLock } from "../support/busy.ts";
 import { makeTracked } from "../support/tracked.ts";
 
 describe("evidence records", () => {
@@ -36,6 +37,46 @@ describe("evidence records", () => {
     expect(failed.record.exit).toBe(3);
     expect(failed.record.summary).toBeUndefined();
     await expect(runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "red", command: ["/no/such/program"] })).rejects.toThrow(/could not start/);
+  });
+
+  test("a run returns what ran when its record cannot be written, and the log stays", async () => {
+    const { repo, trees } = await makeTracked();
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+    busyLock("B2.json");
+
+    const result = await runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "clippy", command: ["sh", "-c", "echo 'warning: x'; exit 101"] });
+
+    expect(result).toMatchObject({ recorded: false, commit: null, record: { kind: "clippy", exit: 101, command: ["sh", "-c", "echo 'warning: x'; exit 101"] } });
+    expect(result.problem).toMatch(/B2\.json .*nothing was changed/);
+    expect(await readFile(result.logPath, "utf8")).toBe("warning: x\n");
+    expect(await listEvidence(repo, "B2", "4 manifest")).toEqual([]);
+  });
+
+  test("a run stays recorded when the landing lock keeps it from its commit", async () => {
+    const { repo, trees } = await makeTracked({ commit: true });
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+    busyLock("landing.lock");
+
+    const result = await runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "green", command: ["true"] });
+
+    expect(result).toMatchObject({ recorded: true, commit: null, record: { exit: 0 } });
+    expect(result.problem).toBeUndefined();
+    expect((await listEvidence(repo, "B2", "4 manifest")).map((r) => r.id)).toEqual([result.record.id]);
+  });
+
+  test("a run is refused before it starts, not after, when its record could never be written", async () => {
+    const { repo, trees } = await makeTracked();
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+    const touched = join(trees["data"]!, "ran.txt");
+    const command = ["touch", touched];
+
+    await expect(runEvidence(repo, data, ledger, { milestone: "B2", task: "nope", kind: "green", command })).rejects.toThrow("'nope' is not planned in B2");
+    await expect(runEvidence(repo, data, ledger, { milestone: "B2", task: "T9 store", kind: "green", command })).rejects.toThrow(/may not write track engine/);
+
+    await expect(access(touched)).rejects.toThrow();
   });
 
   test("summarize reads cargo's and vitest's totals", () => {

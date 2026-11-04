@@ -7,7 +7,7 @@ import { landingEnvironment } from "../land/run.ts";
 import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import type { Session } from "../state/sessions.ts";
-import { recordEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
+import { keepRun, writableTrack, type EvidenceKind, type Kept } from "./evidence.ts";
 import { safeName } from "./handoffs.ts";
 
 export interface RunInput {
@@ -35,9 +35,10 @@ export function summarize(text: string): Record<string, number> | undefined {
   return seen ? totals : undefined;
 }
 
-export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, input: RunInput, now = new Date()): Promise<{ record: RunRecord; commit: string | null; logPath: string }> {
+export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, input: RunInput, now = new Date()): Promise<Kept & { logPath: string }> {
   const [program, ...args] = input.command;
   if (program === undefined) throw new TallyError("the command is empty");
+  const track = writableTrack(repo, session, ledger, input);
   const folder = join(session.worktree, ".temp", safeName(session.track), "tally", safeName(input.milestone));
   await mkdir(folder, { recursive: true });
   const stamp = now.toISOString().replaceAll(/[:.]/g, "-");
@@ -58,7 +59,7 @@ export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, 
     child.on("close", (code) => file.end(() => done({ exit: code ?? 1, text: chunks.join("") })));
   });
   const summary = summarize(text);
-  const result = await recordEvidence(repo, session, ledger, {
+  const kept = await keepRun(repo, session, track, {
     milestone: input.milestone,
     task: input.task,
     kind: input.kind,
@@ -71,5 +72,5 @@ export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, 
     ...(summary === undefined ? {} : { summary }),
     ...(input.note === undefined ? {} : { note: input.note }),
   });
-  return { ...result, logPath };
+  return { ...kept, logPath };
 }

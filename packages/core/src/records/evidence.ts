@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { z } from "zod";
-import { TallyError } from "../errors.ts";
+import { TallyError, messageOf } from "../errors.ts";
 import { findMilestone, findTask } from "../ledger/items.ts";
 import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
@@ -76,16 +76,18 @@ async function hashLog(session: Session, logPath: string): Promise<RunRecord["lo
   return { path: absolute, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: (await stat(absolute)).size };
 }
 
-export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null }> {
-  const milestone = findMilestone(ledger, input.milestone);
-  const task = findTask(milestone, input.task);
+export function writableTrack(repo: Repo, session: Session, ledger: Ledger, input: Pick<EvidenceInput, "milestone" | "task">): string {
+  const task = findTask(findMilestone(ledger, input.milestone), input.task);
   if (task === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
   assertMayWrite(repo, session, task.track);
-  const log = input.logPath === undefined ? undefined : await hashLog(session, input.logPath);
-  const record: RunRecord = {
+  return task.track;
+}
+
+function composeRecord(session: Session, track: string, input: EvidenceInput, log?: RunRecord["log"]): RunRecord {
+  return {
     id: randomUUID(),
     task: input.task,
-    track: task.track,
+    track,
     agent: session.agent,
     kind: input.kind,
     command: [...input.command],
@@ -97,13 +99,49 @@ export async function recordEvidence(repo: Repo, session: Session, ledger: Ledge
     ...(input.summary === undefined ? {} : { summary: input.summary }),
     ...(input.note === undefined ? {} : { note: input.note }),
   };
-  const path = evidencePath(repo, input.milestone);
+}
+
+async function appendRecord(repo: Repo, milestone: string, record: RunRecord): Promise<void> {
+  const path = evidencePath(repo, milestone);
   await withLock(path, async () => {
-    const file = await readEvidence(repo, input.milestone);
+    const file = await readEvidence(repo, milestone);
     await writeJsonAtomic(path, { ...file, records: [...file.records, record] });
   });
-  const commit = await commitRecords(repo, `${input.milestone} '${input.task}': ${input.kind} exit ${input.exit}`);
-  return { record, commit };
+}
+
+const commitLine = (milestone: string, record: RunRecord): string => `${milestone} '${record.task}': ${record.kind} exit ${record.exit}`;
+
+export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null }> {
+  const track = writableTrack(repo, session, ledger, input);
+  const log = input.logPath === undefined ? undefined : await hashLog(session, input.logPath);
+  const record = composeRecord(session, track, input, log);
+  await appendRecord(repo, input.milestone, record);
+  return { record, commit: await commitRecords(repo, commitLine(input.milestone, record)) };
+}
+
+export interface Kept {
+  record: RunRecord;
+  recorded: boolean;
+  commit: string | null;
+  problem?: string;
+}
+
+async function committed(repo: Repo, milestone: string, record: RunRecord): Promise<Kept> {
+  try {
+    return { record, recorded: true, commit: await commitRecords(repo, commitLine(milestone, record)) };
+  } catch (error: unknown) {
+    return { record, recorded: true, commit: null, problem: `the record is written but not committed: ${messageOf(error)}` };
+  }
+}
+
+export async function keepRun(repo: Repo, session: Session, track: string, input: EvidenceInput & { logPath: string }): Promise<Kept> {
+  try {
+    const record = composeRecord(session, track, input, await hashLog(session, input.logPath));
+    await appendRecord(repo, input.milestone, record);
+    return await committed(repo, input.milestone, record);
+  } catch (error: unknown) {
+    return { record: composeRecord(session, track, input), recorded: false, commit: null, problem: messageOf(error) };
+  }
 }
 
 export async function listEvidence(repo: Repo, milestone: string, task?: string): Promise<RunRecord[]> {

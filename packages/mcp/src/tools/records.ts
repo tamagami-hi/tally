@@ -59,7 +59,7 @@ export function registerRecordTools(server: McpServer, repo: Repo): void {
   );
   server.registerTool(
     "evidence_run",
-    { description: "Run a command in the session's worktree with the landing environment, keep its log under .temp/<track>/tally/, and record it (cargo and vitest totals are read from the output).", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), note: z.string().optional() } },
+    { description: "Run a command in the session's worktree with the landing environment, keep its log under .temp/<track>/tally/, and record it (cargo and vitest totals are read from the output). Once the command has run this always answers with what ran: `recorded: false` and `problem` say when the record could not be written; a task the session cannot record for is refused before anything runs.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), note: z.string().optional() } },
     ({ sessionId, ...input }) => attempt(async () => ok(await runEvidence(repo, await getSession(repo, sessionId), await records.readLedger(), defined(input)))),
   );
   server.registerTool(

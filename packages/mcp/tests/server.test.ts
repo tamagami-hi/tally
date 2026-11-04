@@ -90,6 +90,18 @@ describe("the tally MCP server", () => {
     expect((await call("handoff_read", { track: "data" })).structured).toMatchObject({ current: { lines: ["a note"] } });
   });
 
+  test("evidence_run answers with what ran even when the record could not be written", async () => {
+    const { call, trees } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    busyLock("B2.json");
+
+    const ran = await call("evidence_run", { sessionId: data, milestone: "B2", task: "4 manifest", kind: "clippy", command: ["sh", "-c", "exit 101"] });
+
+    expect(ran.isError).toBe(false);
+    expect(ran.structured).toMatchObject({ recorded: false, record: { kind: "clippy", exit: 101 }, logPath: expect.stringContaining("clippy") });
+    expect(ran.structured!["problem"]).toMatch(/nothing was changed/);
+  });
+
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {
     const { call, trees } = await connected();
     const bad = await call("session_open", { worktree: trees["data"]!, track: "engine", agent: "claude" });

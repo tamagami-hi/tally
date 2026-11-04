@@ -62,7 +62,7 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 | --- | --- |
 | take the task, so the board shows it | `task_claim` |
 | write the failing test, run it | `evidence_run` with kind `red` (the command runs in your worktree with the landing environment; the log is kept under `.temp/<track>/tally/`, its hash in the record) |
-| make it pass, lint, format | `evidence_run` with `green`, `clippy`, `fmt` (or `evidence_record` for a run you made yourself) |
+| make it pass, lint, format | `evidence_run` with `green`, `clippy`, `fmt` (or `evidence_record` for a run you made yourself); a command that ran always answers with what ran, and `recorded: false` with `problem` says the record could not be written, the log being kept all the same |
 | land it on main | `land_run` with the explicit files and the commit message file: rebase, the configured tests, a commit as the operator, a fast-forward; refused when the checkout is dirty, the branch is wrong, files are staged that you did not name, or main moved under you |
 | record the landing | `task_land` with the commit (and `also` for follow-ups); the claim is released |
 | leave what the next session cannot find in the commits | `handoff_write` (at most 60 lines) |
