@@ -68,6 +68,20 @@ export interface LaidCommit {
   width: number;
 }
 
+export interface GraphPage {
+  commits: LaidCommit[];
+  total: number;
+}
+
+export interface GraphView {
+  commits: LaidCommit[];
+  hasMore: boolean;
+  loading: boolean;
+  failed: boolean;
+  loadMore: () => void;
+  retry: () => void;
+}
+
 export interface LiveSession {
   id: string;
   track: string;
@@ -133,6 +147,7 @@ export interface DocsIndex {
 export interface Snapshot {
   status: StatusData;
   graph: LaidCommit[];
+  graphTotal: number;
   state?: LiveState;
   takenAt: string;
 }

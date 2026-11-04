@@ -10,6 +10,7 @@ import { Stats } from "./components/Stats.tsx";
 import { Tracks, tracksSummary } from "./components/Tracks.tsx";
 import type { Scheme } from "./live.ts";
 import type { DocsIndex, EvidenceIndex, Layout, Live, Page, Snapshot } from "./types.ts";
+import { useGraph } from "./useGraph.ts";
 
 export interface ShellProps {
   snapshot: Snapshot | undefined;
@@ -72,8 +73,9 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
   const [page, setPage] = useState<Page>("board");
   const [main, setMain] = useState<MainView>("board");
   const [openDocument, setOpenDocument] = useState<string | null>(null);
+  const graph = useGraph(snapshot);
   if (snapshot === undefined) return error === null ? <Loading /> : <Failed error={error} onRetry={onRetry} />;
-  const { status, graph, state } = snapshot;
+  const { status, state } = snapshot;
   const claims = state?.claims ?? [];
   const reader = <Docs index={docs} selected={openDocument} onSelect={setOpenDocument} />;
   const top = <TopBar status={status} live={live} takenAt={snapshot.takenAt} scheme={scheme} onToggleScheme={onToggleScheme} />;
@@ -92,7 +94,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
           {main === "evidence" ? <Panel title="Evidence" detail={<MainSwitch view={main} onChange={setMain} />}><Evidence index={evidence} /></Panel> : null}
           {main === "docs" ? <Panel title="Docs" detail={<MainSwitch view={main} onChange={setMain} />}>{reader}</Panel> : null}
         </div>
-        <div className="column-right"><Panel title="Graph" detail={<Legend commits={graph} />} className="column-right"><Graph commits={graph} /></Panel></div>
+        <div className="column-right"><Panel title="Graph" detail={<Legend commits={graph.commits} />} className="column-right"><Graph view={graph} /></Panel></div>
       </div>
     );
   }
@@ -105,7 +107,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
       <main className="page">
         {page === "board" ? <Panel title="Board" detail={`${status.rows.length} milestones`}><Board status={status} claims={claims} /></Panel> : null}
         {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} state={state} /></Panel> : null}
-        {page === "graph" ? <Panel title="Graph" detail={<Legend commits={graph} />}><Graph commits={graph} /></Panel> : null}
+        {page === "graph" ? <Panel title="Graph" detail={<Legend commits={graph.commits} />}><Graph view={graph} /></Panel> : null}
         {page === "evidence" ? <Panel title="Evidence"><Evidence index={evidence} /></Panel> : null}
         {page === "docs" ? <Panel title="Docs">{reader}</Panel> : null}
       </main>

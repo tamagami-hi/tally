@@ -1,4 +1,6 @@
-import type { LaidCommit } from "../types.ts";
+import { useRef } from "react";
+import { useKeptScroll, useNearBottom } from "../scroll.ts";
+import type { GraphView, LaidCommit } from "../types.ts";
 
 const ROW = 44;
 const LANE = 16;
@@ -17,14 +19,18 @@ export function Legend({ commits }: { commits: LaidCommit[] }) {
   );
 }
 
-export function Graph({ commits }: { commits: LaidCommit[] }) {
+export function Graph({ view }: { view: GraphView }) {
+  const { commits, hasMore, loading, failed, loadMore, retry } = view;
+  const list = useRef<HTMLOListElement>(null);
+  useKeptScroll(list, commits, ROW);
+  useNearBottom(list, hasMore && !loading && !failed, loadMore);
   if (commits.length === 0) return <p className="muted small">No commits to draw.</p>;
   const lanes = Math.max(...commits.map((c) => c.width));
   const width = PAD * 2 + Math.max(0, lanes - 1) * LANE;
   const pushedAt = new Map(commits.map((c) => [c.hash, c.pushed]));
   return (
     <section className="graph" aria-label="Commit graph">
-      <ol className="graph-rows">
+      <ol ref={list} className="graph-rows">
         {commits.map((commit) => {
           const kind = commit.pushed ? "remote" : "local";
           return (
@@ -53,6 +59,8 @@ export function Graph({ commits }: { commits: LaidCommit[] }) {
           );
         })}
       </ol>
+      {hasMore && loading ? <p className="graph-status muted small" role="status">Loading more commits…</p> : null}
+      {hasMore && failed ? <p className="graph-status muted small" role="alert">Could not load more commits. <button type="button" className="button" onClick={retry}>Try again</button></p> : null}
     </section>
   );
 }

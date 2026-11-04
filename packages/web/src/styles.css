@@ -164,7 +164,8 @@ h1, h2, h3, p { margin: 0; }
 .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
 .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 .legend .unpushed i { background: var(--unpushed); } .legend .pushed i { background: var(--pushed); }
-.graph-rows { display: grid; padding-top: 4px; }
+.graph-rows { display: grid; padding-top: 4px; overflow-anchor: none; }
+.graph-status { padding: 10px 0 4px; text-align: center; }
 .graph-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; height: 44px; }
 .graph-lanes { display: block; }
 .graph-text { min-width: 0; display: grid; gap: 1px; }

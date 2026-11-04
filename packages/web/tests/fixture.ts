@@ -34,4 +34,5 @@ export const snapshot: Snapshot = {
     { hash: "f9d2c16", parents: ["401dcd6"], subject: "docs(rules): the ledger", author: "t", ct: 0, when: "5 min ago", labels: [], pushed: false, lane: 0, top: [[0, 0]], bottom: [[0, 0]], width: 1 },
     { hash: "401dcd6", parents: [], subject: "records: import", author: "t", ct: 0, when: "9 min ago", labels: ["origin/main"], pushed: true, lane: 0, top: [[0, 0]], bottom: [], width: 1 },
   ],
+  graphTotal: 3,
 };
