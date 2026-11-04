@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { Records, TallyError, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, type Config, type Repo } from "@tally/core";
 import { mcpHandler } from "@tally/mcp";
-import { GRAPH_LIMIT, commitCount, commitGraph } from "./graph.ts";
+import { GRAPH_LIMIT, commitCount, commitGraph, graphBranches } from "./graph.ts";
 import type { Watcher } from "./watcher.ts";
 
 export interface AppOptions {
@@ -51,8 +51,9 @@ export function createApp({ repo, watcher, webDir }: AppOptions): Hono {
   app.get("/api/graph", async (c) => {
     const limit = c.req.query("limit") ?? String(GRAPH_LIMIT);
     if (!WHOLE_NUMBER.test(limit)) return c.json({ error: "limit must be a whole number above zero" }, 400);
-    const total = await commitCount(repo.root);
-    return c.json({ commits: await commitGraph(repo.root, Math.min(Number(limit), Math.max(total, 1))), total });
+    const branches = graphBranches(repo.config);
+    const total = await commitCount(repo.root, branches);
+    return c.json({ commits: await commitGraph(repo.root, branches, Math.min(Number(limit), Math.max(total, 1))), total });
   });
   app.get("/api/ledger", async (c) => c.json(await new Records(repo).readLedger()));
   app.get("/api/config", (c) => c.json(redactedConfig(repo.config)));

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { Records, collect, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
-import { commitCount, commitGraph, type LaidCommit } from "./graph.ts";
+import { commitCount, commitGraph, graphBranches, type LaidCommit } from "./graph.ts";
 
 export interface LiveState {
   sessions: Session[];
@@ -44,8 +44,9 @@ export async function fingerprint(repo: Repo): Promise<string> {
 export async function snapshot(repo: Repo): Promise<Snapshot> {
   const ledger = await new Records(repo).readLedger();
   const status = await collect(repo, ledger);
-  const graph = await commitGraph(repo.root);
-  const graphTotal = await commitCount(repo.root);
+  const branches = graphBranches(repo.config);
+  const graph = await commitGraph(repo.root, branches);
+  const graphTotal = await commitCount(repo.root, branches);
   const state: LiveState = { sessions: await listSessions(repo), claims: await listClaims(repo), locks: await listLocks(repo) };
   return { status, graph, graphTotal, state, takenAt: new Date().toISOString() };
 }
