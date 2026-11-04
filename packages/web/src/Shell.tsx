@@ -5,6 +5,7 @@ import { Graph, Legend } from "./components/Graph.tsx";
 import { Hero, TopBar } from "./components/Header.tsx";
 import { Panel } from "./components/Panel.tsx";
 import { Problems } from "./components/Problems.tsx";
+import { Stats } from "./components/Stats.tsx";
 import { Tracks, tracksSummary } from "./components/Tracks.tsx";
 import type { Scheme } from "./live.ts";
 import type { EvidenceIndex, Layout, Live, Page, Snapshot } from "./types.ts";
@@ -68,8 +69,11 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, onToggl
   if (layout === "landscape") {
     return (
       <div className="shell landscape">
-        {top}
-        <Problems problems={status.problems} />
+        <div className="head">
+          {top}
+          <Stats status={status} />
+          <Problems problems={status.problems} />
+        </div>
         <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} state={state} /></Panel></div>
         <div className="column-main">
           <Hero status={status} />
@@ -84,6 +88,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, onToggl
   return (
     <div className="shell portrait">
       {top}
+      <Stats status={status} />
       <Problems problems={status.problems} />
       <Hero status={status} />
       <main className="page">

@@ -1,4 +1,4 @@
-import { MoonIcon, SunIcon } from "@radix-ui/react-icons";
+import { Half2Icon } from "@radix-ui/react-icons";
 import { useEffect, useState } from "react";
 import { percent, sinceText, tone } from "../format.ts";
 import type { Live, StatusData } from "../types.ts";
@@ -41,7 +41,7 @@ export function TopBar({ status, live, takenAt, scheme, onToggleScheme }: TopBar
           {LIVE[live]} · updated {sinceText(takenAt, now)}
         </span>
         <button type="button" className="icon-button" aria-label={scheme === "dark" ? "Switch to light" : "Switch to dark"} onClick={onToggleScheme}>
-          {scheme === "dark" ? <SunIcon /> : <MoonIcon />}
+          <Half2Icon />
         </button>
       </div>
     </header>
@@ -49,7 +49,6 @@ export function TopBar({ status, live, takenAt, scheme, onToggleScheme }: TopBar
 }
 
 export function Hero({ status }: { status: StatusData }) {
-  const pushed = status.origin === null ? "no origin" : status.unpushed > 0 ? `${status.unpushed} unpushed` : "all pushed";
   return (
     <section className="panel hero" aria-label="Overall progress">
       <div className="hero-total">
@@ -69,12 +68,6 @@ export function Hero({ status }: { status: StatusData }) {
             </div>
           );
         })}
-      </div>
-      <div className="hero-git">
-        <span className="truncate" title={status.main}><span className="mono">main {status.main.slice(0, 7)}</span> {status.main.slice(8)}</span>
-        <span className={status.unpushed > 0 ? "chip chip-active" : "chip chip-done"}>{pushed}</span>
-        <span>{status.today} commits today</span>
-        <span>{status.time}</span>
       </div>
     </section>
   );

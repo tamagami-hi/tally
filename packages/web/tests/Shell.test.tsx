@@ -13,6 +13,48 @@ function draw(overrides: Partial<ShellProps> = {}) {
   return render(<Shell {...props} />);
 }
 
+describe("the four cards", () => {
+  test.each(["landscape", "portrait"] as const)("sit under the top bar and above the hero in %s", (layout) => {
+    draw({ layout });
+    const cards = screen.getByLabelText("Repository");
+    expect(within(cards).getByText("ee8999a")).toBeInTheDocument();
+    expect(within(cards).getByText("records: a note")).toBeInTheDocument();
+    expect(within(cards).getByText("42")).toBeInTheDocument();
+    expect(within(cards).getByText("d0ff4a5")).toBeInTheDocument();
+    expect(within(cards).getByText("30")).toBeInTheDocument();
+    expect(within(cards).getByText("on main")).toBeInTheDocument();
+    expect(within(cards).getByText("1")).toBeInTheDocument();
+    expect(within(cards).getByText("36 (engine) · next row 38")).toBeInTheDocument();
+    const follows = (first: Element, second: Element): boolean => (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    expect(follows(screen.getByRole("banner"), cards)).toBe(true);
+    expect(follows(cards, screen.getByLabelText("Overall progress"))).toBe(true);
+  });
+
+  test("say so when there is no origin, no open question and no next row", () => {
+    const status = { ...snapshot.status, origin: null, unpushed: 0, questions: [], nextRow: null };
+    draw({ snapshot: { ...snapshot, status } });
+    const cards = screen.getByLabelText("Repository");
+    expect(within(cards).getByText("no origin")).toBeInTheDocument();
+    expect(within(cards).getByText("none open")).toBeInTheDocument();
+  });
+
+  test("leave the hero to the progress alone", () => {
+    draw();
+    const hero = screen.getByLabelText("Overall progress");
+    expect(within(hero).queryByText(/ee8999a/)).toBeNull();
+    expect(within(hero).queryByText(/commits today$/)).toBeNull();
+  });
+});
+
+describe("the theme button", () => {
+  test("says which scheme it switches to and switches it", () => {
+    const toggled: string[] = [];
+    draw({ scheme: "dark", onToggleScheme: () => toggled.push("toggled") });
+    fireEvent.click(screen.getByRole("button", { name: "Switch to light" }));
+    expect(toggled).toEqual(["toggled"]);
+  });
+});
+
 describe("the shell in landscape", () => {
   test("shows the top bar, the hero, the three columns and the board's numbers", () => {
     draw();
@@ -26,7 +68,6 @@ describe("the shell in landscape", () => {
     expect(within(board).getByText("18/23")).toBeInTheDocument();
     expect(within(board).getByText(/T8 candle_close/)).toBeInTheDocument();
     expect(within(board).getByText("T9 store waits for B2")).toBeInTheDocument();
-    expect(screen.getByText("42 unpushed")).toBeInTheDocument();
     expect(screen.getByText("2 · 1 with uncommitted work")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Pages" })).toBeNull();
   });
