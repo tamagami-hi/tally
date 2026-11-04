@@ -10,7 +10,7 @@ export { COVERED, unrecorded } from "./ledger/check.ts";
 export { boardSchema, fromBoard } from "./ledger/import.ts";
 export type { Board } from "./ledger/import.ts";
 export { readJson, writeJsonAtomic } from "./store/json.ts";
-export { withLock } from "./store/lock.ts";
+export { LockBusy, withLock } from "./store/lock.ts";
 export { CONFIG_FILE, LEDGER_FILE, RECORDS_DIR, Records, findRepoRoot, initRecords, openRepo } from "./store/records.ts";
 export type { Repo } from "./store/records.ts";
 export { git, gitMust, gitOut } from "./git/run.ts";
