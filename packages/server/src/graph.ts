@@ -2,6 +2,8 @@ import { ago, gitMust, gitOut } from "@tally/core";
 
 const SEP = "\u001f";
 
+export const GRAPH_LIMIT = 60;
+
 export interface Commit {
   hash: string;
   parents: string[];
@@ -29,7 +31,11 @@ function labelsOf(refs: string): string[] {
   return [...plain, ...tags];
 }
 
-export async function commitGraph(root: string, limit = 60, now = Date.now() / 1000): Promise<LaidCommit[]> {
+export async function commitCount(root: string): Promise<number> {
+  return Number(await gitMust(root, ["rev-list", "--count", "--branches", "--remotes"]));
+}
+
+export async function commitGraph(root: string, limit = GRAPH_LIMIT, now = Date.now() / 1000): Promise<LaidCommit[]> {
   const origin = await gitOut(root, ["rev-parse", "--verify", "-q", "origin/main"]);
   const pushed = new Set(origin === null ? [] : ((await gitOut(root, ["rev-list", "--abbrev-commit", "--abbrev=7", "origin/main"])) ?? "").split(/\s+/));
   const format = `%h${SEP}%p${SEP}%s${SEP}%an${SEP}%ct${SEP}%D`;

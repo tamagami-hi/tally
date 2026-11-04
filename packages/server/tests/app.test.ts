@@ -56,6 +56,32 @@ describe("the HTTP API", () => {
     expect((await app.request("/api/nothing")).status).toBe(404);
   });
 
+  test("the graph takes a limit and says how many commits exist, as the snapshot does", async () => {
+    const { app } = await fixture();
+    const graph = async (query: string) => (await app.request(`/api/graph${query}`)).json() as Promise<{ commits: { hash: string }[]; total: number }>;
+
+    const whole = await graph("");
+    const one = await graph("?limit=1");
+    const beyond = await graph("?limit=99999999999999999999999");
+    const snapshot = await (await app.request("/api/snapshot")).json() as { graph: unknown[]; graphTotal: number };
+
+    expect(whole.total).toBe(4);
+    expect(whole.commits).toHaveLength(4);
+    expect(one).toMatchObject({ total: 4, commits: [{ hash: whole.commits[0]?.hash }] });
+    expect(one.commits).toHaveLength(1);
+    expect(beyond.commits).toHaveLength(4);
+    expect(snapshot.graphTotal).toBe(4);
+  });
+
+  test.each(["0", "-1", "abc", "1.5", "", "1e3"])("the graph refuses the limit '%s'", async (limit) => {
+    const { app } = await fixture();
+
+    const response = await app.request(`/api/graph?limit=${limit}`);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "limit must be a whole number above zero" });
+  });
+
   test("lists the documents and the records, and reads one, refusing what is not a document", async () => {
     const { app, repo, root } = await fixture();
     expect(((await (await app.request("/api/docs")).json()) as { documents: unknown[] }).documents).toEqual([]);

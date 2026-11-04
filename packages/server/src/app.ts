@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { Records, TallyError, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, type Config, type Repo } from "@tally/core";
 import { mcpHandler } from "@tally/mcp";
+import { GRAPH_LIMIT, commitCount, commitGraph } from "./graph.ts";
 import type { Watcher } from "./watcher.ts";
 
 export interface AppOptions {
@@ -14,6 +15,7 @@ export interface AppOptions {
 }
 
 const PING_MS = 15_000;
+const WHOLE_NUMBER = /^[1-9]\d*$/;
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -43,7 +45,12 @@ export function createApp({ repo, watcher, webDir }: AppOptions): Hono {
   const app = new Hono();
   app.get("/api/snapshot", async (c) => c.json(await watcher.current()));
   app.get("/api/status", async (c) => c.json((await watcher.current()).status));
-  app.get("/api/graph", async (c) => c.json((await watcher.current()).graph));
+  app.get("/api/graph", async (c) => {
+    const limit = c.req.query("limit") ?? String(GRAPH_LIMIT);
+    if (!WHOLE_NUMBER.test(limit)) return c.json({ error: "limit must be a whole number above zero" }, 400);
+    const total = await commitCount(repo.root);
+    return c.json({ commits: await commitGraph(repo.root, Math.min(Number(limit), Math.max(total, 1))), total });
+  });
   app.get("/api/ledger", async (c) => c.json(await new Records(repo).readLedger()));
   app.get("/api/config", (c) => c.json(redactedConfig(repo.config)));
   app.get("/api/evidence", async (c) => c.json({ milestones: await readAllEvidence(repo) }));

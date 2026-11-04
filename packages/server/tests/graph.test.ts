@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { commitGraph, layOut, type Commit } from "../src/graph.ts";
+import { GRAPH_LIMIT, commitCount, commitGraph, layOut, type Commit } from "../src/graph.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
 
 const commit = (hash: string, parents: string[], labels: string[] = []): Commit => ({
@@ -35,5 +35,44 @@ describe("reading the graph from git", () => {
     expect(graph.find((c) => c.labels.includes("main"))?.subject).toBe("feat: a");
     expect(graph.every((c) => c.author === "tester")).toBe(true);
     expect(graph).toHaveLength(3);
+  });
+});
+
+describe("a graph of any length", () => {
+  async function branched() {
+    const repo = await makeRepo();
+    await repo.commit("a.txt", "a", "feat: a");
+    await sh(repo.root, ["checkout", "-q", "-b", "track/data"]);
+    await repo.commit("b.txt", "b", "feat: b");
+    await sh(repo.root, ["checkout", "-q", "main"]);
+    await repo.commit("c.txt", "c", "feat: c");
+    await repo.commit("d.txt", "d", "feat: d");
+    return repo;
+  }
+
+  test("stops at its limit, and the total counts every commit on every branch", async () => {
+    const repo = await branched();
+
+    expect(await commitGraph(repo.root, 2)).toHaveLength(2);
+    expect(await commitCount(repo.root)).toBe(5);
+    expect(await commitGraph(repo.root, 100)).toHaveLength(5);
+  });
+
+  test("a larger limit keeps the rows a smaller one drew, lanes and all", async () => {
+    const repo = await branched();
+    const now = 2_000_000_000;
+
+    const short = await commitGraph(repo.root, 3, now);
+    const long = await commitGraph(repo.root, 5, now);
+
+    expect(long.slice(0, 3)).toEqual(short);
+  });
+
+  test("the default stays at the live snapshot's size", async () => {
+    const repo = await makeRepo();
+    for (let n = 0; n < GRAPH_LIMIT; n += 1) await sh(repo.root, ["commit", "-q", "--allow-empty", "-m", `commit ${n}`]);
+
+    expect(await commitGraph(repo.root)).toHaveLength(GRAPH_LIMIT);
+    expect(await commitCount(repo.root)).toBe(GRAPH_LIMIT + 1);
   });
 });
