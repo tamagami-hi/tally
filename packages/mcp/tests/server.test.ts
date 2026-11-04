@@ -219,6 +219,18 @@ describe("the tally MCP server", () => {
     expect(await ids({ ids: ["SIM-2"] })).toEqual([["SIM-2"], ["SIM-2"]]);
   });
 
+  test("board_get with scope mine returns the session's rows and tasks, and all of them without it", async () => {
+    const { call, trees } = await connected();
+    const engine = (await call("session_open", { worktree: trees["engine"]!, track: "engine", agent: "e" })).structured!["id"] as string;
+    const taskIds = (board: Called): string[] => (board.structured!["rows"] as { tasks: { id: string }[] }[]).flatMap((r) => r.tasks.map((t) => t.id));
+
+    const mine = await call("board_get", { scope: "mine", sessionId: engine });
+    const all = await call("board_get");
+
+    expect(taskIds(mine)).toEqual(["T9 store"]);
+    expect(taskIds(all)).toEqual(["4 manifest", "5 transcoder", "T9 store", "done"]);
+  });
+
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {
     const { call, trees } = await connected();
     const bad = await call("session_open", { worktree: trees["data"]!, track: "engine", agent: "claude" });

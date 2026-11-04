@@ -1,5 +1,5 @@
 import type { Stage } from "../schema/config.ts";
-import type { Ledger, Milestone } from "../schema/ledger.ts";
+import type { Ledger, Milestone, Task } from "../schema/ledger.ts";
 
 export type OnMain = (commit: string) => Promise<boolean>;
 
@@ -24,6 +24,15 @@ export function ago(epoch: number, now = Date.now() / 1000): string {
   return `${Math.floor(minutes / 1440)} days ago`;
 }
 
+function openNotes(tasks: readonly Task[]): string[] {
+  const open = tasks.filter((task) => task.commit === undefined);
+  const nextByTrack = new Map<string, string>();
+  for (const task of open) {
+    if (task.waits === undefined && !nextByTrack.has(task.track)) nextByTrack.set(task.track, task.id);
+  }
+  return [...[...nextByTrack].map(([track, id]) => `${track} next: ${id}`), ...open.filter((task) => task.waits !== undefined).map((task) => `${task.id}: waits for ${task.waits}`)];
+}
+
 async function row(milestone: Milestone, onMain: OnMain, problems: string[]): Promise<MilestoneRow> {
   if (milestone.built !== undefined) return { ...milestone, share: 1, count: null, notes: ["built"] };
   if (milestone.tasks.length === 0) {
@@ -37,14 +46,16 @@ async function row(milestone: Milestone, onMain: OnMain, problems: string[]): Pr
     }
     if (task.commit !== undefined && (await onMain(task.commit))) landed += 1;
   }
-  const open = milestone.tasks.filter((task) => task.commit === undefined);
-  const nextByTrack = new Map<string, string>();
-  for (const task of open) {
-    if (task.waits === undefined && !nextByTrack.has(task.track)) nextByTrack.set(task.track, task.id);
-  }
-  const notes = [...nextByTrack].map(([track, id]) => `${track} next: ${id}`);
-  notes.push(...open.filter((task) => task.waits !== undefined).map((task) => `${task.id}: waits for ${task.waits}`));
-  return { ...milestone, share: landed / milestone.tasks.length, count: [landed, milestone.tasks.length], notes };
+  return { ...milestone, share: landed / milestone.tasks.length, count: [landed, milestone.tasks.length], notes: openNotes(milestone.tasks) };
+}
+
+export function rowsOf(rows: readonly MilestoneRow[], track: string): MilestoneRow[] {
+  return rows
+    .filter((row) => row.track.split("+").includes(track) || row.tasks.some((task) => task.track === track))
+    .map((row) => {
+      const tasks = row.tasks.filter((task) => task.track === track);
+      return { ...row, tasks, notes: row.count === null ? row.notes : openNotes(tasks) };
+    });
 }
 
 export async function summarize(ledger: Ledger, stages: readonly Stage[], onMain: OnMain): Promise<Summary> {

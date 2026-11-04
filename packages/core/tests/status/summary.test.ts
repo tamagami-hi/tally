@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ago, summarize } from "../../src/status/summary.ts";
+import { ago, rowsOf, summarize } from "../../src/status/summary.ts";
 import type { Ledger } from "../../src/schema/ledger.ts";
 
 const stages = [
@@ -52,6 +52,36 @@ describe("summarizing the ledger", () => {
     expect(summary.stagePct["B"]).toBeCloseTo(0.1);
     expect(summary.stagePct["C"]).toBe(0);
     expect(summary.overall).toBeCloseTo((32 * 1 + 52 * 0.1 + 16 * 0) / 100);
+  });
+});
+
+describe("one track's slice of the rows", () => {
+  test("keeps only that track's rows, tasks and notes, and the milestone's whole progress", async () => {
+    const { rows } = await summarize(ledger, stages, onMain);
+
+    const slice = rowsOf(rows, "data");
+
+    expect(slice.map((r) => r.id)).toEqual(["B4"]);
+    expect(slice[0]?.tasks.map((t) => t.id)).toEqual(["data 1"]);
+    expect(slice[0]?.notes).toEqual(["data next: data 1"]);
+    expect(slice[0]?.count).toEqual([1, 5]);
+  });
+
+  test("leaves a row with no tasks its own note, and shows no row of everyone's that holds nothing of the track's", async () => {
+    const { rows } = await summarize(ledger, stages, onMain);
+
+    const slice = rowsOf(rows, "engine");
+
+    expect(slice.map((r) => r.id)).toEqual(["B4", "B5"]);
+    expect(slice[0]?.notes).toEqual(["engine next: T8", "T9: waits for B2"]);
+    expect(slice[1]?.notes).toEqual(["not started"]);
+  });
+
+  test("finds a row by a task of the track even when the milestone does not name it", async () => {
+    const mixed: Ledger = { ...ledger, milestones: [{ id: "B7", stage: "B", name: "analytics", track: "engine", weight: 1, tasks: [{ id: "1", track: "engine", status: "planned", also: [] }, { id: "2", track: "data", status: "planned", also: [] }] }] };
+    const { rows } = await summarize(mixed, stages, onMain);
+
+    expect(rowsOf(rows, "data").map((r) => r.tasks.map((t) => t.id))).toEqual([["2"]]);
   });
 });
 

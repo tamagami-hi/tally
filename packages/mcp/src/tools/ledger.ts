@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   COVERED, Records, TallyError, addMilestone, assertMayWrite, claimTask, collect, commitRecords, findMilestone, findTask, getSession, isOperator,
-  listClaims, listLocks, logLines, other, plan, recordTask, releaseClaim, resolveOnMain, unrecorded, wait, type Ledger, type Repo, type Session,
+  listClaims, listLocks, logLines, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unrecorded, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 
@@ -26,7 +26,7 @@ export function registerLedgerTools(server: McpServer, repo: Repo): void {
 
   server.registerTool(
     "board_get",
-    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps the session's track only.", inputSchema: { scope: z.enum(["all", "mine"]).default("all"), sessionId: z.string().optional() } },
+    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps only the session's track: its rows, their tasks and notes, its branch and its claims.", inputSchema: { scope: z.enum(["all", "mine"]).default("all"), sessionId: z.string().optional() } },
     ({ scope, sessionId }) => attempt(async () => {
       const status = await collect(repo, await records.readLedger());
       const claims = await listClaims(repo);
@@ -34,8 +34,7 @@ export function registerLedgerTools(server: McpServer, repo: Repo): void {
       if (scope === "all") return ok({ ...status, claims, locks });
       if (sessionId === undefined) throw new TallyError("scope 'mine' needs the sessionId");
       const session = await getSession(repo, sessionId);
-      const mine = (track: string): boolean => track.split("+").includes(session.track) || track === "all";
-      return ok({ ...status, rows: status.rows.filter((r) => mine(r.track)), tracks: status.tracks.filter((t) => t.isMain || t.track === session.track), claims: claims.filter((c) => c.track === session.track), locks });
+      return ok({ ...status, rows: rowsOf(status.rows, session.track), tracks: status.tracks.filter((t) => t.isMain || t.track === session.track), claims: claims.filter((c) => c.track === session.track), locks });
     }),
   );
   server.registerTool(
