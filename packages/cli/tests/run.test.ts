@@ -76,6 +76,46 @@ describe("the command line", () => {
     expect(other.errors[0]).toMatch(/config\.json does not exist/);
   });
 
+  test("--help on a command prints only that command's usage lines, with no repository needed", async () => {
+    const console = io("/");
+
+    expect(await run(["task", "--help"], console)).toBe(0);
+
+    const lines = (console.lines[0] ?? "").split("\n");
+    expect(console.errors).toEqual([]);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.every((line) => line.trim().startsWith("tally task"))).toBe(true);
+    expect(lines.some((line) => line.includes("land") && line.includes("--also"))).toBe(true);
+  });
+
+  test("--help works after a verb, after other arguments, and as -h", async () => {
+    const expected = io("/");
+    await run(["task", "--help"], expected);
+
+    const forms = [["task", "land", "--help"], ["task", "land", "B2", "x", "--help"], ["task", "-h"], ["--repo", "/nowhere", "task", "plan", "--help"]];
+    for (const form of forms) {
+      const console = io("/");
+      expect(await run(form, console)).toBe(0);
+      expect(console.lines).toEqual(expected.lines);
+    }
+  });
+
+  test.each(["init", "import", "plans", "records", "report", "checks", "buildlog", "question", "decision", "milestone", "task", "ledger", "status", "views", "land", "serve", "mcp"])("tally %s --help has usage lines", async (command) => {
+    const console = io("/");
+
+    expect(await run([command, "--help"], console)).toBe(0);
+
+    expect(console.lines[0]).toContain(`tally ${command}`);
+  });
+
+  test("--help on an unknown command is still a usage error", async () => {
+    const console = io("/");
+
+    expect(await run(["frobnicate", "--help"], console)).toBe(2);
+
+    expect(console.errors[0]).toContain("tally: unknown command 'frobnicate'");
+  });
+
   test("names the missing repository when no records are above the folder", async () => {
     const console = io(await (await makeRepo()).root);
     expect(await run(["status"], console)).toBe(2);

@@ -9,6 +9,8 @@ npm install && npm run build                      # in the tally checkout
 node packages/cli/dist/main.js --help             # or put packages/cli/dist/main.js on PATH as `tally`
 ```
 
+`tally <command> --help` and `tally <command> <verb> --help` print that command's usage lines, with no repository needed.
+
 In the repository to track, once:
 
 ```bash
