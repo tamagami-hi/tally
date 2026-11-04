@@ -27,6 +27,8 @@ export { Paint, Raw, table, wrap } from "./status/table.ts";
 export { renderTerminal } from "./status/terminal.ts";
 export { renderMarkdown } from "./status/markdown.ts";
 export { defaultDeps, landTrack, spawnTests } from "./land/run.ts";
+export { landingLog, loggedTests } from "./land/run-tests.ts";
+export type { RunTests } from "./land/run-tests.ts";
 export { landingTarget, recordLanding, recordTask } from "./land/record.ts";
 export type { LandingRecord, LandingTarget, RecordedTask } from "./land/record.ts";
 export type { LandDeps, LandOptions, Landed } from "./land/run.ts";

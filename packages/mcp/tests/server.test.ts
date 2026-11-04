@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -8,6 +8,7 @@ import { busyLock } from "../../core/tests/support/busy.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import type { Config } from "../../core/src/schema/config.ts";
+import type { Repo } from "../../core/src/store/records.ts";
 import { parseChecks } from "../../core/src/records/checks.ts";
 import { addDecision, replaceDecision } from "../../core/src/records/decisions.ts";
 import { answerQuestion } from "../../core/src/records/questions.ts";
@@ -19,19 +20,27 @@ interface Called {
   structured: Record<string, unknown> | undefined;
 }
 
-async function connected(records?: Partial<Config["records"]>) {
-  const tracked = await makeTracked(records);
-  const server = createTallyServer(tracked.repo);
+type Call = (name: string, args?: Record<string, unknown>) => Promise<Called>;
+
+async function connect(repo: Repo): Promise<{ client: Client; call: Call }> {
+  const server = createTallyServer(repo);
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   await server.connect(serverSide);
   const client = new Client({ name: "test", version: "0" });
   await client.connect(clientSide);
-  const call = async (name: string, args: Record<string, unknown> = {}): Promise<Called> => {
+  const call: Call = async (name, args = {}) => {
     const result = await client.callTool({ name, arguments: args });
     const content = result.content as { type: string; text?: string }[];
     return { text: content.map((c) => c.text ?? "").join("\n"), isError: result.isError === true, structured: result.structuredContent as Record<string, unknown> | undefined };
   };
-  return { ...tracked, client, call };
+  return { client, call };
+}
+
+const serving = async (repo: Repo): Promise<Call> => (await connect(repo)).call;
+
+async function connected(records?: Partial<Config["records"]>) {
+  const tracked = await makeTracked(records);
+  return { ...tracked, ...(await connect(tracked.repo)) };
 }
 
 describe("the tally MCP server", () => {
@@ -113,6 +122,24 @@ describe("the tally MCP server", () => {
 
     expect(ran.structured).toMatchObject({ record: { kind: "other" }, notice: expect.stringContaining("no failed test") });
     expect(kept.structured).toMatchObject({ record: { kind: "other" }, notice: "recorded as other, not red: it exited 0" });
+  });
+
+  test("land_run answers with the log of its tests, and a failing landing names it", async () => {
+    const { call, repo, trees } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    await mkdir(join(trees["data"]!, ".temp"), { recursive: true });
+    await writeFile(join(trees["data"]!, ".temp", "m.txt"), "feat(data): a\n");
+    await writeFile(join(trees["data"]!, "a.rs"), "a");
+    const failing = { ...repo.config.commands, test: ["sh", "-c", "echo broken; exit 1"] };
+    const failed = await (await serving({ ...repo, config: { ...repo.config, commands: failing } }))("land_run", { sessionId: data, files: ["a.rs"], messageFile: ".temp/m.txt" });
+
+    const landed = await call("land_run", { sessionId: data, files: ["a.rs"], messageFile: ".temp/m.txt" });
+
+    const logged = /the log is (\S+)$/.exec(failed.text)?.[1];
+    expect(failed.isError).toBe(true);
+    expect(await readFile(logged!, "utf8")).toBe("broken\n");
+    expect(landed.isError).toBe(false);
+    expect(landed.structured!["log"]).toMatch(new RegExp(`^${trees["data"]!}/\\.temp/data/tally/landings/.*\\.log$`));
   });
 
   test("land_run with a milestone and a task records them at the hash it made and frees the claim", async () => {

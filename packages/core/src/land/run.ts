@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { TallyError } from "../errors.ts";
@@ -7,11 +6,13 @@ import type { Repo } from "../store/records.ts";
 import { LANDING_RETRIES, withLock } from "../store/lock.ts";
 import { checkArguments, checkCheckout, checkTrackPaths, checkWorktree, type LandOptions } from "./checks.ts";
 import { fingerprint, statePath, trackOf, worktreeOf } from "./paths.ts";
+import { spawnTests, type RunTests } from "./run-tests.ts";
 
 export type { LandOptions } from "./checks.ts";
+export { spawnTests } from "./run-tests.ts";
 
 export interface LandDeps {
-  runTests: (cwd: string, command: readonly string[], env: NodeJS.ProcessEnv) => Promise<void>;
+  runTests: RunTests;
   log: (line: string) => void;
   afterTests?: () => Promise<void>;
 }
@@ -20,19 +21,6 @@ export interface Landed {
   track: string;
   head: string;
   commits: string[];
-}
-
-export function spawnTests(cwd: string, command: readonly string[], env: NodeJS.ProcessEnv): Promise<void> {
-  const [program, ...args] = command;
-  if (program === undefined) throw new TallyError("the config names no test command");
-  return new Promise((done, fail) => {
-    const child = execFile(program, args, { cwd, env, maxBuffer: 256 * 1024 * 1024 }, (error) => {
-      if (error === null) done();
-      else fail(new TallyError(`${command.join(" ")} failed in ${cwd}`));
-    });
-    child.stdout?.pipe(process.stdout);
-    child.stderr?.pipe(process.stderr);
-  });
 }
 
 export const defaultDeps: LandDeps = { runTests: spawnTests, log: (line) => process.stdout.write(`${line}\n`) };

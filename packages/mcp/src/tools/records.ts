@@ -1,12 +1,9 @@
-import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
-import { execFile } from "node:child_process";
+import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
-  Records, TallyError, acquireLock, evidenceKinds, getSession, landTrack, landingTarget, listEvidence, listLocks, readHandoff, recordEvidence, recordLanding, releaseLock,
-  runEvidence, safeName, trackOf, writeHandoff, type Repo, type Session,
+  Records, acquireLock, evidenceKinds, getSession, landTrack, landingLog, landingTarget, listEvidence, listLocks, loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock,
+  runEvidence, trackOf, writeHandoff, type Repo,
 } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 
@@ -14,27 +11,6 @@ const summaryValue = z.union([z.number(), z.string(), z.boolean()]);
 
 function defined<T extends Record<string, unknown>>(input: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
-}
-
-function captured(session: Session): { log: string; run: (cwd: string, command: readonly string[], env: NodeJS.ProcessEnv) => Promise<void> } {
-  const folder = join(session.worktree, ".temp", safeName(session.track), "tally", "landings");
-  const log = join(folder, `${new Date().toISOString().replaceAll(/[:.]/g, "-")}.log`);
-  const run = async (cwd: string, command: readonly string[], env: NodeJS.ProcessEnv): Promise<void> => {
-    await mkdir(folder, { recursive: true });
-    const [program, ...args] = command;
-    if (program === undefined) throw new TallyError("the config names no test command");
-    await new Promise<void>((done, fail) => {
-      const file = createWriteStream(log);
-      const child = execFile(program, args, { cwd, env, maxBuffer: 256 * 1024 * 1024 }, (error) => {
-        file.end();
-        if (error === null) done();
-        else fail(new TallyError(`${command.join(" ")} failed in ${cwd}; the log is ${log}`));
-      });
-      child.stdout?.pipe(file, { end: false });
-      child.stderr?.pipe(file, { end: false });
-    });
-  };
-  return { log, run };
 }
 
 export function registerRecordTools(server: McpServer, repo: Repo): void {
@@ -47,9 +23,9 @@ export function registerRecordTools(server: McpServer, repo: Repo): void {
       const session = await getSession(repo, sessionId);
       trackOf(repo.config, session.track);
       const target = landingTarget(milestone, task);
-      const { log, run } = captured(session);
+      const log = landingLog(session.worktree, session.track);
       const lines: string[] = [];
-      const landed = await landTrack(repo, { track: session.track, files, ...(messageFile === undefined ? {} : { messageFile: resolve(session.worktree, messageFile) }), ...(verifiedCode === undefined ? {} : { verifiedCode }) }, { runTests: run, log: (line) => lines.push(line) });
+      const landed = await landTrack(repo, { track: session.track, files, ...(messageFile === undefined ? {} : { messageFile: resolve(session.worktree, messageFile) }), ...(verifiedCode === undefined ? {} : { verifiedCode }) }, { runTests: loggedTests(log), log: (line) => lines.push(line) });
       const recording = target === undefined ? {} : { recording: await recordLanding(repo, landed, target, session) };
       return ok({ ...landed, log, lines, ...recording });
     }),
