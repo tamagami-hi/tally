@@ -88,7 +88,7 @@ Bringing an existing repository's Markdown over: `tally import decisions PATH --
 
 ## 7. Parallel tracks
 
-Each track has its worktree and its branch; each session binds to one. A track session writes only its track's tasks, evidence and hand-off; it reads everything. A task is held by one session at a time, and a session holds one task at a time. The named locks (`lock_acquire`, `lock_release`, `lock_list`) coordinate what the config says needs one, such as an evidence host; a lock dies with its session. `board_get` with `scope: "mine"` is your slice of the board.
+Each track has its worktree and its branch; each session binds to one. A track that only touches part of the repository can name its own `test` command and its `paths` in the config: its landings run that command in place of the repository's, and refuse any file outside those paths. A track session writes only its track's tasks, evidence and hand-off; it reads everything. A task is held by one session at a time, and a session holds one task at a time. The named locks (`lock_acquire`, `lock_release`, `lock_list`) coordinate what the config says needs one, such as an evidence host; a lock dies with its session. `board_get` with `scope: "mine"` is your slice of the board.
 
 When a task of yours waits on another track, `task_wait` names what it waits for and the board draws it; move to a task that does not wait.
 

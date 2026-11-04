@@ -2,7 +2,7 @@ import { isAbsolute } from "node:path";
 import { TallyError } from "../errors.ts";
 import { currentBranch, porcelain } from "../git/refs.ts";
 import { gitMust } from "../git/run.ts";
-import type { Config } from "../schema/config.ts";
+import type { Config, Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
 import { isDocumentation } from "./paths.ts";
 
@@ -23,6 +23,13 @@ export function checkArguments(options: LandOptions, config: Config): void {
   if (options.verifiedCode !== undefined && options.files.some((name) => !isDocumentation(name, config))) {
     throw new TallyError("--verified-code is only for documentation/evidence on already checked code");
   }
+}
+
+export function checkTrackPaths(track: Track, files: readonly string[]): void {
+  const { name, paths } = track;
+  if (paths === undefined) return;
+  const outside = files.filter((file) => !paths.some((path) => file === path || file.startsWith(`${path}/`)));
+  if (outside.length > 0) throw new TallyError(`${name} lands only ${paths.join(", ")}: ${outside.join(", ")} is outside them`);
 }
 
 function pathOf(line: string): string {

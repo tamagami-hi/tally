@@ -5,7 +5,7 @@ import { TallyError } from "../errors.ts";
 import { gitMust } from "../git/run.ts";
 import type { Repo } from "../store/records.ts";
 import { withLock } from "../store/lock.ts";
-import { checkArguments, checkCheckout, checkWorktree, type LandOptions } from "./checks.ts";
+import { checkArguments, checkCheckout, checkTrackPaths, checkWorktree, type LandOptions } from "./checks.ts";
 import { fingerprint, statePath, trackOf, worktreeOf } from "./paths.ts";
 
 export type { LandOptions } from "./checks.ts";
@@ -51,6 +51,7 @@ export async function landTrack(repo: Repo, options: LandOptions, deps: LandDeps
   const { config, root } = repo;
   checkArguments(options, config);
   const track = trackOf(config, options.track);
+  checkTrackPaths(track, options.files);
   const tree = worktreeOf(repo, track);
   return withLock(statePath(repo, "locks", "landing.lock"), async () => {
     await checkCheckout(repo);
@@ -65,7 +66,7 @@ export async function landTrack(repo: Repo, options: LandOptions, deps: LandDeps
       if ((await fingerprint(tree, config)) !== options.verifiedCode) throw new TallyError("track code differs from the verification; task preserved");
       deps.log(`reusing recorded verification of unchanged code ${options.verifiedCode}`);
     } else {
-      await deps.runTests(tree, config.commands.test, await landingEnvironment(repo, tree, track.name));
+      await deps.runTests(tree, track.test ?? config.commands.test, await landingEnvironment(repo, tree, track.name));
     }
     if (options.messageFile !== undefined) {
       await gitMust(tree, ["add", "--", ...options.files]);

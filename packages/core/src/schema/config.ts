@@ -4,6 +4,8 @@ export const trackSchema = z.object({
   name: z.string().min(1),
   worktree: z.string().min(1),
   branch: z.string().min(1),
+  test: z.array(z.string()).min(1).optional(),
+  paths: z.array(z.string().min(1)).optional(),
 });
 
 export const stageSchema = z.object({

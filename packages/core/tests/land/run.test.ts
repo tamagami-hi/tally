@@ -151,3 +151,29 @@ describe("a landing", () => {
       .rejects.toThrow("main code differs from the verification; task preserved, recheck changed code");
   });
 });
+
+describe("a track with its own tests", () => {
+  const ownTrack = (f: Fixture): Repo => ({
+    ...f.repo,
+    config: { ...f.repo.config, tracks: [{ name: "data", worktree: ".temp/worktrees/data", branch: "track/data", test: ["own-tests"], paths: ["ui", "docs"] }] },
+  });
+
+  test("runs its own command in place of the repository's", async () => {
+    const f = await fixture(["cargo", "test"]);
+    await edit(f.tree, "ui/page.tsx");
+
+    await landTrack(ownTrack(f), { track: "data", files: ["ui/page.tsx"], messageFile: f.message }, f.deps);
+
+    expect(f.ran[0]?.[1]).toBe("own-tests");
+    expect(f.ran.flat()).not.toContain("cargo");
+  });
+
+  test("refuses a file outside its paths, so nothing skips the repository's tests", async () => {
+    const f = await fixture();
+    await edit(f.tree, "src/lib.rs");
+    await edit(f.tree, "ui/page.tsx");
+
+    await expect(landTrack(ownTrack(f), { track: "data", files: ["ui/page.tsx", "src/lib.rs"], messageFile: f.message }, f.deps)).rejects.toThrow("data lands only ui, docs: src/lib.rs is outside them");
+    expect(f.ran).toEqual([]);
+  });
+});
