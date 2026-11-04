@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { TallyError } from "../errors.ts";
 import { gitMust } from "../git/run.ts";
 import type { Repo } from "../store/records.ts";
-import { withLock } from "../store/lock.ts";
+import { LANDING_RETRIES, withLock } from "../store/lock.ts";
 import { checkArguments, checkCheckout, checkTrackPaths, checkWorktree, type LandOptions } from "./checks.ts";
 import { fingerprint, statePath, trackOf, worktreeOf } from "./paths.ts";
 
@@ -81,7 +81,7 @@ export async function landTrack(repo: Repo, options: LandOptions, deps: LandDeps
     const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
     deps.log(`${track.name} landed at ${head}`);
     return { track: track.name, head };
-  });
+  }, LANDING_RETRIES);
 }
 
 export function messagePath(repo: Repo, file: string): string {
