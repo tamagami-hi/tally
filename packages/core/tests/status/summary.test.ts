@@ -55,6 +55,33 @@ describe("summarizing the ledger", () => {
   });
 });
 
+describe("a milestone's owner on the board", () => {
+  const rowWith = async (track: string, taskTracks: string[], built?: string): Promise<string | undefined> => {
+    const tasks = taskTracks.map((t, index) => ({ id: `task ${index}`, track: t, status: "planned" as const, also: [] }));
+    const owned: Ledger = { ...ledger, milestones: [{ id: "M", stage: "B", name: "m", track, weight: 1, tasks, ...(built === undefined ? {} : { built }) }] };
+    return (await summarize(owned, stages, onMain)).rows[0]?.track;
+  };
+
+  test("a task planned for a new track shows that track after the configured ones", async () => {
+    expect(await rowWith("engine+product", ["engine", "analytics"])).toBe("engine+product+analytics");
+  });
+
+  test("names each track once, and a milestone with no tasks keeps its configured track", async () => {
+    expect(await rowWith("data+engine", ["engine", "data", "engine"])).toBe("data+engine");
+    expect(await rowWith("data", [])).toBe("data");
+  });
+
+  test("holds for a built milestone too", async () => {
+    expect(await rowWith("data", ["product"], "abc1234..def5678")).toBe("data+product");
+  });
+
+  test("everyone's milestone stays everyone's, and tasks replace the no-owner mark", async () => {
+    expect(await rowWith("all", ["data"])).toBe("all");
+    expect(await rowWith("-", ["data"])).toBe("data");
+    expect(await rowWith("-", [])).toBe("-");
+  });
+});
+
 describe("one track's slice of the rows", () => {
   test("keeps only that track's rows, tasks and notes, and the milestone's whole progress", async () => {
     const { rows } = await summarize(ledger, stages, onMain);

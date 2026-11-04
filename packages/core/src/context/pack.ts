@@ -9,6 +9,7 @@ import { listClaims, type Claim } from "../state/claims.ts";
 import { listLocks, type HeldLock } from "../state/locks.ts";
 import { listSessions, type Session } from "../state/sessions.ts";
 import { openQuestions } from "../status/questions.ts";
+import { ownersOf } from "../status/summary.ts";
 import type { Repo } from "../store/records.ts";
 import { Records } from "../store/records.ts";
 
@@ -81,7 +82,7 @@ async function project(repo: Repo, ledger: Ledger, claims: Claim[], locks: HeldL
     tracks: repo.config.tracks,
     stages: repo.config.stages,
     locks: repo.config.locks,
-    milestones: ledger.milestones.map((m) => ({ id: m.id, stage: m.stage, name: m.name, track: m.track, built: m.built ?? null, tasks: m.tasks.length, landed: m.tasks.filter((t) => t.commit !== undefined).length })),
+    milestones: ledger.milestones.map((m) => ({ id: m.id, stage: m.stage, name: m.name, track: ownersOf(m), built: m.built ?? null, tasks: m.tasks.length, landed: m.tasks.filter((t) => t.commit !== undefined).length })),
     openQuestions: questions.rows,
     nextQuestionRow: questions.nextRow,
     sessions: sessions.map((s) => ({ id: s.id, track: s.track, agent: s.agent, since: s.openedAt })),
@@ -130,7 +131,7 @@ async function milestone(repo: Repo, m: Milestone, claims: Claim[]): Promise<Pac
   const counts = Object.fromEntries(m.tasks.map((t) => [t.id, evidence.filter((e) => e.task === t.id).length]));
   const parts = { milestone: m, evidenceCounts: counts, claims: claims.filter((c) => c.milestone === m.id) };
   const text = [
-    `# ${m.id} ${m.name} (stage ${m.stage}, track ${m.track}${m.built === undefined ? "" : `, built ${m.built}`})`,
+    `# ${m.id} ${m.name} (stage ${m.stage}, track ${ownersOf(m)}${m.built === undefined ? "" : `, built ${m.built}`})`,
     "",
     ...m.tasks.map((t) => `${taskLine(m.id, t, claims)}; evidence records: ${counts[t.id] ?? 0}`),
   ].join("\n");

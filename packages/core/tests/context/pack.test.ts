@@ -23,6 +23,18 @@ describe("context packs", () => {
     expect(pack.parts["claims"]).toHaveLength(1);
   });
 
+  test("the project and milestone packs name the same owners as the board", async () => {
+    const { repo } = await makeTracked();
+    const records = new Records(repo);
+    await records.update((ledger) => ({ ledger: { ...ledger, milestones: ledger.milestones.map((m) => ({ ...m, track: "data", tasks: [...m.tasks, { id: "new", track: "analytics", status: "planned" as const, also: [] }] })) }, message: "x" }));
+
+    const project = await contextPack(repo, { level: "project" });
+    const milestone = await contextPack(repo, { level: "milestone", milestone: "B2" });
+
+    expect(project.parts["milestones"]).toMatchObject([{ id: "B2", track: "data+engine+analytics" }]);
+    expect(milestone.text).toContain("# B2 store (stage B, track data+engine+analytics)");
+  });
+
   test("the track and task packs carry the tasks' states, the hand-off and the evidence", async () => {
     const { repo, trees } = await makeTracked();
     const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "claude" });

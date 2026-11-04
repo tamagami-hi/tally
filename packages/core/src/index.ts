@@ -18,7 +18,7 @@ export type { GitResult } from "./git/run.ts";
 export { currentBranch, isAncestor, logLines, porcelain, resolveOnMain, revCount, shortOf, verifyCommit, worktrees } from "./git/refs.ts";
 export { collect } from "./status/collect.ts";
 export type { StatusData } from "./status/collect.ts";
-export { ago, rowsOf, summarize } from "./status/summary.ts";
+export { ago, ownersOf, rowsOf, summarize } from "./status/summary.ts";
 export type { MilestoneRow, OnMain, Summary } from "./status/summary.ts";
 export { branches, changes } from "./status/tracks.ts";
 export type { ChangedFile, TrackRow } from "./status/tracks.ts";

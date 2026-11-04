@@ -1,6 +1,9 @@
 import type { Stage } from "../schema/config.ts";
 import type { Ledger, Milestone, Task } from "../schema/ledger.ts";
 
+const EVERYONE = "all";
+const NO_OWNER = "-";
+
 export type OnMain = (commit: string) => Promise<boolean>;
 
 export interface MilestoneRow extends Milestone {
@@ -22,6 +25,12 @@ export function ago(epoch: number, now = Date.now() / 1000): string {
   if (minutes < 60) return `${minutes} min ago`;
   if (minutes < 48 * 60) return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")} min ago`;
   return `${Math.floor(minutes / 1440)} days ago`;
+}
+
+export function ownersOf(milestone: Pick<Milestone, "track" | "tasks">): string {
+  if (milestone.track === EVERYONE) return EVERYONE;
+  const named = [...milestone.track.split("+"), ...milestone.tasks.map((task) => task.track)].filter((track) => track !== NO_OWNER);
+  return named.length === 0 ? milestone.track : [...new Set(named)].join("+");
 }
 
 function openNotes(tasks: readonly Task[]): string[] {
@@ -61,7 +70,7 @@ export function rowsOf(rows: readonly MilestoneRow[], track: string): MilestoneR
 export async function summarize(ledger: Ledger, stages: readonly Stage[], onMain: OnMain): Promise<Summary> {
   const problems: string[] = [];
   const rows: MilestoneRow[] = [];
-  for (const milestone of ledger.milestones) rows.push(await row(milestone, onMain, problems));
+  for (const milestone of ledger.milestones) rows.push({ ...(await row(milestone, onMain, problems)), track: ownersOf(milestone) });
   const stagePct: Record<string, number> = {};
   for (const stage of stages) {
     const inStage = rows.filter((r) => r.stage === stage.id);
