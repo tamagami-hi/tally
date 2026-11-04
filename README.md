@@ -41,7 +41,7 @@ tally report manifest 2026-11-03 b4-data --group market_data --narrative docs/ma
 tally views claude --check         # CLAUDE.md's standing block; exit 1 when stale
 ```
 
-`task` verbs write `ledger.json` under a lock and, when `records.commit` is on, commit `docs/records/` as the configured identity with the prefix `records:`; `ledger check` and `status` pass over those commits by their prefix. `land` is `land.py`'s protocol: the operator checkout on `main` and clean outside `docs/records/`, the worktree on its branch, no unrelated staged files, rebase, the configured test command in the worktree, a commit as the configured identity, a fast-forward of `main`, all under `.temp/tally/state/locks/landing.lock`.
+`task` verbs write `ledger.json` under a lock and, when `records.commit` is on, commit `docs/records/` as the configured identity with the prefix `records:`; `ledger check` and `status` pass over those commits by their prefix. `land` is `land.py`'s protocol: the operator checkout on `main` and clean outside `docs/records/`, the worktree on its branch, no unrelated staged files, rebase, the configured test command in the worktree, a commit as the configured identity, a fast-forward of `main`, all under `.temp/tally/state/locks/landing.lock`. With `commands.landing` in the config the tests see only what lands: the commit comes first, and every commit ahead of `main` is tested, oldest first, in a detached checkout at `<worktree>/.temp/<track>/landing`. A failure names the commit and the log, leaves `main` alone and undoes the landing's own commit with `git reset --soft`, its files left staged. [GUIDE.md](GUIDE.md), section 7, has `link` and `env`.
 
 ## Layout
 
@@ -52,7 +52,7 @@ tally views claude --check         # CLAUDE.md's standing block; exit 1 when sta
 | `packages/core/src/git` | the few git reads every verb needs |
 | `packages/core/src/ledger` | plan, land, wait, other, check, the board import |
 | `packages/core/src/status` | the summary, tracks, questions, the tables |
-| `packages/core/src/land` | the landing protocol and its refusals |
+| `packages/core/src/land` | the landing protocol and its refusals, the clean checkout, the tests' log |
 | `packages/core/src/records` | the records commit; decisions, questions, checks, build logs, evidence (and the index of existing run records), plans, report manifests, hand-offs |
 | `packages/core/src/views` | the standing block CLAUDE.md carries between its markers |
 | `packages/server/src` | Hono: the API, the event stream, the git watcher, the commit graph layout, static serving of the web build |

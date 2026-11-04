@@ -65,7 +65,7 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 | take the task, so the board shows it | `task_claim` |
 | write the failing test, run it | `evidence_run` with kind `red` (the command runs in your worktree with the landing environment; the log is kept under `.temp/<track>/tally/`, its hash in the record). A red must show a failed test: one that exits 0, or exits non-zero with no failed test, such as a compile or usage error, is recorded as `other` with a note saying why, and the result's `notice` says so. The failed count is read from cargo's, vitest's and pytest's output; for another runner, use `evidence_record` with `summary.failed` |
 | make it pass, lint, format | `evidence_run` with `green`, `clippy`, `fmt` (or `evidence_record` for a run you made yourself); a command that ran always answers with what ran, and `recorded: false` with `problem` says the record could not be written, the log being kept all the same |
-| land it on main | `land_run` with the explicit files and the commit message file: rebase, the configured tests, a commit as the operator, a fast-forward; refused when the checkout is dirty, the branch is wrong, files are staged that you did not name, or main moved under you. With `milestone` and `task` it records that task at the hash it made, the landing's earlier commits in `also`, and releases the claim, an unplanned task being added as `task_land` adds it (from the shell, `tally land <track> --message F --milestone M --task T <paths...>`). A landing that succeeds but cannot record says so with the commit, and is still a landing |
+| land it on main | `land_run` with the explicit files and the commit message file: rebase, the configured tests, a commit as the operator, a fast-forward; refused when the checkout is dirty, the branch is wrong, files are staged that you did not name, or main moved under you. With `commands.landing` in the config the commit comes first and every commit ahead of main is tested in a clean checkout (section 7); the result's `log` holds their output, and a failure names the commit and that log. With `milestone` and `task` it records that task at the hash it made, the landing's earlier commits in `also`, and releases the claim, an unplanned task being added as `task_land` adds it (from the shell, `tally land <track> --message F --milestone M --task T <paths...>`). A landing that succeeds but cannot record says so with the commit, and is still a landing |
 | record a landing made without them | `task_land` or `tally task land` with the commit (and `also` for follow-ups); the claim is released, whoever holds it, since a landed task cannot be worked |
 | leave what the next session cannot find in the commits | `handoff_write` (at most 60 lines) |
 | wait on something | `task_wait`, cleared by `task_unwait` (`tally task unwait <milestone> <task>`); a commit that is no task's: `task_other` |
@@ -95,6 +95,26 @@ Bringing an existing repository's Markdown over: `tally import decisions PATH --
 Each track has its worktree and its branch; each session binds to one. A track that only touches part of the repository can name its own `test` command and its `paths` in the config: its landings run that command in place of the repository's, and refuse any file outside those paths. A track session writes only its track's tasks, evidence and hand-off; it reads everything. A task is held by one session at a time, and a session holds one task at a time. The named locks (`lock_acquire`, `lock_release`, `lock_list`) coordinate what the config says needs one, such as an evidence host; a lock dies with its session. `board_get` with `scope: "mine"` is your slice of the board: your track's rows, holding only your tasks and notes, with each milestone's whole progress.
 
 When a task of yours waits on another track, `task_wait` names what it waits for and the board draws it; move to a task that does not wait.
+
+**A landing in a clean checkout.** By default a landing runs its tests in the live worktree before it commits, so they see every draft there, and several commits ahead of main are tested only at the tip. With `commands.landing` in the config, a landing tests exactly what lands:
+
+1. Under the landing lock it makes the usual checks, rebases, and commits the named files on the track's branch.
+2. It checks out each commit in `main..<branch>`, oldest first, in the track's landing checkout, and runs the track's test command there. It stops at the first failure and names that commit.
+3. On success main fast-forwards to the commit it tested. On any failure main stays, and a commit this landing made is undone with `git reset --soft`: its files stay staged, nothing else in the worktree is touched, and the error gives the log's path.
+
+The worktree is free while the tests run, so the track can keep working. What it commits meanwhile is not on main until its next landing. If it commits during a landing that then fails, the landing's commit stays under the new one and the error says so, since undoing it would take the new commit too. A `--verified-code` landing tests nothing, as without this. The tests hold the landing lock, so a landing of three commits holds it for three runs, and other landings wait for it.
+
+```json
+"commands": {
+  "test": ["cargo", "test", "--locked"],
+  "unset": ["CARGO_TARGET_DIR"],
+  "landing": { "link": ["ui/node_modules"], "env": { "CARGO_TARGET_DIR": "{worktree}/target" } }
+}
+```
+
+`link` lists paths symlinked from the worktree into the checkout after each clean, for instance a dependency folder. A path the commit carries is refused, since the link would hide what lands, and so is one the worktree does not have. `env` values are added to the test environment after `unset`, with `{worktree}` and `{track}` replaced, so a build cache can be shared. Both are optional: `"landing": {}` turns the checkout on with neither. A track's own `test` and `paths` work as before.
+
+The landing checkout is a detached worktree at `<worktree>/.temp/<track>/landing`, made on first use and kept. Each commit is moved in with `git checkout --detach --force` and `git clean -fd`, so ignored files such as build output stay and everything else a run left goes. A folder there that is not that checkout fails the landing rather than being replaced. It has no branch, so the board, the graph and the watcher pass over it. `tally land` and `land_run` both keep the tests' output in `.temp/<track>/tally/landings/`, one log per landing, each commit's run under its hash and subject; `tally land` prints it as well.
 
 ## 8. Operating
 
