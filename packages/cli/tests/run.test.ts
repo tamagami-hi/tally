@@ -52,6 +52,19 @@ async function initialised() {
   return repo;
 }
 
+async function withTrack() {
+  const repo = await initialised();
+  await writeFile(join(repo.root, "docs", "records", "ledger.json"), JSON.stringify({
+    schema: 1, baseline: (await repo.head()).slice(0, 7), other: [],
+    milestones: [{ id: "B2", stage: "B", name: "replay store", track: "data", weight: 11, tasks: [{ id: "1 codecs", track: "data", status: "planned", also: [] }] }],
+  }));
+  await sh(repo.root, ["commit", "-q", "-am", "records: milestone"]);
+  const tree = join(repo.root, ".temp", "worktrees", "data");
+  await sh(repo.root, ["worktree", "add", "-q", tree, "-b", "track/data", "main"]);
+  await writeFile(join(repo.root, ".temp", "m.txt"), "feat(data): a\n");
+  return { repo, tree };
+}
+
 describe("the command line", () => {
   test("prints usage without a command and refuses an unknown one", async () => {
     const console = io("/");
@@ -109,6 +122,42 @@ describe("the command line", () => {
     expect(status.lines[0]).toContain("# Test status");
     expect(status.lines[0]).toContain("| **B** | B1 matrix reader | data | built | 100% |");
     expect(status.lines[0]).toContain("Ledger needs attention");
+  });
+
+  test("land --milestone --task records the task at the hash it made, and the ledger stays covered", async () => {
+    const { repo, tree } = await withTrack();
+    await writeFile(join(tree, "a.rs"), "a");
+    const console = io(repo.root);
+
+    expect(await run(["land", "data", "--message", ".temp/m.txt", "--milestone", "B2", "--task", "1 codecs", "a.rs"], console)).toBe(0);
+
+    const head = await sh(repo.root, ["rev-parse", "--short=7", "HEAD~1"]);
+    expect(console.lines).toEqual([`data landed at ${head}`, `B2 '1 codecs': landed at ${head}`, expect.stringMatching(/^records: [0-9a-f]{7}$/)]);
+    expect(await run(["ledger", "check"], console)).toBe(0);
+    expect(await sh(repo.root, ["status", "--porcelain"])).toBe("");
+  });
+
+  test("land that succeeds but cannot record says so with the commit, and exits 0", async () => {
+    const { repo, tree } = await withTrack();
+    await writeFile(join(tree, "a.rs"), "a");
+    const console = io(repo.root);
+
+    expect(await run(["land", "data", "--message", ".temp/m.txt", "--milestone", "NOPE", "--task", "x", "a.rs"], console)).toBe(0);
+
+    const head = await sh(repo.root, ["rev-parse", "--short=7", "HEAD"]);
+    expect(console.errors).toEqual([`landed at ${head}, but recording NOPE 'x' failed: no milestone 'NOPE'; known: B2; finish it with tally task land NOPE 'x' ${head}`]);
+  });
+
+  test("land refuses a milestone without a task before anything lands", async () => {
+    const { repo, tree } = await withTrack();
+    await writeFile(join(tree, "a.rs"), "a");
+    const before = await sh(repo.root, ["rev-parse", "main"]);
+    const console = io(repo.root);
+
+    expect(await run(["land", "data", "--message", ".temp/m.txt", "--milestone", "B2", "a.rs"], console)).toBe(2);
+
+    expect(console.errors).toEqual(["a landing records a task from both its milestone and its task"]);
+    expect(await sh(repo.root, ["rev-parse", "main"])).toBe(before);
   });
 
   test("records commit says the lock stopped it rather than that no records were waiting", async () => {

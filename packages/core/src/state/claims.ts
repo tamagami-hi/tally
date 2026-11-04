@@ -51,6 +51,13 @@ export async function releaseClaim(repo: Repo, session: Session, milestoneId: st
   });
 }
 
+export async function releaseLanded(repo: Repo, milestoneId: string, taskId: string): Promise<Claim | null> {
+  return claimsFile(repo).update((state) => {
+    const held = state.claims.find((c) => c.milestone === milestoneId && c.task === taskId);
+    return { value: { claims: state.claims.filter((c) => c !== held) }, result: held ?? null };
+  });
+}
+
 export async function releaseClaimsOf(repo: Repo, sessionId: string): Promise<Claim[]> {
   return claimsFile(repo).update((state) => ({
     value: { claims: state.claims.filter((c) => c.sessionId !== sessionId) },

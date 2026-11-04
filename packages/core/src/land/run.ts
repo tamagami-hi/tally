@@ -19,6 +19,7 @@ export interface LandDeps {
 export interface Landed {
   track: string;
   head: string;
+  commits: string[];
 }
 
 export function spawnTests(cwd: string, command: readonly string[], env: NodeJS.ProcessEnv): Promise<void> {
@@ -79,8 +80,9 @@ export async function landTrack(repo: Repo, options: LandOptions, deps: LandDeps
     }
     await gitMust(root, ["merge", "--ff-only", track.branch]);
     const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
+    const commits = (await gitMust(root, ["log", "--reverse", "--format=%h", "--abbrev=7", `${main}..HEAD`])).split("\n").filter((line) => line !== "");
     deps.log(`${track.name} landed at ${head}`);
-    return { track: track.name, head };
+    return { track: track.name, head, commits };
   }, LANDING_RETRIES);
 }
 

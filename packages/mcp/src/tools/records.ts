@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
-  Records, TallyError, acquireLock, evidenceKinds, getSession, landTrack, listEvidence, listLocks, readHandoff, recordEvidence, releaseLock,
+  Records, TallyError, acquireLock, evidenceKinds, getSession, landTrack, landingTarget, listEvidence, listLocks, readHandoff, recordEvidence, recordLanding, releaseLock,
   runEvidence, safeName, trackOf, writeHandoff, type Repo, type Session,
 } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
@@ -42,14 +42,16 @@ export function registerRecordTools(server: McpServer, repo: Repo): void {
 
   server.registerTool(
     "land_run",
-    { description: "Land the session's track on main: rebase, the configured tests (their output to a log in the worktree), a commit as the operator from --message and explicit files, a fast-forward of main. Then record it with task_land.", inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), messageFile: z.string().optional(), verifiedCode: z.string().optional() } },
-    ({ sessionId, files, messageFile, verifiedCode }) => attempt(async () => {
+    { description: "Land the session's track on main: rebase, the configured tests (their output to a log in the worktree), a commit as the operator from --message and explicit files, a fast-forward of main. With both milestone and task it records that task at the hash it made and releases its claim; `recording` says how that went, and a landing that could not record is still a landing. Without them, record it with task_land.", inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), messageFile: z.string().optional(), verifiedCode: z.string().optional(), milestone: z.string().optional(), task: z.string().optional() } },
+    ({ sessionId, files, messageFile, verifiedCode, milestone, task }) => attempt(async () => {
       const session = await getSession(repo, sessionId);
       trackOf(repo.config, session.track);
+      const target = landingTarget(milestone, task);
       const { log, run } = captured(session);
       const lines: string[] = [];
       const landed = await landTrack(repo, { track: session.track, files, ...(messageFile === undefined ? {} : { messageFile: resolve(session.worktree, messageFile) }), ...(verifiedCode === undefined ? {} : { verifiedCode }) }, { runTests: run, log: (line) => lines.push(line) });
-      return ok({ ...landed, log, lines });
+      const recording = target === undefined ? {} : { recording: await recordLanding(repo, landed, target, session) };
+      return ok({ ...landed, log, lines, ...recording });
     }),
   );
   server.registerTool(

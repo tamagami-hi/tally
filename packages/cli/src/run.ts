@@ -45,7 +45,7 @@ export const USAGE = `tally: the tracking harness
   tally ledger check                                             commits on main the ledger misses
   tally status [--markdown | --json] [--no-color]
   tally views  claude [--check]                                  write the standing block between CLAUDE.md's tally:standing markers
-  tally land   <track> [--message FILE] [--verified-code SHA] [files...]
+  tally land   <track> [--message FILE] [--verified-code SHA] [--milestone M --task T] [files...]
   tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR]   the live board, the API and /mcp
   tally mcp                                                      the MCP server on stdio
 

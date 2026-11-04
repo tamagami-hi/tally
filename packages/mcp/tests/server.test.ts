@@ -113,6 +113,42 @@ describe("the tally MCP server", () => {
     expect(kept.structured).toMatchObject({ record: { kind: "other" }, notice: "recorded as other, not red: it exited 0" });
   });
 
+  test("land_run with a milestone and a task records them at the hash it made and frees the claim", async () => {
+    const { call, trees, root } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    await call("task_claim", { sessionId: data, milestone: "B2", task: "4 manifest" });
+    await mkdir(join(trees["data"]!, ".temp"), { recursive: true });
+    await writeFile(join(trees["data"]!, ".temp", "m.txt"), "feat(data): a\n");
+    await writeFile(join(trees["data"]!, "a.rs"), "a");
+
+    const landed = await call("land_run", { sessionId: data, files: ["a.rs"], messageFile: ".temp/m.txt", milestone: "B2", task: "4 manifest" });
+
+    const head = await sh(root, ["rev-parse", "--short=7", "HEAD"]);
+    expect(landed.isError).toBe(false);
+    expect(landed.structured).toMatchObject({ head, commits: [head], recording: { recorded: true, message: `B2 '4 manifest': landed at ${head}` } });
+    expect((await call("task_claim", { sessionId: data, milestone: "B2", task: "5 transcoder" })).isError).toBe(false);
+    expect((await call("ledger_check")).text).toBe("the ledger covers every commit on main");
+  });
+
+  test("land_run that cannot record says so with the commit and is no error, and half a target lands nothing", async () => {
+    const { call, trees, root } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    await mkdir(join(trees["data"]!, ".temp"), { recursive: true });
+    await writeFile(join(trees["data"]!, ".temp", "m.txt"), "feat(data): a\n");
+    await writeFile(join(trees["data"]!, "a.rs"), "a");
+    const before = await sh(root, ["rev-parse", "main"]);
+
+    const half = await call("land_run", { sessionId: data, files: ["a.rs"], messageFile: ".temp/m.txt", milestone: "B2" });
+    const moved = await sh(root, ["rev-parse", "main"]);
+    const foreign = await call("land_run", { sessionId: data, files: ["a.rs"], messageFile: ".temp/m.txt", milestone: "B2", task: "T9 store" });
+
+    expect(half.isError).toBe(true);
+    expect(moved).toBe(before);
+    expect(foreign.isError).toBe(false);
+    const head = await sh(root, ["rev-parse", "--short=7", "HEAD"]);
+    expect(foreign.structured).toMatchObject({ head, recording: { recorded: false, message: expect.stringContaining(`landed at ${head}`) } });
+  });
+
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {
     const { call, trees } = await connected();
     const bad = await call("session_open", { worktree: trees["data"]!, track: "engine", agent: "claude" });
