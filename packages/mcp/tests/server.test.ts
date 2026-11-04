@@ -9,6 +9,7 @@ import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import type { Config } from "../../core/src/schema/config.ts";
 import { parseChecks } from "../../core/src/records/checks.ts";
+import { addDecision, replaceDecision } from "../../core/src/records/decisions.ts";
 import { answerQuestion } from "../../core/src/records/questions.ts";
 import { CHECKS } from "../../core/tests/fixtures/records.ts";
 
@@ -197,6 +198,25 @@ describe("the tally MCP server", () => {
     const { call } = await connected();
 
     expect((await call("question_list")).structured).toEqual({ schema: 1, nextRow: 1, open: [], answeredCount: 0 });
+  });
+
+  test("decision_list narrows by group and by ids, its replaced rows with it", async () => {
+    const { call, repo } = await connected();
+    const decision = (id: string, group: string) => ({ id, group, text: `**${id}.**`, since: "the operator", status: "in force" });
+    await addDecision(repo, decision("SIM-1", "engine"), { operator: true });
+    await addDecision(repo, decision("SIM-2", "engine"), { operator: true });
+    await addDecision(repo, decision("SRC-1", "data"), { operator: true });
+    await replaceDecision(repo, { ...decision("SIM-2", "engine"), why: "widened" }, { operator: true });
+    const ids = async (args: Record<string, unknown>): Promise<string[][]> => {
+      const { decisions, replaced } = (await call("decision_list", args)).structured as { decisions: { id: string }[]; replaced: { id: string }[] };
+      return [decisions.map((d) => d.id), replaced.map((r) => r.id)];
+    };
+
+    expect(await ids({})).toEqual([["SIM-1", "SIM-2", "SRC-1"], ["SIM-2"]]);
+    expect(await ids({ group: "engine" })).toEqual([["SIM-1", "SIM-2"], ["SIM-2"]]);
+    expect(await ids({ ids: ["SRC-1", "SIM-1"] })).toEqual([["SIM-1", "SRC-1"], []]);
+    expect(await ids({ group: "data", ids: ["SIM-1"] })).toEqual([[], []]);
+    expect(await ids({ ids: ["SIM-2"] })).toEqual([["SIM-2"], ["SIM-2"]]);
   });
 
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {

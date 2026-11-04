@@ -40,10 +40,10 @@ export function registerDocTools(server: McpServer, repo: Repo): void {
   );
   server.registerTool(
     "decision_list",
-    { description: "The decisions in force and the replaced rows, by group; decisions are entered only by the operator, with `tally decision add|replace --operator`.", inputSchema: { group: z.string().optional() } },
-    ({ group }) => attempt(async () => {
+    { description: "The decisions in force and the replaced rows, narrowed by group and by a list of ids; decisions are entered only by the operator, with `tally decision add|replace --operator`.", inputSchema: { group: z.string().optional(), ids: z.array(z.string()).optional() } },
+    ({ group, ids }) => attempt(async () => {
       const file = await readDecisions(repo);
-      const keep = <T extends { group: string }>(rows: T[]): T[] => (group === undefined ? rows : rows.filter((r) => r.group === group));
+      const keep = <T extends { group: string; id: string }>(rows: T[]): T[] => rows.filter((r) => (group === undefined || r.group === group) && (ids === undefined || ids.includes(r.id)));
       return ok({ decisions: keep(file.decisions), replaced: keep(file.replaced) });
     }),
   );

@@ -99,7 +99,7 @@ When a task of yours waits on another track, `task_wait` names what it waits for
 ## 8. Operating
 
 - Decisions are the operator's: `tally decision add` and `replace` take `--operator`, and no MCP call enters one; `tally question answer <row> <decision>` answers a question row.
-- Reading them is cheap: `question_list` returns the open rows and how many were answered, and `answered: true` adds the answered rows.
+- Reading them is cheap: `question_list` returns the open rows and how many were answered, and `answered: true` adds the answered rows; `decision_list` takes a `group` and a list of `ids`.
 - Milestones are the operator's: `milestone_add` needs an operator session; `tally milestone add` from the shell is the same.
 - `tally status` from a phone over SSH is the terminal view; the board is the same picture live.
 - A records commit on main is normal; the check and the status pass over them by prefix.
