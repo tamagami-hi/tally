@@ -4,6 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, test } from "vitest";
 import { createTallyServer } from "../src/server.ts";
+import { busyLock } from "../../core/tests/support/busy.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import type { Config } from "../../core/src/schema/config.ts";
@@ -59,6 +60,34 @@ describe("the tally MCP server", () => {
     expect(closed.structured!["recordsCommit"]).toMatch(/^[0-9a-f]{7}$/);
     expect(await sh(root, ["log", "-1", "--format=%s"])).toMatch(/^records: \d+ record files? up to [0-9a-f]{7}$/);
     expect(await sh(root, ["status", "--porcelain"])).toBe("");
+  });
+
+  test("the last session's close still closes when the landing lock is busy, and the records wait on disk", async () => {
+    const { call, trees, root } = await connected({ commit: true, batch: true });
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    await call("task_plan", { sessionId: data, milestone: "B2", tasks: ["6 more"] });
+    busyLock("landing.lock");
+
+    const closed = await call("session_close", { sessionId: data });
+
+    expect(closed.isError).toBe(false);
+    expect(closed.structured).toMatchObject({ session: { id: data }, recordsCommit: null });
+    expect((await call("session_list")).structured).toEqual({ sessions: [] });
+    expect(await sh(root, ["status", "--porcelain"])).toContain("docs/records/ledger.json");
+  });
+
+  test("a change already written is not failed by a landing lock it could not take", async () => {
+    const { call, trees } = await connected({ commit: true });
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    busyLock("landing.lock");
+
+    const planned = await call("task_plan", { sessionId: data, milestone: "B2", tasks: ["6 more"] });
+    const note = await call("handoff_write", { sessionId: data, lines: ["a note"] });
+
+    expect(planned.isError).toBe(false);
+    expect(planned.structured).toMatchObject({ message: "B2: planned 1 new task(s): 6 more", commit: null });
+    expect(note.isError).toBe(false);
+    expect((await call("handoff_read", { track: "data" })).structured).toMatchObject({ current: { lines: ["a note"] } });
   });
 
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {

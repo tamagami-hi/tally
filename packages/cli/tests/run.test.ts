@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { run } from "../src/run.ts";
 import type { IO } from "../src/io.ts";
+import { busyLock } from "../../core/tests/support/busy.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
 
 interface Captured extends IO {
@@ -108,6 +109,18 @@ describe("the command line", () => {
     expect(status.lines[0]).toContain("# Test status");
     expect(status.lines[0]).toContain("| **B** | B1 matrix reader | data | built | 100% |");
     expect(status.lines[0]).toContain("Ledger needs attention");
+  });
+
+  test("records commit says the lock stopped it rather than that no records were waiting", async () => {
+    const repo = await initialised();
+    await writeFile(join(repo.root, "docs", "records", "ledger.json"), JSON.stringify({ schema: 1, baseline: (await repo.head()).slice(0, 7), other: [], milestones: [] }));
+    busyLock("landing.lock");
+    const console = io(repo.root);
+
+    expect(await run(["records", "commit"], console)).toBe(1);
+
+    expect(console.lines).toEqual([]);
+    expect(console.errors[0]).toMatch(/landing\.lock .*nothing was changed/);
   });
 
   test("the landing refuses in land.py's words through the command line", async () => {

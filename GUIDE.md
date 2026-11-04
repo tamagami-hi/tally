@@ -71,7 +71,7 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 
 Every change to a record is written to `docs/records/` at once, so the board and every session see it. By default it also becomes a docs-only `records:` commit on main, made by the harness with the configured identity under the landing lock. With `records.batch: true` in the config, the changes wait on disk and go in as one commit: when the last open session closes, or on `tally records commit`, which must run before a push if a session is still open.
 
-A lock that stays held fails with its name and how long it waited, and says nothing was changed: whatever that message comes from did not happen.
+A records commit that cannot take the landing lock fails nothing: the change is on disk, the result shows `commit: null`, and the next records commit carries it. `tally records commit` is the exception, since committing is all it was asked to do: it fails and says so. Any other lock that stays held fails with its name and how long it waited, and says nothing was changed.
 
 ## 6. A milestone's close
 

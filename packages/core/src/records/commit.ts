@@ -1,7 +1,7 @@
 import { TallyError } from "../errors.ts";
 import { git, gitMust, type GitResult } from "../git/run.ts";
 import { statePath } from "../land/paths.ts";
-import { LANDING_RETRIES, withLock } from "../store/lock.ts";
+import { LANDING_RETRIES, LockBusy, withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 
 const ATTEMPTS = 5;
@@ -30,13 +30,26 @@ async function commitStaged(repo: Repo, message: (files: number, head: string) =
   }, LANDING_RETRIES);
 }
 
+async function leftWhenBusy(committing: Promise<string | null>): Promise<string | null> {
+  try {
+    return await committing;
+  } catch (error: unknown) {
+    if (error instanceof LockBusy) return null;
+    throw error;
+  }
+}
+
 export async function commitRecords(repo: Repo, message: string): Promise<string | null> {
   const { commit, batch } = repo.config.records;
   if (!commit || batch === true) return null;
-  return commitStaged(repo, () => message);
+  return leftWhenBusy(commitStaged(repo, () => message));
 }
 
 export async function flushRecords(repo: Repo): Promise<string | null> {
   if (!repo.config.records.commit) return null;
   return commitStaged(repo, (files, head) => `${files} record file${files === 1 ? "" : "s"} up to ${head}`);
+}
+
+export async function flushWhenFree(repo: Repo): Promise<string | null> {
+  return leftWhenBusy(flushRecords(repo));
 }

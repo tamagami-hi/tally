@@ -1,7 +1,8 @@
-import { describe, expect, test } from "vitest";
-import { commitRecords, flushRecords } from "../../src/records/commit.ts";
+import { describe, expect, test, vi } from "vitest";
+import { commitRecords, flushRecords, flushWhenFree } from "../../src/records/commit.ts";
 import type { Config } from "../../src/schema/config.ts";
 import { Records, initRecords, openRepo } from "../../src/store/records.ts";
+import { busyLock } from "../support/busy.ts";
 import { makeRepo, sh } from "../support/repo.ts";
 
 const config = (commit: boolean, batch?: boolean): Config => ({
@@ -91,6 +92,38 @@ describe("committing the records", () => {
     const committed = commitRecords(repo, "x").then((sha) => order.push(sha === null ? "nothing" : "committed"));
     await Promise.all([held, committed]);
     expect(order).toEqual(["released", "committed"]);
+  });
+
+  test("a landing lock it cannot take leaves the written change for the next commit, and fails nothing", async () => {
+    const git = await makeRepo();
+    await initRecords(git.root, config(true), (await git.head()).slice(0, 7));
+    const repo = await openRepo(git.root);
+    await sh(git.root, ["add", "-A"]);
+    await sh(git.root, ["commit", "-q", "-m", "records: init"]);
+    await new Records(repo).update((ledger) => ({ ledger: { ...ledger, other: [{ commit: "abc1234", note: "x" }] }, message: "x" }));
+    busyLock("landing.lock");
+
+    expect(await commitRecords(repo, "first")).toBeNull();
+    expect(await sh(git.root, ["log", "-1", "--format=%s"])).toBe("records: init");
+    expect(await sh(git.root, ["status", "--porcelain"])).toContain("docs/records/ledger.json");
+
+    vi.restoreAllMocks();
+    expect(await commitRecords(repo, "second")).toMatch(/^[0-9a-f]{7}$/);
+    expect(await sh(git.root, ["show", "--stat", "--format=%s", "HEAD"])).toContain("docs/records/ledger.json");
+    expect(await sh(git.root, ["status", "--porcelain"])).toBe("");
+  });
+
+  test("an asked-for flush says the lock stopped it, and a session's closing flush leaves the records waiting", async () => {
+    const git = await makeRepo();
+    await initRecords(git.root, config(true, true), (await git.head()).slice(0, 7));
+    const repo = await openRepo(git.root);
+    await new Records(repo).update((ledger) => ({ ledger: { ...ledger, other: [{ commit: "abc1234", note: "x" }] }, message: "x" }));
+    busyLock("landing.lock");
+
+    await expect(flushRecords(repo)).rejects.toThrow(/landing\.lock .*nothing was changed/);
+    expect(await flushWhenFree(repo)).toBeNull();
+
+    expect(await sh(git.root, ["status", "--porcelain", "-uall"])).toContain("docs/records/ledger.json");
   });
 
   test("does nothing when the config turns records commits off", async () => {
