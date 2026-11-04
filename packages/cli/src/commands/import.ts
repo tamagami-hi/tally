@@ -1,12 +1,25 @@
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { CONFIG_FILE, RECORDS_DIR, Records, TallyError, commitRecords, configSchema, fromBoard, evidenceKinds, importBuildlog, importChecks, importDecisions, importEvidence, importQuestions, scanPlans, writeJsonAtomic, type EvidenceKind, type Repo } from "@tally/core";
+import { CONFIG_FILE, RECORDS_DIR, Records, TallyError, answeredRowsSchema, commitRecords, configSchema, fromBoard, evidenceKinds, importAnswered, importBuildlog, importChecks, importDecisions, importEvidence, importQuestions, readJson, scanDocuments, scanPlans, writeJsonAtomic, type EvidenceKind, type Repo } from "@tally/core";
 import { flag, need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
 
 export async function importCommand(repo: Repo, argv: readonly string[], io: IO): Promise<number> {
   const parsed = parse(argv, { force: { type: "boolean" }, group: { type: "string" }, milestone: { type: "string" }, task: { type: "string" }, kind: { type: "string" }, flat: { type: "boolean" } });
-  const kind = need(parsed, 0, "what to import (board, decisions, questions, checks, buildlog, evidence, plans)");
+  const kind = need(parsed, 0, "what to import (board, decisions, questions, answered, checks, buildlog, evidence, plans, documents)");
+  if (kind === "answered") {
+    const file = resolve(io.cwd, need(parsed, 1, "the JSON file of answered rows"));
+    const done = await importAnswered(repo, await readJson(file, answeredRowsSchema));
+    io.out(`imported ${done.answered} answered questions from ${file}`);
+    if (done.commit !== null) io.out(`records: ${done.commit}`);
+    return 0;
+  }
+  if (kind === "documents") {
+    const done = await scanDocuments(repo);
+    io.out(`scanned ${done.documents} documents, ${done.purposes} with a purpose from an index`);
+    if (done.commit !== null) io.out(`records: ${done.commit}`);
+    return 0;
+  }
   if (kind === "evidence") {
     const milestone = text(parsed, "milestone");
     const task = text(parsed, "task");
@@ -56,7 +69,7 @@ export async function importCommand(repo: Repo, argv: readonly string[], io: IO)
     }
     return 0;
   }
-  if (kind !== "board") throw new TallyError(`tally import: unknown source '${kind}'; use board, decisions, questions, checks, buildlog, evidence or plans`, 2);
+  if (kind !== "board") throw new TallyError(`tally import: unknown source '${kind}'; use board, decisions, questions, answered, checks, buildlog, evidence, plans or documents`, 2);
   const path = resolve(io.cwd, need(parsed, 1, "the board.json path"));
   const board = JSON.parse(await readFile(path, "utf8")) as unknown;
   const names = Object.fromEntries(repo.config.stages.map((stage) => [stage.id, stage.name]));

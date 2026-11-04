@@ -81,9 +81,10 @@ Every change to a record becomes a docs-only `records:` commit on main at once, 
 | a decision built | `tally decision setStatus <id> --group G --status "built in M (<commit>)" [--by WHO]`; adding or replacing a decision is the operator's alone: `tally decision add\|replace <id> --group G --text "..." --since "..." --status "..." [--why "..."] --operator` |
 | the report's manifest | `tally report manifest <date> <name> --group G --narrative <path> [--bundle <dir>] [--fingerprint F] [--evidence M[:T]]... [--decision ID]... [--question N]...`: `docs/records/reports/<date>/<name>.json` cites the records by id and hashes every file of the bundle; the copied logs stay where they are |
 | the plans | `tally import plans` rescans `docs/<group>/next` and `docs/<group>/completed` into `plans.json` with each plan's title and status line; `tally plans list` |
+| the document map | `tally import documents` rescans every Markdown document (the config's `extraDocs` too) into `documents.json`: its kind, group and title, its purpose from the first README table that links it, and the prose above a decisions or questions file's own rows |
 | CLAUDE.md | `tally views claude` writes the standing block between `<!-- tally:standing -->` and `<!-- /tally:standing -->` from the ledger, the tracks and the open questions, and touches nothing else; `--check` exits 1 when the block is stale (`views_claude` shows it to any session and writes it for an operator session) |
 
-Bringing an existing repository's Markdown over: `tally import decisions PATH --group G`, `tally import questions PATH --group G`, `tally import checks PATH` and `tally import buildlog PATH --group G`. Each import refuses a file that does not render back byte for byte from its record, so the Markdown can be frozen the day it is imported.
+Bringing an existing repository's Markdown over: `tally import decisions PATH --group G`, `tally import questions PATH --group G`, `tally import checks PATH` and `tally import buildlog PATH --group G`. Each import refuses a file that does not render back byte for byte from its record, so the Markdown can be frozen the day it is imported. Rows answered before the record existed come in with `tally import answered FILE`, a JSON array of `{row, group, question, meanwhile, answeredAt, decision}`; a row the record already holds is refused.
 
 ## 7. Parallel tracks
 

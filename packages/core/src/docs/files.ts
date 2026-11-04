@@ -24,7 +24,7 @@ async function walk(dir: string): Promise<string[]> {
 
 export async function listDocs(repo: Repo): Promise<string[]> {
   const roots: string[] = [];
-  for (const name of ROOT_FILES) {
+  for (const name of [...ROOT_FILES, ...(repo.config.extraDocs ?? [])]) {
     try {
       await readFile(join(repo.root, name), "utf8");
       roots.push(name);
@@ -37,7 +37,7 @@ export async function listDocs(repo: Repo): Promise<string[]> {
 }
 
 function isDocument(repo: Repo, rel: string): boolean {
-  return ROOT_FILES.includes(rel) || (rel.startsWith(`${repo.config.docsDir}${sep}`) && EXTENSIONS.some((e) => rel.endsWith(e)));
+  return ROOT_FILES.includes(rel) || (repo.config.extraDocs ?? []).includes(rel) || (rel.startsWith(`${repo.config.docsDir}${sep}`) && EXTENSIONS.some((e) => rel.endsWith(e)));
 }
 
 export async function docPath(repo: Repo, path: string): Promise<string> {

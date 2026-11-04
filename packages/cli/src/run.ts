@@ -27,6 +27,8 @@ export const USAGE = `tally: the tracking harness
   tally import checks PATH | buildlog PATH --group G             bring code-checks.md or a build-log.md into the records
   tally import evidence DIR --milestone M --task T [--kind K] [--flat]   index a folder of run records (*.json + *.log), logs left in place
   tally import plans | tally plans list                          the plans under docs/*/next and docs/*/completed
+  tally import documents                                         every Markdown document: its kind, title and purpose
+  tally import answered FILE                                     rows answered before the record, as a JSON array
   tally report manifest DATE NAME --group G --narrative P [--bundle DIR] [--fingerprint F] [--evidence M[:T]]... [--decision ID]... [--question N]...
   tally checks get | render | fingerprint | set --file F         the code-check record; fingerprint exits 1 when stale
   tally buildlog render --group G | append --group G --milestone M --title T --date D --file BODY [--commit C]...

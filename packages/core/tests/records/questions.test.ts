@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { importDecisions, parseDecisions, readDecisions, stateOf } from "../../src/records/decisions.ts";
 import { parseTables, renderRow, splitCells } from "../../src/records/markdown.ts";
-import { addQuestion, answerQuestion, importQuestions, parseQuestions, readQuestions } from "../../src/records/questions.ts";
+import { addQuestion, answerQuestion, importAnswered, importQuestions, parseQuestions, readQuestions } from "../../src/records/questions.ts";
 import { openQuestions } from "../../src/status/questions.ts";
 import { makeTracked } from "../support/tracked.ts";
 
@@ -101,5 +101,23 @@ describe("questions", () => {
     expect(file.answered[0]).toMatchObject({ row: 36, decision: "SIM-8" });
     expect(file.nextRow).toBe(40);
     await expect(answerQuestion(repo, 36, "x")).rejects.toThrow("no open question 36; open: 37, 38, 39");
+  });
+
+  test("takes the rows answered before the record existed, sorted, and never a row it holds", async () => {
+    const { repo } = await makeTracked();
+    await addQuestion(repo, { group: "engine", question: "Open?", meanwhile: "Wait." });
+    const open = (await readQuestions(repo))!.open[0]!.row;
+    const old = (row: number) => ({ row, group: "platform", question: `Row ${row}?`, meanwhile: "", answeredAt: "2026-10-29", decision: `PRJ-${row}` });
+
+    const done = await importAnswered(repo, [old(open + 3), old(open + 2)]);
+
+    const file = (await readQuestions(repo))!;
+    expect(done.answered).toBe(2);
+    expect(file.answered.map((q) => q.row)).toEqual([open + 2, open + 3]);
+    expect(file.nextRow).toBe(open + 4);
+    await expect(importAnswered(repo, [old(open)])).rejects.toThrow(`row ${open} is already`);
+    await expect(importAnswered(repo, [old(open + 2)])).rejects.toThrow(`row ${open + 2} is already`);
+    await expect(importAnswered(repo, [old(open + 9), old(open + 9)])).rejects.toThrow(`row ${open + 9} is already`);
+    expect((await readQuestions(repo))!.answered).toHaveLength(2);
   });
 });

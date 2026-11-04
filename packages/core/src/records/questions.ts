@@ -18,6 +18,7 @@ export const questionSchema = z.object({
 });
 
 export const answeredSchema = questionSchema.extend({ answeredAt: z.string(), decision: z.string() });
+export const answeredRowsSchema = z.array(answeredSchema);
 
 export const questionsFileSchema = z.object({
   schema: z.literal(1),
@@ -27,6 +28,7 @@ export const questionsFileSchema = z.object({
 });
 
 export type Question = z.infer<typeof questionSchema>;
+export type AnsweredQuestion = z.infer<typeof answeredSchema>;
 export type QuestionsFile = z.infer<typeof questionsFileSchema>;
 
 export const questionsPath = (repo: Repo): string => join(repo.recordsDir, "questions.json");
@@ -81,6 +83,20 @@ export async function importQuestions(repo: Repo, file: string, group: string): 
   });
   const commit = await commitRecords(repo, `import ${group}'s questions`);
   return { open: parsed.open.length, nextRow, commit };
+}
+
+export async function importAnswered(repo: Repo, rows: readonly AnsweredQuestion[]): Promise<{ answered: number; commit: string | null }> {
+  await update(repo, (current) => {
+    const held = new Set([...current.open, ...current.answered].map((q) => q.row));
+    for (const { row } of rows) {
+      if (held.has(row)) throw new TallyError(`row ${row} is already in the record`);
+      held.add(row);
+    }
+    const answered = [...current.answered, ...rows].sort((a, b) => a.row - b.row);
+    return { file: { ...current, nextRow: Math.max(current.nextRow, ...rows.map((q) => q.row + 1)), answered }, result: undefined };
+  });
+  const commit = await commitRecords(repo, `import ${rows.length} answered questions`);
+  return { answered: rows.length, commit };
 }
 
 export async function addQuestion(repo: Repo, input: { group: string; question: string; meanwhile: string; by?: string }, now = new Date()): Promise<{ question: Question; commit: string | null }> {

@@ -17,6 +17,7 @@ export const configSchema = z.object({
   name: z.string().min(1),
   mainBranch: z.string().min(1).default("main"),
   docsDir: z.string().min(1).default("docs"),
+  extraDocs: z.array(z.string().min(1)).optional(),
   tracks: z.array(trackSchema).superRefine((tracks, context) => {
     const seen = new Set<string>();
     for (const track of tracks) {
