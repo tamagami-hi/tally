@@ -42,6 +42,7 @@ export const configSchema = z.object({
       dir: z.string().min(1).default("docs/records"),
       commitPrefix: z.string().min(1).default("records:"),
       commit: z.boolean().default(true),
+      batch: z.boolean().optional(),
     })
     .default({ dir: "docs/records", commitPrefix: "records:", commit: true }),
   locks: z.array(z.string().min(1)).default(["landing"]),

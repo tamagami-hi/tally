@@ -10,6 +10,7 @@ import { landCommand } from "./commands/land.ts";
 import { ledgerCommand } from "./commands/ledger.ts";
 import { mcpCommand } from "./commands/mcp.ts";
 import { plansCommand } from "./commands/plans.ts";
+import { recordsCommand } from "./commands/records.ts";
 import { questionCommand } from "./commands/question.ts";
 import { reportCommand } from "./commands/report.ts";
 import { serveCommand } from "./commands/serve.ts";
@@ -29,6 +30,7 @@ export const USAGE = `tally: the tracking harness
   tally import plans | tally plans list                          the plans under docs/*/next and docs/*/completed
   tally import documents                                         every Markdown document: its kind, title and purpose
   tally import answered FILE                                     rows answered before the record, as a JSON array
+  tally records commit                                           commit every record waiting on disk (batch mode), as one commit
   tally report manifest DATE NAME --group G --narrative P [--bundle DIR] [--fingerprint F] [--evidence M[:T]]... [--decision ID]... [--question N]...
   tally checks get | render | fingerprint | set --file F         the code-check record; fingerprint exits 1 when stale
   tally buildlog render --group G | append --group G --milestone M --title T --date D --file BODY [--commit C]...
@@ -95,6 +97,8 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
         return await buildlogCommand(repo, args, io);
       case "plans":
         return await plansCommand(repo, args, io);
+      case "records":
+        return await recordsCommand(repo, args, io);
       case "report":
         return await reportCommand(repo, args, io);
       case "views":

@@ -26,11 +26,11 @@ export interface Tracked {
   trees: Record<string, string>;
 }
 
-export async function makeTracked(): Promise<Tracked> {
+export async function makeTracked(records: Partial<Config["records"]> = {}): Promise<Tracked> {
   const git = await makeRepo();
   await git.commit(".gitignore", ".temp/\n", "chore: ignore");
   await git.commit("RULES.md", "# Rules\n\n1. Keep it simple.\n", "docs: rules");
-  await initRecords(git.root, trackedConfig, (await git.head()).slice(0, 7));
+  await initRecords(git.root, { ...trackedConfig, records: { ...trackedConfig.records, ...records } }, (await git.head()).slice(0, 7));
   await sh(git.root, ["add", "-A"]);
   await sh(git.root, ["commit", "-q", "-m", "records: init"]);
   const trees: Record<string, string> = {};

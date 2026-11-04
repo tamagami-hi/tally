@@ -29,7 +29,7 @@ export { renderMarkdown } from "./status/markdown.ts";
 export { defaultDeps, landTrack, spawnTests } from "./land/run.ts";
 export type { LandDeps, LandOptions, Landed } from "./land/run.ts";
 export { STATE_DIR, fingerprint, statePath, trackOf, worktreeOf } from "./land/paths.ts";
-export { commitRecords } from "./records/commit.ts";
+export { commitRecords, flushRecords } from "./records/commit.ts";
 export { StateFile } from "./state/file.ts";
 export { assertMayWrite, closeSession, getSession, isOperator, listSessions, openSession, sessionSchema } from "./state/sessions.ts";
 export type { OpenInput, Session } from "./state/sessions.ts";

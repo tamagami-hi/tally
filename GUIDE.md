@@ -69,7 +69,7 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 | wait on something | `task_wait`; a commit that is no task's: `task_other` |
 | check | `ledger_check` must say the ledger covers every commit on main |
 
-Every change to a record becomes a docs-only `records:` commit on main at once, made by the harness with the configured identity under the landing lock, so the ledger is never ahead of or behind git.
+Every change to a record is written to `docs/records/` at once, so the board and every session see it. By default it also becomes a docs-only `records:` commit on main, made by the harness with the configured identity under the landing lock. With `records.batch: true` in the config, the changes wait on disk and go in as one commit: when the last open session closes, or on `tally records commit`, which must run before a push if a session is still open.
 
 ## 6. A milestone's close
 

@@ -6,6 +6,7 @@ import { describe, expect, test } from "vitest";
 import { createTallyServer } from "../src/server.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
+import type { Config } from "../../core/src/schema/config.ts";
 import { parseChecks } from "../../core/src/records/checks.ts";
 import { CHECKS } from "../../core/tests/fixtures/records.ts";
 
@@ -15,8 +16,8 @@ interface Called {
   structured: Record<string, unknown> | undefined;
 }
 
-async function connected() {
-  const tracked = await makeTracked();
+async function connected(records?: Partial<Config["records"]>) {
+  const tracked = await makeTracked(records);
   const server = createTallyServer(tracked.repo);
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   await server.connect(serverSide);
@@ -38,6 +39,26 @@ describe("the tally MCP server", () => {
     const refused = await call("task_claim", { sessionId: "nope", milestone: "B2", task: "4 manifest" });
     expect(refused.isError).toBe(true);
     expect(refused.text).toBe("no session nope; open one with session_open");
+  });
+
+  test("in batch mode the last session to close commits every record at once, and an earlier close commits nothing", async () => {
+    const { call, trees, root } = await connected({ commit: true, batch: true });
+    const count = async (): Promise<string> => sh(root, ["rev-list", "--count", "HEAD"]);
+    const before = await count();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    const engine = (await call("session_open", { worktree: trees["engine"]!, track: "engine", agent: "b" })).structured!["id"] as string;
+    await call("task_plan", { sessionId: data, milestone: "B2", tasks: ["6 more"] });
+    await call("handoff_write", { sessionId: engine, lines: ["a note"] });
+    expect(await count()).toBe(before);
+
+    await call("session_close", { sessionId: data });
+    expect(await count()).toBe(before);
+    const closed = await call("session_close", { sessionId: engine });
+
+    expect(await count()).toBe(String(Number(before) + 1));
+    expect(closed.structured!["recordsCommit"]).toMatch(/^[0-9a-f]{7}$/);
+    expect(await sh(root, ["log", "-1", "--format=%s"])).toMatch(/^records: \d+ record files? up to [0-9a-f]{7}$/);
+    expect(await sh(root, ["status", "--porcelain"])).toBe("");
   });
 
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {

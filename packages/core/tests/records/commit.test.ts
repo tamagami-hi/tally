@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { commitRecords } from "../../src/records/commit.ts";
+import { commitRecords, flushRecords } from "../../src/records/commit.ts";
 import type { Config } from "../../src/schema/config.ts";
 import { Records, initRecords, openRepo } from "../../src/store/records.ts";
 import { makeRepo, sh } from "../support/repo.ts";
 
-const config = (commit: boolean): Config => ({
+const config = (commit: boolean, batch?: boolean): Config => ({
   schema: 1,
   name: "Test",
   mainBranch: "main",
@@ -14,7 +14,7 @@ const config = (commit: boolean): Config => ({
   commands: { test: ["true"], env: {}, unset: [] },
   fingerprint: { paths: ["src"], exclude: [] },
   identity: { name: "operator", email: "operator@example.com" },
-  records: { dir: "docs/records", commitPrefix: "records:", commit },
+  records: { dir: "docs/records", commitPrefix: "records:", commit, ...(batch === undefined ? {} : { batch }) },
   locks: ["landing"],
 });
 
@@ -35,6 +35,41 @@ describe("committing the records", () => {
     expect(await sh(git.root, ["log", "-1", "--format=%an|%s"])).toBe("operator|records: land B2 '1'");
     expect(await sh(git.root, ["show", "--stat", "--format=", "HEAD"])).toContain("docs/records/ledger.json");
     expect(await sh(git.root, ["status", "--porcelain"])).toBe("?? stray.txt");
+  });
+
+  test("in batch mode leaves every change on disk, then makes one commit of them all", async () => {
+    const git = await makeRepo();
+    await initRecords(git.root, config(true, true), (await git.head()).slice(0, 7));
+    const repo = await openRepo(git.root);
+    await sh(git.root, ["add", "-A"]);
+    await sh(git.root, ["commit", "-q", "-m", "records: init"]);
+    const head = (await sh(git.root, ["rev-parse", "--short=7", "HEAD"])).trim();
+    const records = new Records(repo);
+    const note = (commit: string) => records.update((ledger) => ({ ledger: { ...ledger, other: [...ledger.other, { commit, note: "x" }] }, message: "x" }));
+
+    await note("abc1234");
+    const first = await commitRecords(repo, "one");
+    await note("abc1235");
+    const second = await commitRecords(repo, "two");
+
+    expect([first, second]).toEqual([null, null]);
+    expect((await sh(git.root, ["rev-parse", "--short=7", "HEAD"])).trim()).toBe(head);
+    expect(await sh(git.root, ["status", "--porcelain"])).toContain("docs/records/ledger.json");
+    expect((await new Records(repo).readLedger()).other).toHaveLength(2);
+
+    const sha = await flushRecords(repo);
+
+    expect(sha).toMatch(/^[0-9a-f]{7}$/);
+    expect(await sh(git.root, ["log", "-1", "--format=%an|%s"])).toBe(`operator|records: 1 record file up to ${head}`);
+    expect(await sh(git.root, ["rev-list", "--count", `${head}..HEAD`])).toBe("1");
+    expect(await sh(git.root, ["status", "--porcelain"])).toBe("");
+    expect(await flushRecords(repo)).toBeNull();
+  });
+
+  test("a flush commits nothing when the config turns records commits off", async () => {
+    const git = await makeRepo();
+    await initRecords(git.root, config(false), (await git.head()).slice(0, 7));
+    expect(await flushRecords(await openRepo(git.root))).toBeNull();
   });
 
   test("waits for the landing lock, so a landing in flight never sees main move under it", async () => {
