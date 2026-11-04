@@ -8,6 +8,13 @@ export const trackSchema = z.object({
   paths: z.array(z.string().min(1)).optional(),
 });
 
+const staysInWorktree = (path: string): boolean => !path.startsWith("/") && !path.split("/").includes("..");
+
+export const landingSchema = z.object({
+  link: z.array(z.string().min(1).refine(staysInWorktree, "a landing link must be relative to the worktree")).optional(),
+  env: z.record(z.string(), z.string()).optional(),
+});
+
 export const stageSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
@@ -33,6 +40,7 @@ export const configSchema = z.object({
     env: z.record(z.string(), z.string()).default({}),
     unset: z.array(z.string()).default([]),
     tmpdir: z.string().optional(),
+    landing: landingSchema.optional(),
   }),
   fingerprint: z.object({
     paths: z.array(z.string()).min(1),
@@ -52,4 +60,5 @@ export const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 export type Track = z.infer<typeof trackSchema>;
+export type Landing = z.infer<typeof landingSchema>;
 export type Stage = z.infer<typeof stageSchema>;

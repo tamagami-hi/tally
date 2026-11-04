@@ -20,6 +20,23 @@ describe("the config schema", () => {
     expect(config.locks).toEqual(["landing"]);
   });
 
+  test("leaves the landing out unless the config names it, and keeps what it names", () => {
+    expect(configSchema.parse(minimal).commands.landing).toBeUndefined();
+
+    const landing = { link: ["node_modules"], env: { CARGO_TARGET_DIR: "{worktree}/target" } };
+    const config = configSchema.parse({ ...minimal, commands: { ...minimal.commands, landing } });
+
+    expect(config.commands.landing).toEqual(landing);
+    expect(configSchema.parse({ ...minimal, commands: { ...minimal.commands, landing: {} } }).commands.landing).toEqual({});
+  });
+
+  test("refuses a landing link that leaves the worktree", () => {
+    const linking = (path: string) => ({ ...minimal, commands: { ...minimal.commands, landing: { link: [path] } } });
+
+    expect(() => configSchema.parse(linking("/opt/deps"))).toThrow(/relative to the worktree/);
+    expect(() => configSchema.parse(linking("../deps"))).toThrow(/relative to the worktree/);
+  });
+
   test("refuses a stage weight that is not a positive integer", () => {
     const bad = { ...minimal, stages: [{ id: "A", name: "x", weight: 0 }] };
     expect(() => configSchema.parse(bad)).toThrow(/weight/);
