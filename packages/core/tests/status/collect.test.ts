@@ -51,6 +51,20 @@ async function fixture() {
 }
 
 describe("collecting the status", () => {
+  test("lists only branches with a live worktree, so a finished one leaves the board", async () => {
+    const { records } = await fixture();
+    const root = records.repo.root;
+    await sh(root, ["branch", "finished"]);
+    const gone = join(root, ".temp", "worktrees", "gone");
+    await sh(root, ["worktree", "add", "-q", gone, "-b", "track/gone", "main"]);
+    await sh(root, ["worktree", "remove", gone]);
+
+    const status = await collect(records.repo, await records.readLedger());
+
+    expect(status.tracks.map((t) => t.branch)).toEqual(["main", "track/data"]);
+
+  });
+
   test("reads the ledger, git and the questions into one picture", async () => {
     const { repo, records } = await fixture();
     const status = await collect(records.repo, await records.readLedger());
@@ -63,8 +77,8 @@ describe("collecting the status", () => {
     expect(status.main).toMatch(/^[0-9a-f]{7} feat: b$/);
     expect(status.origin).toBeNull();
     expect(status.unpushed).toBe(0);
-    const tracks = status.tracks.map((t) => [t.track, t.dirty, t.behind, t.worktree]);
-    expect(tracks).toEqual([["main", 1, 0, true], ["data", 1, 0, true]]);
+    const tracks = status.tracks.map((t) => [t.track, t.dirty, t.behind]);
+    expect(tracks).toEqual([["main", 1, 0], ["data", 1, 0]]);
     expect(status.tracks[0]!.files).toEqual([{ status: "M", path: "docs/records/ledger.json", add: expect.any(String), del: expect.any(String) }]);
     expect(status.tracks[1]!.path).toBe(".temp/worktrees/data");
     expect(status.tracks[0]!.path).toBe(".");

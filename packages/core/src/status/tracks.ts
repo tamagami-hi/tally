@@ -24,7 +24,6 @@ export interface TrackRow {
   behind: number;
   dirty: number;
   files: ChangedFile[];
-  worktree: boolean;
   isMain: boolean;
 }
 
@@ -51,11 +50,12 @@ export async function branches(root: string, mainBranch: string, now = Date.now(
   for (const line of refs.split("\n").filter((l) => l.length > 0)) {
     const [name = "", head = "", ct = "0", subject = ""] = line.split(SEP, 4);
     const tree = trees.get(name);
-    const files = tree === undefined ? [] : await changes(tree);
+    if (tree === undefined) continue;
+    const files = await changes(tree);
     rows.push({
       branch: name,
       track: name.replace(/^track\//, ""),
-      path: tree === undefined ? "" : tree === root ? "." : relative(root, tree),
+      path: tree === root ? "." : relative(root, tree),
       head,
       subject,
       ct: Number(ct),
@@ -64,11 +64,10 @@ export async function branches(root: string, mainBranch: string, now = Date.now(
       behind: await revCount(root, `${name}..${mainBranch}`),
       dirty: files.length,
       files,
-      worktree: tree !== undefined,
       isMain: name === mainBranch,
     });
   }
-  const key = (r: TrackRow): string => `${r.isMain ? 0 : 1}${r.worktree ? 0 : 1}${r.branch}`;
+  const key = (r: TrackRow): string => `${r.isMain ? 0 : 1}${r.branch}`;
   return rows.sort((a, b) => key(a).localeCompare(key(b)));
 }
 

@@ -31,7 +31,6 @@ export interface TrackRow {
   behind: number;
   dirty: number;
   files: ChangedFile[];
-  worktree: boolean;
   isMain: boolean;
 }
 

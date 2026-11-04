@@ -15,11 +15,11 @@ export const snapshot: Snapshot = {
       { id: "C1", stage: "C", name: "candles", track: "-", weight: 34, waits: "candle files", share: 0, count: null, notes: ["waits for candle files"], tasks: [] },
     ],
     tracks: [
-      { branch: "main", track: "main", path: ".", head: "ee8999a", subject: "records: a note", ct: 0, when: "2 min ago", ahead: 0, behind: 0, dirty: 0, files: [], worktree: true, isMain: true },
+      { branch: "main", track: "main", path: ".", head: "ee8999a", subject: "records: a note", ct: 0, when: "2 min ago", ahead: 0, behind: 0, dirty: 0, files: [], isMain: true },
       { branch: "track/alpha", track: "alpha", path: "/w/alpha", head: "a7caeea", subject: "feat(store): grids", ct: 0, when: "34 min ago", ahead: 0, behind: 2, dirty: 2, files: [
         { status: "M", path: "crates/core/src/store/mod.rs", add: "7", del: "0" },
         { status: "??", path: "crates/core/src/store/manifest.rs", add: "", del: "" },
-      ], worktree: true, isMain: false },
+      ], isMain: false },
     ],
     main: "ee8999a records: a note",
     origin: "d0ff4a5",

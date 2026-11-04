@@ -26,14 +26,14 @@ function Changes({ track }: { track: TrackRow }) {
 function Track({ track, state }: { track: TrackRow; state: LiveState | undefined }) {
   const sessions = state?.sessions.filter((s) => s.track === track.track) ?? [];
   const locks = state?.locks.filter((l) => l.track === track.track) ?? [];
-  const condition = !track.worktree ? <span className="chip chip-idle">no worktree</span> : track.dirty === 0 ? <span className="chip chip-done">clean</span> : <span className="chip chip-active">{track.dirty} uncommitted</span>;
+  const condition = track.dirty === 0 ? <span className="chip chip-done">clean</span> : <span className="chip chip-active">{track.dirty} uncommitted</span>;
   return (
     <li className={`track ${track.isMain ? "main" : ""}`}>
       <div className="track-top">
         <span className={`chip mono ${track.isMain ? "chip-accent" : "chip-remote"}`}>{track.branch}</span>
         {condition}
       </div>
-      <div className="path">{track.isMain ? "the operator's checkout" : track.path || "no worktree"}</div>
+      <div className="path">{track.isMain ? "the operator's checkout" : track.path}</div>
       {sessions.length + locks.length > 0 ? (
         <div className="chips">
           {sessions.map((s) => <span key={s.id} className="chip chip-accent">{s.agent} working</span>)}
@@ -45,7 +45,7 @@ function Track({ track, state }: { track: TrackRow; state: LiveState | undefined
         <dt>Last commit</dt><dd className="v">{track.when}</dd>
         {track.isMain ? null : <><dt>Ahead / behind main</dt><dd className="v">+{track.ahead} / -{track.behind}</dd></>}
       </dl>
-      {track.worktree && track.dirty === 0 ? <div className="clean-line">✓ Nothing uncommitted</div> : null}
+      {track.dirty === 0 ? <div className="clean-line">✓ Nothing uncommitted</div> : null}
       {track.dirty > 0 ? <Changes track={track} /> : null}
     </li>
   );
