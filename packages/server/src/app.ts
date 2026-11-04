@@ -28,9 +28,12 @@ const TYPES: Record<string, string> = {
   ".ico": "image/x-icon",
 };
 
+const redacted = (env: Record<string, string>): Record<string, string> => Object.fromEntries(Object.keys(env).map((key) => [key, "(set)"]));
+
 export function redactedConfig(config: Config): Config {
-  const env = Object.fromEntries(Object.keys(config.commands.env).map((key) => [key, "(set)"]));
-  return { ...config, commands: { ...config.commands, env } };
+  const { env, landing } = config.commands;
+  const hidden = landing?.env === undefined ? {} : { landing: { ...landing, env: redacted(landing.env) } };
+  return { ...config, commands: { ...config.commands, env: redacted(env), ...hidden } };
 }
 
 async function file(path: string): Promise<Uint8Array | null> {

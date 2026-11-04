@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { Records, initRecords, openRepo, scanDocuments, writeJsonAtomic, type Config } from "@tally/core";
-import { createApp } from "../src/app.ts";
+import { createApp, redactedConfig } from "../src/app.ts";
 import { Watcher } from "../src/watcher.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
 
@@ -54,6 +54,14 @@ describe("the HTTP API", () => {
     const redacted = await (await app.request("/api/config")).json() as { commands: { env: Record<string, string> } };
     expect(redacted.commands.env).toEqual({ SECRET_URL: "(set)" });
     expect((await app.request("/api/nothing")).status).toBe(404);
+  });
+
+  test("redacts the landing's env values too, and leaves what it links in view", () => {
+    const landing = { link: ["node_modules"], env: { CACHE_URL: "a value to hide" } };
+    const shown = redactedConfig({ ...config, commands: { ...config.commands, landing } });
+
+    expect(shown.commands.landing).toEqual({ link: ["node_modules"], env: { CACHE_URL: "(set)" } });
+    expect(redactedConfig(config).commands).not.toHaveProperty("landing");
   });
 
   test("the graph takes a limit and says how many commits exist, as the snapshot does", async () => {
