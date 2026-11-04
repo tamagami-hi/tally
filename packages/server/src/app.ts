@@ -13,6 +13,8 @@ export interface AppOptions {
   webDir: string;
 }
 
+const PING_MS = 15_000;
+
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -61,16 +63,14 @@ export function createApp({ repo, watcher, webDir }: AppOptions): Hono {
     streamSSE(c, async (stream) => {
       const send = (snapshot: unknown): Promise<void> => stream.writeSSE({ event: "snapshot", data: JSON.stringify(snapshot) });
       await send(await watcher.current());
-      let open = true;
       const unsubscribe = watcher.subscribe((snapshot) => void send(snapshot));
-      stream.onAbort(() => {
-        open = false;
-        unsubscribe();
+      const ping = setInterval(() => void stream.writeSSE({ event: "ping", data: new Date().toISOString() }), PING_MS);
+      await new Promise<void>((ended) => {
+        stream.onAbort(ended);
+        void watcher.stopped.then(ended);
       });
-      while (open) {
-        await stream.sleep(15_000);
-        if (open) await stream.writeSSE({ event: "ping", data: new Date().toISOString() });
-      }
+      clearInterval(ping);
+      unsubscribe();
     }),
   );
   app.get("/*", async (c) => {

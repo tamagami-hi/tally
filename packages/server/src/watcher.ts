@@ -58,6 +58,10 @@ export class Watcher {
   private busy = false;
   private inFlight: Promise<void> = Promise.resolve();
   private failure: string | undefined;
+  private halt: () => void = () => undefined;
+  readonly stopped = new Promise<void>((done) => {
+    this.halt = done;
+  });
 
   constructor(repo: Repo, options: { intervalMs?: number } = {}) {
     this.repo = repo;
@@ -85,6 +89,7 @@ export class Watcher {
   async stop(): Promise<void> {
     if (this.timer !== undefined) clearInterval(this.timer);
     this.timer = undefined;
+    this.halt();
     await this.inFlight;
   }
 

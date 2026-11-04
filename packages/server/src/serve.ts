@@ -1,8 +1,11 @@
+import type { Server } from "node:http";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import type { Repo } from "@tally/core";
 import { createApp } from "./app.ts";
 import { Watcher } from "./watcher.ts";
+
+const IDLE_SWEEP_MS = 100;
 
 export interface ServeOptions {
   repo: Repo;
@@ -29,9 +32,15 @@ export function startServer(options: ServeOptions): Promise<Running> {
         url: `http://${options.host}:${info.port}/`,
         close: async () => {
           await watcher.stop();
-          await new Promise<void>((closed) => server.close(() => closed()));
+          await new Promise<void>((closed) => {
+            const sweep = setInterval(() => server.closeIdleConnections(), IDLE_SWEEP_MS);
+            server.close(() => {
+              clearInterval(sweep);
+              closed();
+            });
+          });
         },
       });
-    });
+    }) as Server;
   });
 }
