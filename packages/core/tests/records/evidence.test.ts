@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { listEvidence, recordEvidence } from "../../src/records/evidence.ts";
 import { readHandoff, writeHandoff } from "../../src/records/handoffs.ts";
-import { runEvidence, summarize } from "../../src/records/run.ts";
+import { runEvidence } from "../../src/records/run.ts";
+import { summarize } from "../../src/records/totals.ts";
 import { Records } from "../../src/store/records.ts";
 import { openSession } from "../../src/state/sessions.ts";
 import { busyLock } from "../support/busy.ts";
@@ -79,10 +80,29 @@ describe("evidence records", () => {
     await expect(access(touched)).rejects.toThrow();
   });
 
-  test("summarize reads cargo's and vitest's totals", () => {
-    expect(summarize("test result: ok. 5 passed; 0 failed; 0 ignored\ntest result: ok. 7 passed; 1 failed; 2 ignored\n")).toEqual({ passed: 12, failed: 1, ignored: 2 });
+  test("summarize reads cargo's totals, adding each test binary's", () => {
+    expect(summarize("test result: ok. 5 passed; 0 failed; 0 ignored\ntest result: FAILED. 7 passed; 1 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.01s\n")).toEqual({ passed: 12, failed: 1, ignored: 2 });
+  });
+
+  test("summarize reads vitest's totals, with or without passes and in colour", () => {
     expect(summarize("      Tests  1 failed | 97 passed (98)")).toEqual({ passed: 97, failed: 1, ignored: 0 });
+    expect(summarize("      Tests  3 failed (3)")).toEqual({ passed: 0, failed: 3, ignored: 0 });
+    expect(summarize("      Tests  2 failed | 5 passed | 1 skipped | 1 todo (9)")).toEqual({ passed: 5, failed: 2, ignored: 2 });
+    expect(summarize("\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m")).toEqual({ passed: 4, failed: 1, ignored: 0 });
+    expect(summarize(" Test Files  1 failed (1)\n      Tests  no tests\n")).toBeUndefined();
+  });
+
+  test("summarize reads pytest's totals, in every verbosity", () => {
+    expect(summarize("============ 2 failed, 5 passed, 1 skipped, 1 xfailed, 3 warnings in 0.12s ============")).toEqual({ passed: 5, failed: 2, ignored: 2 });
+    expect(summarize("3 passed in 0.01s")).toEqual({ passed: 3, failed: 0, ignored: 0 });
+    expect(summarize("1 failed in 65.21s (0:01:05)")).toEqual({ passed: 0, failed: 1, ignored: 0 });
+    expect(summarize("=== 1 xfailed, 1 xpassed in 0.01s ===")).toEqual({ passed: 0, failed: 0, ignored: 1 });
+    expect(summarize("=========== 1 error in 0.05s ===========")).toEqual({ passed: 0, failed: 0, ignored: 0 });
+  });
+
+  test("summarize finds no totals in what no runner printed", () => {
     expect(summarize("nothing here")).toBeUndefined();
+    expect(summarize("error: could not compile `core` (lib test) due to 2 previous errors")).toBeUndefined();
   });
 });
 

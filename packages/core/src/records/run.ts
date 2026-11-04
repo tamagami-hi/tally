@@ -9,6 +9,7 @@ import type { Repo } from "../store/records.ts";
 import type { Session } from "../state/sessions.ts";
 import { keepRun, writableTrack, type EvidenceKind, type Kept } from "./evidence.ts";
 import { safeName } from "./handoffs.ts";
+import { summarize } from "./totals.ts";
 
 export interface RunInput {
   milestone: string;
@@ -16,23 +17,6 @@ export interface RunInput {
   kind: EvidenceKind;
   command: readonly string[];
   note?: string;
-}
-
-export function summarize(text: string): Record<string, number> | undefined {
-  const totals = { passed: 0, failed: 0, ignored: 0 };
-  let seen = false;
-  for (const match of text.matchAll(/(\d+) passed; (\d+) failed; (\d+) ignored/g)) {
-    seen = true;
-    totals.passed += Number(match[1]);
-    totals.failed += Number(match[2]);
-    totals.ignored += Number(match[3]);
-  }
-  for (const match of text.matchAll(/Tests\s+(?:(\d+) failed \| )?(\d+) passed/g)) {
-    seen = true;
-    totals.failed += Number(match[1] ?? 0);
-    totals.passed += Number(match[2]);
-  }
-  return seen ? totals : undefined;
 }
 
 export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, input: RunInput, now = new Date()): Promise<Kept & { logPath: string }> {

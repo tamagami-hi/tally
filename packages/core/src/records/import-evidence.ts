@@ -9,7 +9,7 @@ import { withLock } from "../store/lock.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
 import { evidencePath, readEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
-import { summarize } from "./run.ts";
+import { summarize } from "./totals.ts";
 
 const runShape = z
   .object({
