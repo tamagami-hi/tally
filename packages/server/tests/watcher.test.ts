@@ -2,7 +2,7 @@ import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { initRecords, openRepo, writeJsonAtomic, type Config } from "@tally/core";
-import { Watcher, fingerprint } from "../src/watcher.ts";
+import { Watcher, fingerprint, snapshot } from "../src/watcher.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
 
 const config: Config = {
@@ -28,6 +28,29 @@ describe("the watcher", () => {
     expect(committed).not.toBe(dirty);
     await writeJsonAtomic(join(opened.recordsDir, "evidence", "A1.json"), { schema: 1, milestone: "A1", records: [] });
     expect(await fingerprint(opened)).not.toBe(committed);
+  });
+
+  test("a detached worktree moves neither the fingerprint nor the graph, whatever it holds", async () => {
+    const repo = await makeRepo();
+    await initRecords(repo.root, config, (await repo.head()).slice(0, 7));
+    await repo.commit(".gitignore", ".temp/\n", "chore: ignore scratch");
+    await sh(repo.root, ["add", "-A"]);
+    await sh(repo.root, ["commit", "-q", "-m", "records: init"]);
+    const opened = await openRepo(repo.root);
+    const first = await fingerprint(opened);
+    const checkout = join(repo.root, ".temp", "data", "landing");
+
+    await sh(repo.root, ["worktree", "add", "-q", "--detach", checkout, "HEAD"]);
+    await writeFile(join(checkout, "left.txt"), "x");
+    await sh(checkout, ["add", "left.txt"]);
+    await sh(checkout, ["commit", "-q", "-m", "undone by a landing"]);
+    await writeFile(join(checkout, "dirty.txt"), "x");
+
+    const { graph, graphTotal, status } = await snapshot(opened);
+    expect(await fingerprint(opened)).toBe(first);
+    expect(graph.map((commit) => commit.subject)).not.toContain("undone by a landing");
+    expect(graphTotal).toBe(graph.length);
+    expect(status.tracks.map((row) => row.branch)).toEqual(["main"]);
   });
 
   test("tells its subscribers on each change it sees (a commit shows a dirty tree, then the ref), and stops cleanly", async () => {

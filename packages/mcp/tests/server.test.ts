@@ -142,6 +142,37 @@ describe("the tally MCP server", () => {
     expect(landed.structured!["log"]).toMatch(new RegExp(`^${trees["data"]!}/\\.temp/data/tally/landings/.*\\.log$`));
   });
 
+  test("land_run with commands.landing keeps every commit's output in the one log it returns, and a failure names that commit", async () => {
+    const { repo, trees, root } = await connected();
+    const tree = trees["data"]!;
+    const commands = { ...repo.config.commands, test: ["sh", "-c", "git log -1 --format=ran-%s; test ! -e broken"], landing: {} };
+    const call = await serving({ ...repo, config: { ...repo.config, commands } });
+    const data = (await call("session_open", { worktree: tree, track: "data", agent: "a" })).structured!["id"] as string;
+    await mkdir(join(tree, ".temp"), { recursive: true });
+    await writeFile(join(tree, ".temp", "m.txt"), "feat(data): a\n");
+    await writeFile(join(tree, "one.rs"), "1");
+    await sh(tree, ["add", "one.rs"]);
+    await sh(tree, ["commit", "-q", "-m", "feat: one"]);
+    await writeFile(join(tree, "a.rs"), "a");
+
+    const landed = await call("land_run", { sessionId: data, files: ["a.rs"], messageFile: ".temp/m.txt" });
+
+    const output = await readFile(landed.structured!["log"] as string, "utf8");
+    expect(output).toContain("ran-feat: one");
+    expect(output).toContain("ran-feat(data): a");
+    expect(landed.structured!["lines"]).toEqual([expect.stringContaining("(1 of 2)"), expect.stringContaining("(2 of 2)"), expect.stringMatching(/^data landed at /)]);
+
+    await writeFile(join(tree, "broken"), "x");
+    const main = await sh(root, ["rev-parse", "main"]);
+    const failed = await call("land_run", { sessionId: data, files: ["broken"], messageFile: ".temp/m.txt" });
+
+    expect(failed.isError).toBe(true);
+    expect(failed.text).toContain("feat(data): a failed:");
+    expect(failed.text).toMatch(/the log is \S+\.log; [0-9a-f]{7} is undone, and its files stay staged$/);
+    expect(await sh(root, ["rev-parse", "main"])).toBe(main);
+    expect(await sh(tree, ["status", "--porcelain"])).toBe("A  broken");
+  });
+
   test("land_run with a milestone and a task records them at the hash it made and frees the claim", async () => {
     const { call, trees, root } = await connected();
     const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
