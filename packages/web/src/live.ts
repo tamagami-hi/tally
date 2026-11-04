@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
+import type { DocsIndex, EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
 
 export const SNAPSHOT_KEY = ["snapshot"];
 
@@ -36,6 +36,17 @@ async function fetchEvidence(): Promise<EvidenceIndex> {
 
 export function useEvidence(version: string | undefined): EvidenceIndex | undefined {
   const query = useQuery({ queryKey: ["evidence", version], queryFn: fetchEvidence, staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
+  return query.data;
+}
+
+async function fetchDocs(): Promise<DocsIndex> {
+  const response = await fetch("/api/docs");
+  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  return (await response.json()) as DocsIndex;
+}
+
+export function useDocs(version: string | undefined): DocsIndex | undefined {
+  const query = useQuery({ queryKey: ["docs", version], queryFn: fetchDocs, staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
   return query.data;
 }
 

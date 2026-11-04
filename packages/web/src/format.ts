@@ -49,3 +49,16 @@ export function countsText(records: readonly { kind: string }[]): string {
 }
 
 export const bytesText = (bytes: number): string => `${bytes.toLocaleString("en-US")} bytes`;
+
+export const plainText = (markdown: string): string => markdown.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*`]/g, "");
+
+export function docLink(from: string, href: string): string | null {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("#") || href.startsWith("/")) return null;
+  const [target = ""] = href.split("#");
+  if (!/\.(md|json)$/.test(target)) return null;
+  const folder = from.split("/").slice(0, -1);
+  return target
+    .split("/")
+    .reduce<string[]>((path, part) => (part === ".." ? path.slice(0, -1) : part === "." ? path : [...path, part]), folder)
+    .join("/");
+}

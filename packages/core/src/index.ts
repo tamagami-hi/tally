@@ -60,7 +60,7 @@ export { appendBuildlog, buildlogFileSchema, importBuildlog, parseBuildlog, read
 export type { AppendInput, BuildlogEntry, BuildlogFile } from "./records/buildlog.ts";
 export { importEvidence, kindOf, walkJson } from "./records/import-evidence.ts";
 export type { ImportOptions, Imported } from "./records/import-evidence.ts";
-export { documentKinds, documentsFileSchema, documentsPath, scanDocuments } from "./records/documents.ts";
+export { documentKinds, documentsFileSchema, documentsPath, readDocuments, scanDocuments } from "./records/documents.ts";
 export type { DocumentKind, DocumentsFile, DocumentRow } from "./records/documents.ts";
 export { plansFileSchema, readPlans, scanPlans } from "./records/plans.ts";
 export type { Plan, PlansFile } from "./records/plans.ts";

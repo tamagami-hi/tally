@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Board } from "./components/Board.tsx";
+import { Docs } from "./components/Docs.tsx";
 import { Evidence } from "./components/Evidence.tsx";
 import { Graph, Legend } from "./components/Graph.tsx";
 import { Hero, TopBar } from "./components/Header.tsx";
@@ -8,7 +9,7 @@ import { Problems } from "./components/Problems.tsx";
 import { Stats } from "./components/Stats.tsx";
 import { Tracks, tracksSummary } from "./components/Tracks.tsx";
 import type { Scheme } from "./live.ts";
-import type { EvidenceIndex, Layout, Live, Page, Snapshot } from "./types.ts";
+import type { DocsIndex, EvidenceIndex, Layout, Live, Page, Snapshot } from "./types.ts";
 
 export interface ShellProps {
   snapshot: Snapshot | undefined;
@@ -17,6 +18,7 @@ export interface ShellProps {
   layout: Layout;
   scheme: Scheme;
   evidence?: EvidenceIndex | undefined;
+  docs?: DocsIndex | undefined;
   onToggleScheme: () => void;
   onRetry: () => void;
 }
@@ -26,6 +28,7 @@ const PAGES: { id: Page; label: string }[] = [
   { id: "tracks", label: "Tracks" },
   { id: "graph", label: "Graph" },
   { id: "evidence", label: "Evidence" },
+  { id: "docs", label: "Docs" },
 ];
 
 function Loading() {
@@ -47,24 +50,32 @@ function Failed({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-type MainView = "board" | "evidence";
+type MainView = "board" | "evidence" | "docs";
+
+const MAIN_VIEWS: { id: MainView; label: string }[] = [
+  { id: "board", label: "Board" },
+  { id: "evidence", label: "Evidence" },
+  { id: "docs", label: "Docs" },
+];
 
 function MainSwitch({ view, onChange }: { view: MainView; onChange: (view: MainView) => void }) {
   return (
     <div className="segmented" role="radiogroup" aria-label="Main view">
-      {(["board", "evidence"] as MainView[]).map((v) => (
-        <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => onChange(v)}>{v === "board" ? "Board" : "Evidence"}</button>
+      {MAIN_VIEWS.map(({ id, label }) => (
+        <button key={id} type="button" role="radio" aria-checked={view === id} onClick={() => onChange(id)}>{label}</button>
       ))}
     </div>
   );
 }
 
-export function Shell({ snapshot, error, live, layout, scheme, evidence, onToggleScheme, onRetry }: ShellProps) {
+export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, onToggleScheme, onRetry }: ShellProps) {
   const [page, setPage] = useState<Page>("board");
   const [main, setMain] = useState<MainView>("board");
+  const [openDocument, setOpenDocument] = useState<string | null>(null);
   if (snapshot === undefined) return error === null ? <Loading /> : <Failed error={error} onRetry={onRetry} />;
   const { status, graph, state } = snapshot;
   const claims = state?.claims ?? [];
+  const reader = <Docs index={docs} selected={openDocument} onSelect={setOpenDocument} />;
   const top = <TopBar status={status} live={live} takenAt={snapshot.takenAt} scheme={scheme} onToggleScheme={onToggleScheme} />;
   if (layout === "landscape") {
     return (
@@ -75,11 +86,11 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, onToggl
           <Problems problems={status.problems} />
         </div>
         <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} state={state} /></Panel></div>
-        <div className="column-main">
-          <Hero status={status} />
-          {main === "board"
-            ? <Panel title="Board" detail={<><span>{status.rows.length} milestones</span> <MainSwitch view={main} onChange={setMain} /></>}><Board status={status} claims={claims} /></Panel>
-            : <Panel title="Evidence" detail={<MainSwitch view={main} onChange={setMain} />}><Evidence index={evidence} /></Panel>}
+        <div className={main === "docs" ? "column-main reading" : "column-main"}>
+          {main === "docs" ? null : <Hero status={status} />}
+          {main === "board" ? <Panel title="Board" detail={<><span>{status.rows.length} milestones</span> <MainSwitch view={main} onChange={setMain} /></>}><Board status={status} claims={claims} /></Panel> : null}
+          {main === "evidence" ? <Panel title="Evidence" detail={<MainSwitch view={main} onChange={setMain} />}><Evidence index={evidence} /></Panel> : null}
+          {main === "docs" ? <Panel title="Docs" detail={<MainSwitch view={main} onChange={setMain} />}>{reader}</Panel> : null}
         </div>
         <div className="column-right"><Panel title="Graph" detail={<Legend commits={graph} />} className="column-right"><Graph commits={graph} /></Panel></div>
       </div>
@@ -96,6 +107,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, onToggl
         {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} state={state} /></Panel> : null}
         {page === "graph" ? <Panel title="Graph" detail={<Legend commits={graph} />}><Graph commits={graph} /></Panel> : null}
         {page === "evidence" ? <Panel title="Evidence"><Evidence index={evidence} /></Panel> : null}
+        {page === "docs" ? <Panel title="Docs">{reader}</Panel> : null}
       </main>
       <nav className="bottom-nav" role="radiogroup" aria-label="Pages">
         {PAGES.map((p) => (

@@ -118,6 +118,19 @@ export interface EvidenceIndex {
   milestones: { milestone: string; records: EvidenceRecord[] }[];
 }
 
+export interface DocumentRow {
+  path: string;
+  group: string;
+  kind: string;
+  title: string;
+  purpose?: string;
+}
+
+export interface DocsIndex {
+  documents: DocumentRow[];
+  records: string[];
+}
+
 export interface Snapshot {
   status: StatusData;
   graph: LaidCommit[];
@@ -126,5 +139,5 @@ export interface Snapshot {
 }
 
 export type Live = "connected" | "reconnecting" | "offline";
-export type Page = "board" | "tracks" | "graph" | "evidence";
+export type Page = "board" | "tracks" | "graph" | "evidence" | "docs";
 export type Layout = "landscape" | "portrait";

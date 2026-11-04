@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Shell, type ShellProps } from "../src/Shell.tsx";
 import { snapshot } from "./fixture.ts";
 import { index } from "./Evidence.test.tsx";
@@ -93,6 +93,21 @@ describe("the shell in landscape", () => {
     expect(screen.getByText("not pushed · 2")).toBeInTheDocument();
   });
 
+  test("offers the docs beside the board and the evidence, and keeps the document open across a switch", () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ path: "docs/alpha/next/plan.md", text: "# A plan" })))));
+    draw({ docs: { documents: [{ path: "docs/alpha/next/plan.md", group: "alpha", kind: "next", title: "A plan" }], records: [] } });
+    expect(screen.getAllByRole("radio").map((radio) => radio.textContent)).toEqual(["Board", "Evidence", "Docs"]);
+    fireEvent.click(screen.getByRole("radio", { name: "Docs" }));
+    expect(screen.queryByLabelText("Overall progress")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /A plan/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Board" }));
+    expect(screen.queryByLabelText("Docs")).toBeNull();
+    expect(screen.getByLabelText("Overall progress")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Docs" }));
+    expect(screen.getByLabelText("Docs")).toHaveClass("reading");
+    vi.unstubAllGlobals();
+  });
+
   test("switches the main column between the board and the evidence", () => {
     draw({ evidence: index });
     expect(screen.getByLabelText("Board")).toBeInTheDocument();
@@ -126,6 +141,8 @@ describe("the shell in portrait", () => {
     draw({ layout: "portrait", evidence: index });
     fireEvent.click(screen.getByRole("radio", { name: "Evidence" }));
     expect(screen.getByText("data review fixes D1-D3")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Docs" }));
+    expect(screen.getByLabelText("Docs")).toHaveAttribute("aria-busy", "true");
   });
 });
 

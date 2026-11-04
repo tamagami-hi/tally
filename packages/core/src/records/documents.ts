@@ -2,8 +2,9 @@ import { readFile } from "node:fs/promises";
 import { basename, dirname, join, normalize } from "node:path";
 import { z } from "zod";
 import { listDocs } from "../docs/files.ts";
+import { TallyError } from "../errors.ts";
 import type { Repo } from "../store/records.ts";
-import { writeJsonAtomic } from "../store/json.ts";
+import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
 import { parseTables } from "./markdown.ts";
@@ -31,6 +32,15 @@ const FOLDER_KINDS: readonly DocumentKind[] = ["next", "completed", "reference",
 const LINK = /\[[^\]]*\]\(([^)#\s]+\.md)(?:#[^)]*)?\)/;
 
 export const documentsPath = (repo: Repo): string => join(repo.recordsDir, "documents.json");
+
+export async function readDocuments(repo: Repo): Promise<DocumentsFile> {
+  try {
+    return await readJson(documentsPath(repo), documentsFileSchema);
+  } catch (error: unknown) {
+    if (error instanceof TallyError && error.message.endsWith("does not exist")) return { schema: 1, documents: [] };
+    throw error;
+  }
+}
 
 function kindOf(repo: Repo, path: string): DocumentKind {
   const folders = path.split("/").slice(0, -1);

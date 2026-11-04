@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, relative, sep } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { Records, findEvidence, readAllEvidence, readEvidence, type Config, type Repo } from "@tally/core";
+import { Records, TallyError, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, type Config, type Repo } from "@tally/core";
 import { mcpHandler } from "@tally/mcp";
 import type { Watcher } from "./watcher.ts";
 
@@ -56,6 +56,20 @@ export function createApp({ repo, watcher, webDir }: AppOptions): Hono {
     return c.body(new Uint8Array(body), 200, { "content-type": "text/plain; charset=utf-8", "x-tally-log": hash === found.record.log.sha256 ? "unchanged" : "changed" });
   });
   app.get("/api/evidence/:milestone", async (c) => c.json(await readEvidence(repo, c.req.param("milestone"))));
+  app.get("/api/docs", async (c) => {
+    const records = `${relative(repo.root, repo.recordsDir)}${sep}`;
+    return c.json({ documents: (await readDocuments(repo)).documents, records: (await listDocs(repo)).filter((path) => path.startsWith(records)) });
+  });
+  app.get("/api/docs/read", async (c) => {
+    const path = c.req.query("path");
+    if (path === undefined) return c.json({ error: "the path is missing" }, 400);
+    try {
+      return c.json(await readDoc(repo, path));
+    } catch (error: unknown) {
+      if (!(error instanceof TallyError)) throw error;
+      return c.json({ error: messageOf(error) }, 404);
+    }
+  });
   app.get("/api/*", (c) => c.json({ error: "not found" }, 404));
   const mcp = mcpHandler(repo);
   app.all("/mcp", (c) => mcp(c.req.raw));

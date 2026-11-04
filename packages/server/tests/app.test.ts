@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { Records, initRecords, openRepo, writeJsonAtomic, type Config } from "@tally/core";
+import { Records, initRecords, openRepo, scanDocuments, writeJsonAtomic, type Config } from "@tally/core";
 import { createApp } from "../src/app.ts";
 import { Watcher } from "../src/watcher.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
@@ -54,6 +54,28 @@ describe("the HTTP API", () => {
     const redacted = await (await app.request("/api/config")).json() as { commands: { env: Record<string, string> } };
     expect(redacted.commands.env).toEqual({ SECRET_URL: "(set)" });
     expect((await app.request("/api/nothing")).status).toBe(404);
+  });
+
+  test("lists the documents and the records, and reads one, refusing what is not a document", async () => {
+    const { app, repo, root } = await fixture();
+    expect(((await (await app.request("/api/docs")).json()) as { documents: unknown[] }).documents).toEqual([]);
+    await mkdir(join(root, "docs", "alpha", "next"), { recursive: true });
+    await writeFile(join(root, "docs", "alpha", "next", "plan.md"), "# A plan\n");
+    await scanDocuments(repo);
+
+    const index = await (await app.request("/api/docs")).json() as { documents: { path: string; kind: string; title: string }[]; records: string[] };
+    const read = await app.request(`/api/docs/read?path=${encodeURIComponent("docs/alpha/next/plan.md")}`);
+
+    expect(index.documents).toContainEqual({ path: "docs/alpha/next/plan.md", group: "alpha", kind: "next", title: "A plan" });
+    expect(index.records).toContain("docs/records/ledger.json");
+    expect(index.records.every((path) => path.startsWith("docs/records/"))).toBe(true);
+    expect(await read.json()).toEqual({ path: "docs/alpha/next/plan.md", text: "# A plan\n" });
+    expect((await app.request("/api/docs/read")).status).toBe(400);
+    for (const path of ["src/a.rs", "../../etc/passwd", "docs/alpha/gone.md"]) {
+      const refused = await app.request(`/api/docs/read?path=${encodeURIComponent(path)}`);
+      expect(refused.status).toBe(404);
+      expect(((await refused.json()) as { error: string }).error).toMatch(/not a document|does not exist/);
+    }
   });
 
   test("lists the evidence records per milestone and serves a log in place, saying whether it still matches its hash", async () => {
