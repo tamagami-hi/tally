@@ -82,6 +82,21 @@ describe("a landing in a clean checkout", () => {
     expect(await f.runs()).toEqual([`${one} feat: one`, `${two} feat: two`]);
   });
 
+  test("a failure below its own commit undoes only that commit, and the ones it found stay", async () => {
+    const f = await landingFixture("test ! -e src/broken");
+    const found = await commitOn(f.tree, "src/broken", "feat: found");
+    await sh(f.tree, ["rm", "-q", "src/broken"]);
+    await sh(f.tree, ["commit", "-q", "-m", "feat: mended"]);
+    const tip = await f.head();
+    await edit(f.tree, "src/new.rs");
+
+    const landing = landTrack(f.repo, { track: "data", files: ["src/new.rs"], messageFile: f.message }, f.deps);
+
+    await expect(landing).rejects.toThrow(`${found.slice(0, 7)} feat: found failed:`);
+    expect(await f.head()).toBe(tip);
+    expect(await sh(f.tree, ["status", "--porcelain"])).toBe("A  src/new.rs");
+  });
+
   test("tests every commit, oldest first, when all pass, and main takes them all", async () => {
     const f = await landingFixture("true");
     const one = await commitOn(f.tree, "src/one.rs", "feat: one");

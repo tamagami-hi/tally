@@ -116,14 +116,17 @@ describe("a landing link", () => {
     expect(await readlink(join(path, "deps"))).toBe(join(f.tree, "deps"));
   });
 
-  test("makes the folders above it in a commit that does not have them", async () => {
+  test("makes the folders above it in a commit that does not have them, and a clean of those folders spares what it points at", async () => {
     const f = await fixture();
     await mkdir(join(f.tree, "ui", "deps"), { recursive: true });
+    await writeFile(join(f.tree, "ui", "deps", "tool"), "kept");
     const path = await openLandingCheckout(f.tree, "data");
 
     await moveLandingCheckout(path, f.head, f.tree, ["ui/deps"]);
+    await moveLandingCheckout(path, f.head, f.tree, []);
 
-    expect(await readlink(join(path, "ui", "deps"))).toBe(join(f.tree, "ui", "deps"));
+    expect(await exists(join(path, "ui"))).toBe(false);
+    expect(await readFile(join(f.tree, "ui", "deps", "tool"), "utf8")).toBe("kept");
   });
 
   test("refuses what the worktree does not have", async () => {
