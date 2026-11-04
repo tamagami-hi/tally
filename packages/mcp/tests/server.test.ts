@@ -149,6 +149,34 @@ describe("the tally MCP server", () => {
     expect(foreign.structured).toMatchObject({ head, recording: { recorded: false, message: expect.stringContaining(`landed at ${head}`) } });
   });
 
+  test("task_land frees the claim whoever holds it, since a landed task cannot be worked", async () => {
+    const { call, trees, root } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    const operator = (await call("session_open", { worktree: root, track: "main", agent: "op" })).structured!["id"] as string;
+    await call("task_claim", { sessionId: data, milestone: "B2", task: "4 manifest" });
+    await writeFile(join(root, "src.rs"), "x");
+    await sh(root, ["add", "src.rs"]);
+    await sh(root, ["commit", "-q", "-m", "feat: work"]);
+    const sha = await sh(root, ["rev-parse", "--short=7", "HEAD"]);
+
+    const landed = await call("task_land", { sessionId: operator, milestone: "B2", task: "4 manifest", commit: sha });
+
+    expect(landed.structured).toMatchObject({ message: `B2 '4 manifest': landed at ${sha}`, released: { task: "4 manifest", agent: "a" } });
+    expect((await call("task_claim", { sessionId: data, milestone: "B2", task: "5 transcoder" })).isError).toBe(false);
+  });
+
+  test("task_land stays scoped to the session's track", async () => {
+    const { call, trees, root } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+    const sha = await sh(root, ["rev-parse", "--short=7", "HEAD"]);
+
+    const foreign = await call("task_land", { sessionId: data, milestone: "B2", task: "T9 store", commit: sha });
+    const unplanned = await call("task_land", { sessionId: data, milestone: "B2", task: "new", commit: sha, track: "engine" });
+
+    expect(foreign.text).toMatch(/may not write track engine/);
+    expect(unplanned.text).toMatch(/may not write track engine/);
+  });
+
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {
     const { call, trees } = await connected();
     const bad = await call("session_open", { worktree: trees["data"]!, track: "engine", agent: "claude" });

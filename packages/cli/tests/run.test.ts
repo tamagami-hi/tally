@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { run } from "../src/run.ts";
 import type { IO } from "../src/io.ts";
+import { Records, claimTask, listClaims, openRepo, openSession } from "../../core/src/index.ts";
 import { busyLock } from "../../core/tests/support/busy.ts";
 import { makeRepo, sh } from "../../core/tests/support/repo.ts";
 
@@ -158,6 +159,33 @@ describe("the command line", () => {
 
     expect(console.errors).toEqual(["a landing records a task from both its milestone and its task"]);
     expect(await sh(repo.root, ["rev-parse", "main"])).toBe(before);
+  });
+
+  test("task land releases the task's claim, so the session's next claim goes through", async () => {
+    const { repo, tree } = await withTrack();
+    const opened = await openRepo(repo.root);
+    const records = new Records(opened);
+    const session = await openSession(opened, { worktree: tree, track: "data", agent: "a" });
+    expect(await run(["task", "plan", "B2", "--track", "data", "2 next"], io(repo.root))).toBe(0);
+    await claimTask(opened, session, await records.readLedger(), "B2", "1 codecs");
+    const feature = await repo.commit("src/a.rs", "a", "feat(store): a");
+
+    expect(await run(["task", "land", "B2", "1 codecs", feature], io(repo.root))).toBe(0);
+
+    expect(await listClaims(opened)).toEqual([]);
+    expect(await claimTask(opened, session, await records.readLedger(), "B2", "2 next")).toMatchObject({ task: "2 next" });
+  });
+
+  test("task land keeps the record and says so when the claim cannot be released", async () => {
+    const { repo } = await withTrack();
+    const feature = await repo.commit("src/a.rs", "a", "feat(store): a");
+    busyLock("claims.json");
+    const console = io(repo.root);
+
+    expect(await run(["task", "land", "B2", "1 codecs", feature], console)).toBe(0);
+
+    expect(console.lines[0]).toBe(`B2 '1 codecs': landed at ${feature.slice(0, 7)}`);
+    expect(console.errors[0]).toMatch(/^its claim is still held: could not take the lock claims\.json/);
   });
 
   test("records commit says the lock stopped it rather than that no records were waiting", async () => {

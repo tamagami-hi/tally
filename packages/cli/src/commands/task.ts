@@ -1,4 +1,4 @@
-import { Records, commitRecords, land, other, plan, resolveOnMain, wait, type Repo } from "@tally/core";
+import { Records, commitRecords, other, plan, recordTask, resolveOnMain, wait, type Repo } from "@tally/core";
 import { list, need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
 import { TallyError } from "@tally/core";
@@ -27,7 +27,9 @@ export async function taskCommand(repo: Repo, argv: readonly string[], io: IO): 
       const parsed = parse(rest, { track: { type: "string" }, also: { type: "string", multiple: true } });
       const input = { milestone: need(parsed, 0, "milestone"), task: need(parsed, 1, "task"), commit: need(parsed, 2, "commit"), also: list(parsed, "also") };
       const track = text(parsed, "track");
-      await recorded(repo, io, await records.update((ledger) => land(ledger, track === undefined ? input : { ...input, track }, resolve)));
+      const { message, problem } = await recordTask(repo, track === undefined ? input : { ...input, track });
+      if (problem !== undefined) io.err(problem);
+      await recorded(repo, io, message);
       return 0;
     }
     case "wait": {

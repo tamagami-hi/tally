@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   COVERED, Records, TallyError, addMilestone, assertMayWrite, claimTask, collect, commitRecords, findMilestone, findTask, getSession, isOperator,
-  land, listClaims, listLocks, logLines, other, plan, releaseClaim, resolveOnMain, unrecorded, wait, type Ledger, type Repo, type Session,
+  listClaims, listLocks, logLines, other, plan, recordTask, releaseClaim, resolveOnMain, unrecorded, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 
@@ -92,16 +92,11 @@ export function registerLedgerTools(server: McpServer, repo: Repo): void {
   );
   server.registerTool(
     "task_land",
-    { description: "Record the commit on main that landed a task (the landing itself is land_run). Follow-up commits go in `also`.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional() } },
+    { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional() } },
     ({ sessionId, milestone, task, commit, also, track }) => attempt(async () => {
       const session = await getSession(repo, sessionId);
-      const ledger = await records.readLedger();
-      const existing = taskTrack(ledger, milestone, task);
-      const scoped = existing ?? scopedTrack(repo, session, track);
-      assertMayWrite(repo, session, scoped);
-      const message = await records.update((current) => land(current, { milestone, task, commit, track: scoped, ...(also === undefined ? {} : { also }) }, resolve));
-      await releaseClaim(repo, session, milestone, task).catch(() => undefined);
-      return ok(await recorded(repo, message));
+      const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
+      return ok({ ...(await recorded(repo, message)), ...outcome });
     }),
   );
   server.registerTool(
