@@ -59,6 +59,23 @@ describe("indexing a track's existing run records", () => {
   });
 });
 
+describe("indexing a red that was not one", () => {
+  test("a run named red with no failed test is indexed as other, keeping where it came from", async () => {
+    const tracked = await makeTracked();
+    const cwd = tracked.trees["data"]!;
+    const dir = join(cwd, ".temp", "data", "B2", "false-red");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "red.json"), JSON.stringify({ command: ["cargo", "test"], cwd, started: 1793712038, seconds: 0.03, exit: 1 }));
+    await writeFile(join(dir, "red.log"), "error: unexpected argument\n");
+
+    await importEvidence(tracked.repo, dir, { milestone: "B2", task: "4 manifest" });
+
+    const [record] = await listEvidence(tracked.repo, "B2", "4 manifest");
+    expect(record?.kind).toBe("other");
+    expect(record?.note).toBe("recorded as other, not red: it exited 1 with no failed test, such as a compile or usage error; indexed from .temp/worktrees/data/.temp/data/B2/false-red/red.json");
+  });
+});
+
 describe("the plans record", () => {
   test("scan lists every plan under next/ and completed/ with its group, title and status line", async () => {
     const { repo, root } = await makeTracked();

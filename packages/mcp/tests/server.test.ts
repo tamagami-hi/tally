@@ -102,6 +102,17 @@ describe("the tally MCP server", () => {
     expect(ran.structured!["problem"]).toMatch(/nothing was changed/);
   });
 
+  test("evidence_run and evidence_record say so when a red is not a red", async () => {
+    const { call, trees } = await connected();
+    const data = (await call("session_open", { worktree: trees["data"]!, track: "data", agent: "a" })).structured!["id"] as string;
+
+    const ran = await call("evidence_run", { sessionId: data, milestone: "B2", task: "4 manifest", kind: "red", command: ["sh", "-c", "exit 1"] });
+    const kept = await call("evidence_record", { sessionId: data, milestone: "B2", task: "4 manifest", kind: "red", command: ["x"], cwd: ".", started: "", seconds: 0, exit: 0 });
+
+    expect(ran.structured).toMatchObject({ record: { kind: "other" }, notice: expect.stringContaining("no failed test") });
+    expect(kept.structured).toMatchObject({ record: { kind: "other" }, notice: "recorded as other, not red: it exited 0" });
+  });
+
   test("a session opens on its worktree, claims within its track, holds a lock, and closing releases both", async () => {
     const { call, trees } = await connected();
     const bad = await call("session_open", { worktree: trees["data"]!, track: "engine", agent: "claude" });

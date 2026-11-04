@@ -8,6 +8,7 @@ import { summarize } from "../../src/records/totals.ts";
 import { Records } from "../../src/store/records.ts";
 import { openSession } from "../../src/state/sessions.ts";
 import { busyLock } from "../support/busy.ts";
+import { sh } from "../support/repo.ts";
 import { makeTracked } from "../support/tracked.ts";
 
 describe("evidence records", () => {
@@ -78,6 +79,78 @@ describe("evidence records", () => {
     await expect(runEvidence(repo, data, ledger, { milestone: "B2", task: "T9 store", kind: "green", command })).rejects.toThrow(/may not write track engine/);
 
     await expect(access(touched)).rejects.toThrow();
+  });
+
+  test("a red that exits 0 is recorded as other, and the result and the note say why", async () => {
+    const { repo, trees } = await makeTracked();
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+
+    const result = await runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "red", command: ["sh", "-c", "echo 'test result: ok. 4 passed; 0 failed; 0 ignored'"], note: "broken by hand" });
+
+    expect(result.record.kind).toBe("other");
+    expect(result.notice).toBe("recorded as other, not red: it exited 0");
+    expect(result.record.note).toBe("recorded as other, not red: it exited 0; broken by hand");
+    expect((await listEvidence(repo, "B2", "4 manifest")).map((r) => r.kind)).toEqual(["other"]);
+  });
+
+  test("a red that exits non-zero with no failed test is recorded as other", async () => {
+    const { repo, trees } = await makeTracked();
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+
+    const compile = await runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "red", command: ["sh", "-c", "echo 'error: could not compile'; exit 101"] });
+    const collection = await runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "red", command: ["sh", "-c", "echo '=== 1 error in 0.05s ==='; exit 2"] });
+
+    expect(compile.record).toMatchObject({ kind: "other", exit: 101, note: "recorded as other, not red: it exited 101 with no failed test, such as a compile or usage error" });
+    expect(compile.notice).toBe(compile.record.note);
+    expect(collection.record.kind).toBe("other");
+  });
+
+  test("a failed test in cargo's, vitest's or pytest's output keeps a run red", async () => {
+    const { repo, trees } = await makeTracked();
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+    const outputs = ["test result: FAILED. 0 passed; 3 failed; 0 ignored", "      Tests  1 failed (1)", "=== 2 failed, 1 passed in 0.10s ==="];
+
+    const results = await Promise.all(outputs.map((output) => runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "red", command: ["sh", "-c", `echo '${output}'; exit 1`] })));
+
+    expect(results.map((r) => r.record.kind)).toEqual(["red", "red", "red"]);
+    expect(results.map((r) => r.notice)).toEqual([undefined, undefined, undefined]);
+    expect(results.map((r) => r.record.note)).toEqual([undefined, undefined, undefined]);
+  });
+
+  test("a red run elsewhere is judged by its summary, then by its log's totals, and a green is left alone", async () => {
+    const { repo, trees } = await makeTracked();
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+    const run = { milestone: "B2", task: "4 manifest", command: ["x"], cwd: ".", started: "", seconds: 0 };
+    await writeFile(join(trees["data"]!, "red.log"), "      Tests  2 failed (2)\n");
+    await writeFile(join(trees["data"]!, "broken.log"), "error: no such option\n");
+
+    const summed = await recordEvidence(repo, data, ledger, { ...run, kind: "red", exit: 1, summary: { failed: 1 } });
+    const logged = await recordEvidence(repo, data, ledger, { ...run, kind: "red", exit: 1, logPath: "red.log" });
+    const broken = await recordEvidence(repo, data, ledger, { ...run, kind: "red", exit: 1, logPath: "broken.log" });
+    const bare = await recordEvidence(repo, data, ledger, { ...run, kind: "red", exit: 0 });
+    const green = await recordEvidence(repo, data, ledger, { ...run, kind: "green", exit: 1 });
+
+    expect(summed.record.kind).toBe("red");
+    expect(logged.record).toMatchObject({ kind: "red", summary: { failed: 2 } });
+    expect(broken.record.kind).toBe("other");
+    expect(broken.notice).toMatch(/no failed test/);
+    expect(bare.record.kind).toBe("other");
+    expect(green.record.kind).toBe("green");
+    expect(green.notice).toBeUndefined();
+  });
+
+  test("the records commit names the kind that was recorded", async () => {
+    const { repo, root, trees } = await makeTracked({ commit: true });
+    const ledger = await new Records(repo).readLedger();
+    const data = await openSession(repo, { worktree: trees["data"]!, track: "data", agent: "a" });
+
+    await runEvidence(repo, data, ledger, { milestone: "B2", task: "4 manifest", kind: "red", command: ["true"] });
+
+    expect(await sh(root, ["log", "-1", "--format=%s"])).toBe("records: B2 '4 manifest': other exit 0");
   });
 
   test("summarize reads cargo's totals, adding each test binary's", () => {

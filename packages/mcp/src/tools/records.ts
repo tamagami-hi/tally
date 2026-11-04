@@ -54,12 +54,12 @@ export function registerRecordTools(server: McpServer, repo: Repo): void {
   );
   server.registerTool(
     "evidence_record",
-    { description: "Record a run that already happened: its command, cwd, timing, exit, an optional log (inside the worktree, hashed) and summary.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), cwd: z.string(), started: z.string(), seconds: z.number().nonnegative(), exit: z.number().int(), logPath: z.string().optional(), summary: z.record(z.string(), summaryValue).optional(), note: z.string().optional() } },
+    { description: "Record a run that already happened: its command, cwd, timing, exit, an optional log (inside the worktree, hashed) and summary; with no summary the log's totals are read. A `red` that exited 0 or shows no failed test is recorded as `other`, and `notice` says why.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), cwd: z.string(), started: z.string(), seconds: z.number().nonnegative(), exit: z.number().int(), logPath: z.string().optional(), summary: z.record(z.string(), summaryValue).optional(), note: z.string().optional() } },
     ({ sessionId, ...input }) => attempt(async () => ok(await recordEvidence(repo, await getSession(repo, sessionId), await records.readLedger(), defined(input)))),
   );
   server.registerTool(
     "evidence_run",
-    { description: "Run a command in the session's worktree with the landing environment, keep its log under .temp/<track>/tally/, and record it (cargo, vitest and pytest totals are read from the output). Once the command has run this always answers with what ran: `recorded: false` and `problem` say when the record could not be written; a task the session cannot record for is refused before anything runs.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), note: z.string().optional() } },
+    { description: "Run a command in the session's worktree with the landing environment, keep its log under .temp/<track>/tally/, and record it (cargo, vitest and pytest totals are read from the output). A `red` that exited 0 or shows no failed test is recorded as `other`, and `notice` says why. Once the command has run this always answers with what ran: `recorded: false` and `problem` say when the record could not be written; a task the session cannot record for is refused before anything runs.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), note: z.string().optional() } },
     ({ sessionId, ...input }) => attempt(async () => ok(await runEvidence(repo, await getSession(repo, sessionId), await records.readLedger(), defined(input)))),
   );
   server.registerTool(

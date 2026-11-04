@@ -11,6 +11,7 @@ import { withLock } from "../store/lock.ts";
 import { assertMayWrite, type Session } from "../state/sessions.ts";
 import { commitRecords } from "./commit.ts";
 import { safeName } from "./handoffs.ts";
+import { summarize } from "./totals.ts";
 
 export const evidenceKinds = ["red", "green", "clippy", "fmt", "sweep", "coverage", "land", "evidence", "other"] as const;
 
@@ -64,7 +65,7 @@ export interface EvidenceInput {
   note?: string;
 }
 
-async function hashLog(session: Session, logPath: string): Promise<RunRecord["log"]> {
+async function hashLog(session: Session, logPath: string): Promise<{ log: RunRecord["log"]; text: string }> {
   const absolute = isAbsolute(logPath) ? logPath : resolve(session.worktree, logPath);
   if (relative(session.worktree, absolute).startsWith("..")) throw new TallyError(`the log must be inside the session's worktree: ${logPath}`);
   let bytes: Buffer;
@@ -73,7 +74,23 @@ async function hashLog(session: Session, logPath: string): Promise<RunRecord["lo
   } catch {
     throw new TallyError(`the log does not exist: ${absolute}`);
   }
-  return { path: absolute, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: (await stat(absolute)).size };
+  const log = { path: absolute, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: (await stat(absolute)).size };
+  return { log, text: bytes.toString("utf8") };
+}
+
+function notRed(exit: number, summary: EvidenceInput["summary"]): string | null {
+  if (exit === 0) return "it exited 0";
+  const failed = summary?.["failed"];
+  if (typeof failed !== "number" || failed === 0) return `it exited ${exit} with no failed test, such as a compile or usage error`;
+  return null;
+}
+
+export function judgeRed(run: Pick<EvidenceInput, "kind" | "exit" | "summary" | "note">): { kind: EvidenceKind; note?: string; notice?: string } {
+  const { kind, exit, summary, note } = run;
+  const reason = kind === "red" ? notRed(exit, summary) : null;
+  if (reason === null) return { kind, ...(note === undefined ? {} : { note }) };
+  const notice = `recorded as other, not red: ${reason}`;
+  return { kind: "other", note: note === undefined ? notice : `${notice}; ${note}`, notice };
 }
 
 export function writableTrack(repo: Repo, session: Session, ledger: Ledger, input: Pick<EvidenceInput, "milestone" | "task">): string {
@@ -111,12 +128,16 @@ async function appendRecord(repo: Repo, milestone: string, record: RunRecord): P
 
 const commitLine = (milestone: string, record: RunRecord): string => `${milestone} '${record.task}': ${record.kind} exit ${record.exit}`;
 
-export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null }> {
+export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null; notice?: string }> {
   const track = writableTrack(repo, session, ledger, input);
-  const log = input.logPath === undefined ? undefined : await hashLog(session, input.logPath);
-  const record = composeRecord(session, track, input, log);
+  const read = input.logPath === undefined ? undefined : await hashLog(session, input.logPath);
+  const summary = input.summary ?? (read === undefined ? undefined : summarize(read.text));
+  const measured = summary === undefined ? input : { ...input, summary };
+  const { notice, ...verdict } = judgeRed(measured);
+  const record = composeRecord(session, track, { ...measured, ...verdict }, read?.log);
   await appendRecord(repo, input.milestone, record);
-  return { record, commit: await commitRecords(repo, commitLine(input.milestone, record)) };
+  const commit = await commitRecords(repo, commitLine(input.milestone, record));
+  return { record, commit, ...(notice === undefined ? {} : { notice }) };
 }
 
 export interface Kept {
@@ -124,6 +145,7 @@ export interface Kept {
   recorded: boolean;
   commit: string | null;
   problem?: string;
+  notice?: string;
 }
 
 async function committed(repo: Repo, milestone: string, record: RunRecord): Promise<Kept> {
@@ -135,12 +157,16 @@ async function committed(repo: Repo, milestone: string, record: RunRecord): Prom
 }
 
 export async function keepRun(repo: Repo, session: Session, track: string, input: EvidenceInput & { logPath: string }): Promise<Kept> {
+  const { notice, ...verdict } = judgeRed(input);
+  const judged = { ...input, ...verdict };
+  const told = notice === undefined ? {} : { notice };
   try {
-    const record = composeRecord(session, track, input, await hashLog(session, input.logPath));
+    const { log } = await hashLog(session, input.logPath);
+    const record = composeRecord(session, track, judged, log);
     await appendRecord(repo, input.milestone, record);
-    return await committed(repo, input.milestone, record);
+    return { ...(await committed(repo, input.milestone, record)), ...told };
   } catch (error: unknown) {
-    return { record: composeRecord(session, track, input), recorded: false, commit: null, problem: messageOf(error) };
+    return { record: composeRecord(session, track, judged), recorded: false, commit: null, problem: messageOf(error), ...told };
   }
 }
 
