@@ -68,13 +68,27 @@ export interface LaidCommit {
   width: number;
 }
 
+export interface Stroke {
+  from: number;
+  to: number;
+  branch: string | null;
+}
+
+export interface DrawnCommit extends Omit<LaidCommit, "top" | "bottom"> {
+  branch: string | null;
+  top: Stroke[];
+  bottom: Stroke[];
+}
+
 export interface GraphPage {
   commits: LaidCommit[];
   total: number;
 }
 
 export interface GraphView {
-  commits: LaidCommit[];
+  commits: DrawnCommit[];
+  main: string;
+  colours: ReadonlyMap<string, string>;
   hasMore: boolean;
   loading: boolean;
   failed: boolean;

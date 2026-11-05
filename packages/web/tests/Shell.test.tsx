@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Shell, type ShellProps } from "../src/Shell.tsx";
+import type { EvidenceIndex, LiveState, Snapshot } from "../src/types.ts";
 import { snapshot } from "./fixture.ts";
 import { index } from "./Evidence.test.tsx";
 
@@ -86,8 +87,8 @@ describe("the shell in landscape", () => {
   test("draws one dot per commit, hollow when not pushed, and labels the branches", () => {
     draw();
     const graph = screen.getByLabelText("Commit graph");
-    expect(graph.querySelectorAll("circle.dot")).toHaveLength(3);
-    expect(graph.querySelectorAll("circle.dot.local")).toHaveLength(2);
+    expect(graph.querySelectorAll(".dot")).toHaveLength(3);
+    expect(graph.querySelectorAll(".dot.local")).toHaveLength(2);
     expect(within(graph).getByText("main")).toBeInTheDocument();
     expect(within(graph).getByText("origin/main")).toBeInTheDocument();
     expect(screen.getByText("not pushed · 2")).toBeInTheDocument();
@@ -121,6 +122,60 @@ describe("the shell in landscape", () => {
   test("shows the ledger's problems as an alert", () => {
     draw({ snapshot: { ...snapshot, status: { ...snapshot.status, problems: ["commits on main not in the ledger: abc1234 x"] } } });
     expect(screen.getByRole("alert")).toHaveTextContent("Ledger needs attention");
+  });
+});
+
+describe("a branch's colour and rank", () => {
+  const ahead = { ...snapshot.status.tracks[1]!, ahead: 1, behind: 0, dirty: 0, files: [] };
+  const other = { ...ahead, branch: "track/beta", track: "beta", ct: 50 };
+  const status = { ...snapshot.status, tracks: [snapshot.status.tracks[0]!, ahead, other] };
+  const fork: Snapshot = {
+    ...snapshot,
+    status,
+    graph: [{ ...snapshot.graph[0]!, hash: "aaaaaaa", parents: ["ee8999a"], labels: ["track/alpha"] }, { ...snapshot.graph[0]!, top: [] }, ...snapshot.graph.slice(1)],
+  };
+  const paint = (element: Element | null): string | undefined => (element as HTMLElement | null)?.style.getPropertyValue("--branch");
+
+  test("the graph forks a branch ahead of main, in the colour of its card", () => {
+    draw({ snapshot: fork });
+    const graph = screen.getByLabelText("Commit graph");
+    const card = within(screen.getByLabelText("Tracks")).getByText("track/alpha").closest("li");
+    const chip = within(graph).getByText("track/alpha");
+
+    expect(paint(card)).toMatch(/^var\(--branch-\d\)$/);
+    expect(paint(chip)).toBe(paint(card));
+    const fromFork = [...graph.querySelectorAll("line")].filter((line) => line.getAttribute("x1") !== line.getAttribute("x2"));
+    expect(fromFork).toHaveLength(1);
+    expect(paint(fromFork[0]!)).toBe(paint(card));
+  });
+
+  test("main's lane is heavier than a branch's and its label stands apart", () => {
+    draw({ snapshot: fork });
+    const graph = screen.getByLabelText("Commit graph");
+
+    expect(graph.querySelectorAll("line.lane.main").length).toBeGreaterThan(0);
+    expect(within(graph).getByText("main")).toHaveClass("chip-main");
+    expect(screen.getByText("track/beta").closest("li")).not.toHaveClass("main");
+    expect(screen.getAllByRole("listitem").find((item) => item.classList.contains("track"))).toHaveClass("main");
+  });
+
+  test("the cards follow the activity, main first, and keep their colours", () => {
+    const state: LiveState = { sessions: [{ id: "s", track: "beta", agent: "a", openedAt: "2026-11-05T04:00:00.000Z" }], claims: [], locks: [] };
+    draw({ snapshot: { ...fork, state } });
+    const names = [...screen.getByLabelText("Tracks").querySelectorAll("li.track")].map((card) => card.querySelector(".branch-name")?.textContent);
+
+    expect(names).toEqual(["main", "track/beta", "track/alpha"]);
+    const cards = within(screen.getByLabelText("Tracks"));
+    expect(paint(cards.getByText("track/alpha").closest("li"))).toBe("var(--branch-0)");
+    expect(paint(cards.getByText("track/beta").closest("li"))).toBe("var(--branch-1)");
+  });
+
+  test("a recorded run moves a card too", () => {
+    const later: EvidenceIndex = { milestones: [{ milestone: "B1", records: [{ id: "r", task: "t", track: "alpha", agent: "a", kind: "green", command: ["x"], cwd: ".", started: "2026-11-05T04:00:00.000Z", seconds: 1, exit: 0 }] }] };
+    draw({ snapshot: fork, evidence: later });
+    const names = [...screen.getByLabelText("Tracks").querySelectorAll("li.track")].map((card) => card.querySelector(".branch-name")?.textContent);
+
+    expect(names).toEqual(["main", "track/alpha", "track/beta"]);
   });
 });
 

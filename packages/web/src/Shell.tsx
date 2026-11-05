@@ -87,7 +87,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
           <Stats status={status} />
           <Problems problems={status.problems} />
         </div>
-        <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} state={state} /></Panel></div>
+        <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} state={state} evidence={evidence} /></Panel></div>
         <div className={main === "docs" ? "column-main reading" : "column-main"}>
           {main === "docs" ? null : <Hero status={status} />}
           {main === "board" ? <Panel title="Board" detail={<><span>{status.rows.length} milestones</span> <MainSwitch view={main} onChange={setMain} /></>}><Board status={status} claims={claims} /></Panel> : null}
@@ -106,7 +106,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
       <Hero status={status} />
       <main className="page">
         {page === "board" ? <Panel title="Board" detail={`${status.rows.length} milestones`}><Board status={status} claims={claims} /></Panel> : null}
-        {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} state={state} /></Panel> : null}
+        {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} state={state} evidence={evidence} /></Panel> : null}
         {page === "graph" ? <Panel title="Graph" detail={<Legend commits={graph.commits} />}><Graph view={graph} /></Panel> : null}
         {page === "evidence" ? <Panel title="Evidence"><Evidence index={evidence} /></Panel> : null}
         {page === "docs" ? <Panel title="Docs">{reader}</Panel> : null}

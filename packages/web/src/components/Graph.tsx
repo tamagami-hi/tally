@@ -1,15 +1,19 @@
 import { useRef } from "react";
+import { paintOf } from "../branches.ts";
 import { useKeptScroll, useNearBottom } from "../scroll.ts";
-import type { GraphView, LaidCommit } from "../types.ts";
+import type { DrawnCommit, GraphView, Stroke } from "../types.ts";
 
-const ROW = 44;
-const LANE = 16;
-const PAD = 12;
-const DOT = 4.5;
+const ROW = 34;
+const LANE = 12;
+const PAD = 8;
+const DOT = 7;
+const MAIN_DOT = 9;
 
 const x = (lane: number): number => PAD + lane * LANE;
 
-export function Legend({ commits }: { commits: LaidCommit[] }) {
+type Palette = Pick<GraphView, "main" | "colours">;
+
+export function Legend({ commits }: { commits: DrawnCommit[] }) {
   const local = commits.filter((c) => !c.pushed).length;
   return (
     <span className="legend">
@@ -17,6 +21,22 @@ export function Legend({ commits }: { commits: LaidCommit[] }) {
       <span className="pushed"><i aria-hidden="true" />pushed to origin</span>
     </span>
   );
+}
+
+function Line({ stroke, start, palette }: { stroke: Stroke; start: number; palette: Palette }) {
+  const heavy = stroke.branch === palette.main && stroke.from === stroke.to;
+  return <line x1={x(stroke.from)} y1={start} x2={x(stroke.to)} y2={start + ROW / 2} className={heavy ? "lane main" : "lane"} style={paintOf(palette.colours, stroke.branch)} />;
+}
+
+function Dot({ commit, palette }: { commit: DrawnCommit; palette: Palette }) {
+  const size = commit.branch === palette.main ? MAIN_DOT : DOT;
+  return <rect x={x(commit.lane) - size / 2} y={(ROW - size) / 2} width={size} height={size} className={`dot ${commit.pushed ? "remote" : "local"}`} style={paintOf(palette.colours, commit.branch)} />;
+}
+
+function Label({ label, palette }: { label: string; palette: Palette }) {
+  if (label === palette.main) return <span className="chip mono chip-main">{label}</span>;
+  if (label.startsWith("origin/")) return <span className="chip mono chip-remote">{label}</span>;
+  return <span className="chip mono chip-branch" style={paintOf(palette.colours, label)}>{label}</span>;
 }
 
 export function Graph({ view }: { view: GraphView }) {
@@ -27,37 +47,25 @@ export function Graph({ view }: { view: GraphView }) {
   if (commits.length === 0) return <p className="muted small">No commits to draw.</p>;
   const lanes = Math.max(...commits.map((c) => c.width));
   const width = PAD * 2 + Math.max(0, lanes - 1) * LANE;
-  const pushedAt = new Map(commits.map((c) => [c.hash, c.pushed]));
   return (
     <section className="graph" aria-label="Commit graph">
       <ol ref={list} className="graph-rows">
-        {commits.map((commit) => {
-          const kind = commit.pushed ? "remote" : "local";
-          return (
-            <li key={commit.hash} className={`graph-row ${kind}`}>
-              <svg width={width} height={ROW} className="graph-lanes" aria-hidden="true">
-                {commit.top.map(([from, to], i) => (
-                  <path key={`t${i}`} d={`M ${x(from)} 0 C ${x(from)} ${ROW / 4}, ${x(to)} ${ROW / 4}, ${x(to)} ${ROW / 2}`} className={`lane ${kind}`} />
-                ))}
-                {commit.bottom.map(([from, to], i) => {
-                  const parent = commit.parents[i - (commit.bottom.length - commit.parents.length)];
-                  const parentPushed = parent === undefined ? commit.pushed : (pushedAt.get(parent) ?? true);
-                  return <path key={`b${i}`} d={`M ${x(from)} ${ROW / 2} C ${x(from)} ${(ROW * 3) / 4}, ${x(to)} ${(ROW * 3) / 4}, ${x(to)} ${ROW}`} className={`lane ${parentPushed && commit.pushed ? "remote" : "local"}`} />;
-                })}
-                <circle cx={x(commit.lane)} cy={ROW / 2} r={DOT} className={`dot ${kind}`} />
-              </svg>
-              <div className="graph-text">
-                <div className="graph-line">
-                  {commit.labels.map((label) => (
-                    <span key={label} className={`chip mono ${label === "main" ? "chip-accent" : label.startsWith("origin/") ? "chip-remote" : "chip-active"}`}>{label}</span>
-                  ))}
-                  <span className="subject truncate" title={commit.subject}>{commit.subject}</span>
-                </div>
-                <div className="graph-meta truncate"><span className="hash">{commit.hash}</span> · {commit.author} · {commit.when}</div>
+        {commits.map((commit) => (
+          <li key={commit.hash} className={`graph-row ${commit.pushed ? "remote" : "local"}`} style={{ height: ROW }}>
+            <svg width={width} height={ROW} className="graph-lanes" aria-hidden="true">
+              {commit.top.map((stroke, i) => <Line key={`t${i}`} stroke={stroke} start={0} palette={view} />)}
+              {commit.bottom.map((stroke, i) => <Line key={`b${i}`} stroke={stroke} start={ROW / 2} palette={view} />)}
+              <Dot commit={commit} palette={view} />
+            </svg>
+            <div className="graph-text">
+              <div className="graph-line">
+                {commit.labels.map((label) => <Label key={label} label={label} palette={view} />)}
+                <span className="subject truncate" title={commit.subject}>{commit.subject}</span>
               </div>
-            </li>
-          );
-        })}
+              <div className="graph-meta truncate"><span className="hash">{commit.hash}</span> · {commit.author} · {commit.when}</div>
+            </div>
+          </li>
+        ))}
       </ol>
       {hasMore && loading ? <p className="graph-status muted small" role="status">Loading more commits…</p> : null}
       {hasMore && failed ? <p className="graph-status muted small" role="alert">Could not load more commits. <button type="button" className="button" onClick={retry}>Try again</button></p> : null}

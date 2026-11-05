@@ -6,7 +6,7 @@ import { Shell, type ShellProps } from "../src/Shell.tsx";
 import type { LaidCommit, Layout, Snapshot } from "../src/types.ts";
 import { snapshot } from "./fixture.ts";
 
-const ROW = 44;
+const ROW = 34;
 const TALL = 10_000;
 const VIEW = 500;
 const LOADING = "Loading more commits…";
@@ -196,6 +196,12 @@ describe.each(["landscape", "portrait"] as const)("the graph in %s", (layout) =>
 });
 
 describe("loading the graph", () => {
+  test("each row stands as tall as the scroll counts it", () => {
+    open("landscape");
+
+    expect(rows()[0]).toHaveStyle({ height: `${ROW}px` });
+  });
+
   test("never asks when the snapshot already holds everything", () => {
     const { atBottom } = open("landscape", live(40));
 

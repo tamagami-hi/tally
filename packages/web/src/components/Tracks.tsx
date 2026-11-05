@@ -1,5 +1,7 @@
+import type { CSSProperties } from "react";
+import { branchColours, paintOf, rankBranches } from "../branches.ts";
 import { statusClass } from "../format.ts";
-import type { LiveState, StatusData, TrackRow } from "../types.ts";
+import type { EvidenceIndex, LiveState, StatusData, TrackRow } from "../types.ts";
 
 function Changes({ track }: { track: TrackRow }) {
   const adds = track.files.reduce((n, f) => n + (Number(f.add) || 0), 0);
@@ -23,14 +25,14 @@ function Changes({ track }: { track: TrackRow }) {
   );
 }
 
-function Track({ track, state }: { track: TrackRow; state: LiveState | undefined }) {
+function Track({ track, state, paint }: { track: TrackRow; state: LiveState | undefined; paint: CSSProperties }) {
   const sessions = state?.sessions.filter((s) => s.track === track.track) ?? [];
   const locks = state?.locks.filter((l) => l.track === track.track) ?? [];
   const condition = track.dirty === 0 ? <span className="chip chip-done">clean</span> : <span className="chip chip-active">{track.dirty} uncommitted</span>;
   return (
-    <li className={`track ${track.isMain ? "main" : ""}`}>
+    <li className={`track ${track.isMain ? "main" : ""}`} style={paint}>
       <div className="track-top">
-        <span className={`chip mono ${track.isMain ? "chip-accent" : "chip-remote"}`}>{track.branch}</span>
+        <span className="branch-name mono truncate">{track.branch}</span>
         {condition}
       </div>
       <div className="path">{track.isMain ? "the operator's checkout" : track.path}</div>
@@ -51,11 +53,18 @@ function Track({ track, state }: { track: TrackRow; state: LiveState | undefined
   );
 }
 
-export function Tracks({ status, state }: { status: StatusData; state?: LiveState | undefined }) {
+interface TracksProps {
+  status: StatusData;
+  state?: LiveState | undefined;
+  evidence?: EvidenceIndex | undefined;
+}
+
+export function Tracks({ status, state, evidence }: TracksProps) {
+  const colours = branchColours(status.tracks);
   const dirty = status.tracks.filter((t) => t.dirty > 0).length;
   return (
     <section className="tracks" aria-label="Tracks" data-summary={`${status.tracks.length} · ${dirty} with uncommitted work`}>
-      {status.tracks.map((track) => <Track key={track.branch} track={track} state={state} />)}
+      {rankBranches(status.tracks, state, evidence).map((track) => <Track key={track.branch} track={track} state={state} paint={paintOf(colours, track.branch)} />)}
     </section>
   );
 }

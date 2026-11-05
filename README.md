@@ -56,7 +56,7 @@ tally views claude --check         # CLAUDE.md's standing block; exit 1 when sta
 | `packages/core/src/records` | the records commit; decisions, questions, checks, build logs, evidence (and the index of existing run records), plans, report manifests, hand-offs |
 | `packages/core/src/views` | the standing block CLAUDE.md carries between its markers |
 | `packages/server/src` | Hono: the API, the event stream, the git watcher, the commit graph layout, static serving of the web build |
-| `packages/web/src` | Vite + React, hand-written CSS: the board (`Shell`, `Header`, `Stats`, `Board`, `Tracks`, `Graph`, `Evidence` with its logs, `Docs` with its reader), the live hook, the two layouts in `styles.css` |
+| `packages/web/src` | Vite + React, hand-written CSS: the board (`Shell`, `Header`, `Stats`, `Board`, `Tracks`, `Graph`, `Evidence` with its logs, `Docs` with its reader), the fork lanes (`lanes.ts`), the branch colours and ranks (`branches.ts`), the live hook, the two layouts in `styles.css` |
 | `packages/cli/src` | `tally`: argument parsing and one file per command |
 | `packages/*/tests` | Vitest, mirroring `src`; temp git repositories as fixtures |
 | `examples/` | a config per tracked repository |
