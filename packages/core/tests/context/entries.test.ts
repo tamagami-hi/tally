@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { MAX_TEXT, MAX_TITLE, putEntry, readEntries, readKind, retireEntry } from "../../src/context/entries.ts";
+import { MAX_LISTED, MAX_NAMED, MAX_TEXT, MAX_TITLE, putEntry, readEntries, readKind, retireEntry } from "../../src/context/entries.ts";
 import { sh } from "../support/repo.ts";
 import { makeTracked } from "../support/tracked.ts";
 
@@ -105,6 +105,21 @@ describe("context entries", () => {
     await expect(putEntry(repo, DATA, { ...finding("x"), paths: ["src/../../x"] })).rejects.toThrow(/'src\/\.\.\/\.\.\/x' is not/);
     await expect(putEntry(repo, DATA, { ...finding("x"), paths: ["."] })).rejects.toThrow(/'\.' is not/);
     expect((await putEntry(repo, DATA, { kind: "finding", title: "t".repeat(MAX_TITLE), text: "t".repeat(MAX_TEXT) })).entry.id).toBe("finding-1");
+  });
+
+  test("refuses more paths, tags or refs than an entry holds, one that is too long, and a reason that is, so an entry stays small", async () => {
+    const { repo } = await makeTracked();
+    const many = (word: string): string[] => Array.from({ length: MAX_LISTED + 1 }, (_, index) => `${word}${index}`);
+    await putEntry(repo, DATA, finding("one"), NINE);
+
+    await expect(putEntry(repo, DATA, { ...finding("x"), paths: many("src/") })).rejects.toThrow("an entry holds at most 20 paths; this one has 21");
+    await expect(putEntry(repo, DATA, { ...finding("x"), tags: many("tag") })).rejects.toThrow("an entry holds at most 20 tags; this one has 21");
+    await expect(putEntry(repo, DATA, { ...finding("x"), refs: many("B") })).rejects.toThrow("an entry holds at most 20 refs; this one has 21");
+    await expect(putEntry(repo, DATA, { ...finding("x"), paths: [`src/${"a".repeat(MAX_NAMED)}`] })).rejects.toThrow("an entry's path holds at most 200 characters; this one has 204");
+    await expect(putEntry(repo, DATA, { ...finding("x"), tags: ["t".repeat(MAX_NAMED + 1)] })).rejects.toThrow("an entry's tag holds at most 200 characters; this one has 201");
+    await expect(retireEntry(repo, DATA, "finding-1", "w".repeat(MAX_TEXT + 1))).rejects.toThrow("the reason holds at most 2000 characters; this one has 2001");
+    expect((await putEntry(repo, DATA, { ...finding("x"), tags: many("tag").slice(1), paths: ["a".repeat(MAX_NAMED)] })).entry.tags).toHaveLength(MAX_LISTED);
+    expect((await readKind(repo, "finding")).entries.map((entry) => entry.retiredAt)).toEqual([undefined, undefined]);
   });
 
   test("writers at the same moment each take their own number", async () => {

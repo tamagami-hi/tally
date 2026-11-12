@@ -11,6 +11,8 @@ import { segmentsOf } from "./match.ts";
 export const ENTRY_KINDS = ["rule", "convention", "area", "interface", "howto", "finding"] as const;
 export const MAX_TITLE = 120;
 export const MAX_TEXT = 2000;
+export const MAX_LISTED = 20;
+export const MAX_NAMED = 200;
 export const CONTEXT_DIR = "context";
 
 export type EntryKind = (typeof ENTRY_KINDS)[number];
@@ -101,7 +103,15 @@ function fromRoot(path: string): string {
   return segments.join("/");
 }
 
-const named = (values: readonly string[] | undefined): string[] => [...new Set((values ?? []).map((value) => value.trim()).filter((value) => value !== ""))];
+function listed(what: string, values: readonly string[] | undefined, clean: (value: string) => string): string[] {
+  const kept = [...new Set((values ?? []).map(clean).filter((value) => value !== ""))];
+  if (kept.length > MAX_LISTED) throw new TallyError(`an entry holds at most ${MAX_LISTED} ${what}s; this one has ${kept.length}`);
+  const long = kept.find((value) => value.length > MAX_NAMED);
+  if (long !== undefined) throw new TallyError(`an entry's ${what} holds at most ${MAX_NAMED} characters; this one has ${long.length}`);
+  return kept;
+}
+
+const trimmed = (value: string): string => value.trim();
 
 function retiredIn(file: KindFile, id: string, at: string, why: string): { file: KindFile; entry: Entry } {
   const found = file.entries.find((entry) => entry.id === id);
@@ -123,9 +133,9 @@ export async function putEntry(repo: Repo, session: Author, input: EntryInput, n
   const fields = {
     title: bounded("title", input.title, MAX_TITLE),
     text: bounded("text", input.text, MAX_TEXT, ". A longer subject is several entries"),
-    paths: [...new Set((input.paths ?? []).map(fromRoot))],
-    tags: named(input.tags),
-    refs: named(input.refs),
+    paths: listed("path", input.paths, fromRoot),
+    tags: listed("tag", input.tags, trimmed),
+    refs: listed("ref", input.refs, trimmed),
   };
   const at = now.toISOString();
   const written = await locked(repo, async () => {
@@ -150,6 +160,7 @@ export async function retireEntry(repo: Repo, session: Author, id: string, why: 
   mustMayWrite(repo, session, kind);
   const reason = why.trim();
   if (reason === "") throw new TallyError("retiring an entry needs the reason");
+  if (reason.length > MAX_TEXT) throw new TallyError(`the reason holds at most ${MAX_TEXT} characters; this one has ${reason.length}`);
   const entry = await locked(repo, async () => {
     const retiring = retiredIn(await readKind(repo, kind), id, now.toISOString(), reason);
     await write(repo, retiring.file);

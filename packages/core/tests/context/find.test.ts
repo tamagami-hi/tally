@@ -56,6 +56,13 @@ describe("finding context entries", () => {
     expect(await ids(repo, { paths: ["src/"] })).toEqual(["finding-1", "howto-1", "area-1", "rule-1"]);
   });
 
+  test("refuses more paths than can be asked at once, and one that is too long", async () => {
+    const repo = await filled();
+
+    await expect(findEntries(repo, { paths: Array.from({ length: 101 }, (_, index) => `src/${index}.ts`) })).rejects.toThrow("at most 100 paths can be asked at once; this call has 101");
+    await expect(findEntries(repo, { paths: ["a".repeat(201)] })).rejects.toThrow("a path asked with holds at most 200 characters; this one has 201");
+  });
+
   test("since keeps what was added or retired after it, the retired with it, so a reader learns of a retirement", async () => {
     const repo = await filled();
 

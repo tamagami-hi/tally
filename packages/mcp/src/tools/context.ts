@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ENTRY_KINDS, MAX_TEXT, MAX_TITLE, TallyError, configureRepo, entrySchema, findEntries, putEntry, readActivity, retireEntry, setProject, type Entry } from "@tally/core";
+import { ENTRY_KINDS, MAX_LISTED, MAX_TEXT, MAX_TITLE, TallyError, configureRepo, entrySchema, findEntries, putEntry, readActivity, retireEntry, setProject, type Entry } from "@tally/core";
 import { defined } from "../defined.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -42,7 +42,7 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
   server.registerTool(
     "context_put",
     {
-      description: `Add a context entry: a convention, an area, an interface, a howto or a finding from any session, or a rule from an operator session. An entry is small (a title of at most ${MAX_TITLE} characters, a text of at most ${MAX_TEXT}) and a longer subject is several entries. It is never edited: to change one, add its successor with \`replaces\`, which retires the old one.`,
+      description: `Add a context entry: a convention, an area, an interface, a howto or a finding from any session, or a rule from an operator session. An entry is small (a title of at most ${MAX_TITLE} characters, a text of at most ${MAX_TEXT}) and a longer subject is several entries; it holds at most ${MAX_LISTED} each of paths, tags and refs. It is never edited: to change one, add its successor with \`replaces\`, which retires the old one.`,
       inputSchema: {
         sessionId: z.string(),
         kind: z.enum(ENTRY_KINDS),

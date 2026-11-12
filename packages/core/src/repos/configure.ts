@@ -48,9 +48,10 @@ export async function configureRepo(repo: Repo, session: Pick<Session, "track" |
   if (changed.length === 0) throw new TallyError("changing the config needs at least one of its keys");
   const path = join(repo.root, RECORDS_DIR, CONFIG_FILE);
   const config = await withLock(path, async () => {
-    const next = fitted(merged(await readJson(path, keyedSchema), given), given);
-    await writeJsonAtomic(path, next);
-    return next;
+    const candidate = merged(await readJson(path, keyedSchema), given);
+    const fitting = fitted(candidate, given);
+    await writeJsonAtomic(path, candidate);
+    return fitting;
   });
   const commit = await commitRecords(repo, `config changed by ${session.agent}: ${changed.join(", ")}`);
   return { config, changed, commit };

@@ -1,6 +1,7 @@
+import { TallyError } from "../errors.ts";
 import { askedLimit, askedSince } from "../records/asked.ts";
 import type { Repo } from "../store/records.ts";
-import { readEntries, type Entry, type EntryKind } from "./entries.ts";
+import { MAX_NAMED, readEntries, type Entry, type EntryKind } from "./entries.ts";
 import { applies } from "./match.ts";
 
 export interface EntryFilter {
@@ -20,14 +21,25 @@ export interface Found {
 
 type Keep = (entry: Entry) => boolean;
 
+export const MAX_ASKED_PATHS = 100;
+
 const changedAt = (entry: Entry): number => Date.parse(entry.retiredAt ?? entry.at);
 
 export const isInForce = (entry: Entry): boolean => entry.retiredAt === undefined;
 
 export const appliesTo = (entry: Entry, asked: readonly string[]): boolean => entry.paths.length === 0 || entry.paths.some((path) => asked.some((file) => applies(path, file)));
 
+function askedPaths(paths: readonly string[] | undefined): readonly string[] | undefined {
+  if (paths === undefined) return undefined;
+  if (paths.length > MAX_ASKED_PATHS) throw new TallyError(`at most ${MAX_ASKED_PATHS} paths can be asked at once; this call has ${paths.length}`);
+  const long = paths.find((path) => path.length > MAX_NAMED);
+  if (long !== undefined) throw new TallyError(`a path asked with holds at most ${MAX_NAMED} characters; this one has ${long.length}`);
+  return paths;
+}
+
 function tests(filter: EntryFilter): Keep[] {
-  const { ids, kind, paths, tags, query, since } = filter;
+  const { ids, kind, tags, query, since } = filter;
+  const paths = askedPaths(filter.paths);
   const wanted = tags?.map((tag) => tag.toLowerCase());
   const words = query?.toLowerCase();
   const after = since === undefined ? undefined : askedSince(since);

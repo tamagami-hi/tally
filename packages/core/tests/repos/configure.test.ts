@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { configureRepo } from "../../src/repos/configure.ts";
@@ -30,6 +30,17 @@ describe("changing a repository's config through a tool", () => {
     const { config } = await configureRepo(repo, OPERATOR, { commands: { test: ["npm", "test"], env: { CI: "2" } } });
 
     expect(config.commands).toEqual({ test: ["npm", "test"], env: { CI: "2" }, unset: [], tmpdir: ".temp/{track}/tmp" });
+  });
+
+  test("keeps what the file holds that this build does not know, and adds no default the file left out", async () => {
+    const { repo, root } = await makeTracked();
+    const { mainBranch: _left, ...written } = JSON.parse(await onDisk(root)) as Record<string, unknown>;
+    await writeFile(join(root, "docs/records/config.json"), JSON.stringify({ ...written, fromALaterBuild: { kept: true } }));
+
+    const { config } = await configureRepo(repo, OPERATOR, { locks: ["landing"] });
+
+    expect(JSON.parse(await onDisk(root))).toEqual({ ...written, fromALaterBuild: { kept: true }, locks: ["landing"] });
+    expect(config).toEqual({ ...trackedConfig, locks: ["landing"] });
   });
 
   test("refuses a key the schema would drop, at any depth, and writes nothing", async () => {

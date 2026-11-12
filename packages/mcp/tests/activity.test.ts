@@ -45,7 +45,7 @@ describe("what an activity event says a call was aimed at", () => {
 
   test("a tool that only reads is told by the end of its name", () => {
     expect(["session_list", "context_get", "docs_read", "docs_search", "land_wait", "ledger_check", "checks_fingerprint", "context_pack", "buildlog_render"].every(isRead)).toBe(true);
-    expect(["task_plan", "context_put", "session_close", "land_start", "checks_set", "buildlog_append"].some(isRead)).toBe(false);
+    expect(["task_plan", "context_put", "session_close", "land_start", "checks_set", "buildlog_append", "task_wait", "task_unwait"].some(isRead)).toBe(false);
   });
 });
 
@@ -59,6 +59,7 @@ describe("the activity log through the tools", () => {
     await call("context_put", { sessionId: data, kind: "finding", title: "the lock is a folder", text: "it holds no file" });
     await call("context_retire", { sessionId: data, id: "finding-1", why: "gone" });
     await call("handoff_write", { sessionId: data, lines: ["a note"] });
+    await call("task_wait", { sessionId: data, milestone: "B2", task: "5 transcoder", what: "row 7" });
     await call("context_get", { sessionId: data });
     await call("board_get", { sessionId: data });
     await call("handoff_read", { sessionId: data, track: "data" });
@@ -67,7 +68,7 @@ describe("the activity log through the tools", () => {
 
     const events = await logged(call);
     expect(refused.isError).toBe(true);
-    expect(events.map((event) => [event.verb, event.target])).toEqual([["task_plan", "B2"], ["task_claim", "B2 / 4 manifest"], ["lock_acquire", "evidence"], ["context_put", "finding"], ["context_retire", "finding-1"], ["handoff_write", undefined]]);
+    expect(events.map((event) => [event.verb, event.target])).toEqual([["task_plan", "B2"], ["task_claim", "B2 / 4 manifest"], ["lock_acquire", "evidence"], ["context_put", "finding"], ["context_retire", "finding-1"], ["handoff_write", undefined], ["task_wait", "B2 / 5 transcoder"]]);
     expect(events.every((event) => event.session === data && event.track === "data" && event.agent === "claude")).toBe(true);
   });
 

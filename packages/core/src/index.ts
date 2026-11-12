@@ -71,7 +71,7 @@ export { summarize as summarizeRun } from "./records/totals.ts";
 export type { RunInput } from "./records/run.ts";
 export { contextPack } from "./context/pack.ts";
 export type { Level, Pack, PackInput } from "./context/pack.ts";
-export { CONTEXT_DIR, ENTRY_KINDS, MAX_TEXT, MAX_TITLE, entrySchema, kindFileSchema, kindOfId, putEntry, readEntries, readKind, retireEntry } from "./context/entries.ts";
+export { CONTEXT_DIR, ENTRY_KINDS, MAX_LISTED, MAX_NAMED, MAX_TEXT, MAX_TITLE, entrySchema, kindFileSchema, kindOfId, putEntry, readEntries, readKind, retireEntry } from "./context/entries.ts";
 export type { Author, Entry, EntryInput, EntryKind, KindFile } from "./context/entries.ts";
 export { PROJECT_FILE, projectSchema, readProject, setProject } from "./context/project.ts";
 export type { Project, ProjectInput } from "./context/project.ts";
