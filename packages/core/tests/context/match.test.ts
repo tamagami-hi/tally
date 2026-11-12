@@ -20,6 +20,13 @@ describe("which files a context path applies to", () => {
     ["src/**", "lib/a.ts", false],
     ["a.b/c+d.ts", "a.b/c+d.ts", true],
     ["a.b/c+d.ts", "axb/c+d.ts", false],
+    ["src/a*b*c.ts", "src/a1b2c.ts", true],
+    ["src/a*b*c.ts", "src/acb.ts", false],
+    ["src/*a", "src/a", true],
+    ["src/a*a", "src/a", false],
+    ["src/a*a", "src/aba", true],
+    ["src/**/**/x.ts", "src/x.ts", true],
+    ["src/**/a/**/x.ts", "src/b/x.ts", false],
   ])("%s on %s: %s", (path, file, expected) => {
     expect(applies(path, file)).toBe(expected);
   });
@@ -50,5 +57,21 @@ describe("which files a context path applies to", () => {
     ["**/*.md", "docs", true],
   ])("%s overlaps the area %s: %s", (path, area, expected) => {
     expect(overlaps(path, area)).toBe(expected);
+  });
+
+  test("a path of many ** is decided at once, however deep the file", () => {
+    const deep = `${"d/".repeat(30)}y`;
+
+    expect(applies("**/**/**/**/**/**/**/**/x", deep)).toBe(false);
+    expect(applies("**/**/**/**/**/**/**/**/y", deep)).toBe(true);
+    expect(overlaps(deep, "**/**/**/**/**/**/**/**/x")).toBe(true);
+  });
+
+  test("a segment of many * is decided at once, however long the name", () => {
+    const long = "a".repeat(200);
+
+    expect(applies("a*a*a*a*a*b", long)).toBe(false);
+    expect(applies("a*a*a*a*a*a", long)).toBe(true);
+    expect(applies(long, "a*a*a*a*a*b")).toBe(false);
   });
 });
