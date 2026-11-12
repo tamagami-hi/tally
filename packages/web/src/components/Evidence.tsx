@@ -2,6 +2,7 @@ import { InfoCircledIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
 import { bytesText, countsText, kindTone, secondsText, summaryText } from "../format.ts";
 import type { EvidenceIndex, EvidenceRecord } from "../types.ts";
+import { here } from "../place.ts";
 
 const basename = (path: string): string => path.split("/").at(-1) ?? path;
 
@@ -13,7 +14,7 @@ function LogView({ record }: { record: EvidenceRecord }) {
   const load = async (): Promise<void> => {
     if (text !== undefined || failed !== undefined) return;
     try {
-      const response = await fetch(`/api/evidence/log/${record.id}`);
+      const response = await fetch(`${here().api}/evidence/log/${record.id}`);
       if (!response.ok) {
         setFailed(`the server answered ${response.status}`);
         return;

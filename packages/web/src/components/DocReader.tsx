@@ -4,6 +4,7 @@ import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { docLink } from "../format.ts";
 import { JsonView } from "./JsonView.tsx";
+import { here } from "../place.ts";
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 const PLUGINS = [remarkGfm];
@@ -12,7 +13,7 @@ type Loaded = { path: string; text: string } | { path: string; failed: string };
 
 async function fetchDocument(path: string): Promise<Loaded> {
   try {
-    const response = await fetch(`/api/docs/read?path=${encodeURIComponent(path)}`);
+    const response = await fetch(`${here().api}/docs/read?path=${encodeURIComponent(path)}`);
     const body = (await response.json()) as { text?: string; error?: string };
     return body.text === undefined ? { path, failed: body.error ?? `the server answered ${response.status}` } : { path, text: body.text };
   } catch (error: unknown) {

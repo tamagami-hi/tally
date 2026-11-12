@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { branchColours, mainOf } from "./branches.ts";
 import { forkLanes } from "./lanes.ts";
+import { here } from "./place.ts";
 import type { GraphPage, GraphView, LaidCommit, Snapshot, TrackRow } from "./types.ts";
 
 const BATCH = 100;
@@ -8,7 +9,7 @@ const NOTHING: LaidCommit[] = [];
 const NO_TRACKS: TrackRow[] = [];
 
 async function fetchGraph(limit: number): Promise<GraphPage> {
-  const response = await fetch(`/api/graph?limit=${limit}`);
+  const response = await fetch(`${here().api}/graph?limit=${limit}`);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as GraphPage;
 }

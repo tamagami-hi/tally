@@ -169,3 +169,36 @@ export interface Snapshot {
 export type Live = "connected" | "reconnecting" | "offline";
 export type Page = "board" | "tracks" | "graph" | "evidence" | "docs";
 export type Layout = "landscape" | "portrait";
+
+export interface RepoSummary {
+  name: string;
+  root: string;
+  project: string;
+  isDefault: boolean;
+  sessions: number;
+  locks: number;
+  questions: number;
+  problems: number;
+  overall: number;
+  problem?: string;
+}
+
+export interface RepoIndex {
+  workspace: string;
+  repos: RepoSummary[];
+  problem?: string;
+}
+
+export interface Folder {
+  name: string;
+  path: string;
+  isRepo: boolean;
+  hasRecords: boolean;
+  listed: string | null;
+}
+
+export interface FolderListing {
+  dir: string;
+  parent: string | null;
+  folders: Folder[];
+}

@@ -1,52 +1,54 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import type { Place } from "./place.ts";
 import type { DocsIndex, EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
 
 export const SNAPSHOT_KEY = ["snapshot"];
 
-async function fetchSnapshot(): Promise<Snapshot> {
-  const response = await fetch("/api/snapshot");
+async function fetchSnapshot(api: string): Promise<Snapshot> {
+  const response = await fetch(`${api}/snapshot`);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as Snapshot;
 }
 
-export function useSnapshot(): { snapshot: Snapshot | undefined; error: Error | null; live: Live; retry: () => void } {
+export function useSnapshot(place: Place, enabled: boolean): { snapshot: Snapshot | undefined; error: Error | null; live: Live; retry: () => void } {
   const client = useQueryClient();
-  const query = useQuery({ queryKey: SNAPSHOT_KEY, queryFn: fetchSnapshot, staleTime: Infinity, retry: 1 });
+  const { api, events } = place;
+  const query = useQuery({ queryKey: [...SNAPSHOT_KEY, api], queryFn: () => fetchSnapshot(api), staleTime: Infinity, retry: 1, enabled });
   const [live, setLive] = useState<Live>("reconnecting");
   useEffect(() => {
-    if (typeof EventSource === "undefined") return undefined;
-    const source = new EventSource("/events");
+    if (!enabled || typeof EventSource === "undefined") return undefined;
+    const source = new EventSource(events);
     source.addEventListener("open", () => setLive("connected"));
     source.addEventListener("error", () => setLive(source.readyState === EventSource.CLOSED ? "offline" : "reconnecting"));
     source.addEventListener("snapshot", (event) => {
-      client.setQueryData(SNAPSHOT_KEY, JSON.parse((event as MessageEvent<string>).data) as Snapshot);
+      client.setQueryData([...SNAPSHOT_KEY, api], JSON.parse((event as MessageEvent<string>).data) as Snapshot);
       setLive("connected");
     });
     return () => source.close();
-  }, [client]);
+  }, [client, api, events, enabled]);
   return { snapshot: query.data, error: query.error, live, retry: () => void query.refetch() };
 }
 
-async function fetchEvidence(): Promise<EvidenceIndex> {
-  const response = await fetch("/api/evidence");
+async function fetchEvidence(api: string): Promise<EvidenceIndex> {
+  const response = await fetch(`${api}/evidence`);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as EvidenceIndex;
 }
 
-export function useEvidence(version: string | undefined): EvidenceIndex | undefined {
-  const query = useQuery({ queryKey: ["evidence", version], queryFn: fetchEvidence, staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
+export function useEvidence(version: string | undefined, api: string): EvidenceIndex | undefined {
+  const query = useQuery({ queryKey: ["evidence", api, version], queryFn: () => fetchEvidence(api), staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
   return query.data;
 }
 
-async function fetchDocs(): Promise<DocsIndex> {
-  const response = await fetch("/api/docs");
+async function fetchDocs(api: string): Promise<DocsIndex> {
+  const response = await fetch(`${api}/docs`);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as DocsIndex;
 }
 
-export function useDocs(version: string | undefined): DocsIndex | undefined {
-  const query = useQuery({ queryKey: ["docs", version], queryFn: fetchDocs, staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
+export function useDocs(version: string | undefined, api: string): DocsIndex | undefined {
+  const query = useQuery({ queryKey: ["docs", api, version], queryFn: () => fetchDocs(api), staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
   return query.data;
 }
 
