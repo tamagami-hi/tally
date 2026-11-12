@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { activity } from "./decorators/activity.ts";
 import { outcome } from "./decorators/outcome.ts";
 import { sharing } from "./decorators/sharing.ts";
 import type { RepoSource } from "./source.ts";
@@ -15,7 +16,7 @@ export type Decorator = (called: Called) => Promise<CallToolResult>;
 
 export type ToolHost = Pick<McpServer, "registerTool">;
 
-export const DECORATORS: readonly Decorator[] = [outcome, sharing];
+export const DECORATORS: readonly Decorator[] = [outcome, sharing, activity];
 
 type Handler = (args: unknown, extra: unknown) => CallToolResult | Promise<CallToolResult>;
 

@@ -6,11 +6,13 @@ import type { Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
+import { FIELD_NAMES, buildlogFields, fieldBlocks, fieldsOf, type FieldsInput } from "./buildlog-fields.ts";
 import { blob } from "./sections.ts";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HEADING = /^## (.+?)\. (.+), (\d{4}-\d{2}-\d{2})$/;
 const SHAPE = "## <milestone>. <title>, <YYYY-MM-DD>";
+const NEEDS_BODY = `a build log entry needs a body: its markdown, or one of ${FIELD_NAMES.slice(0, -1).join(", ")} and ${FIELD_NAMES.at(-1)}`;
 
 export const buildlogEntrySchema = z.object({
   group: z.string().min(1),
@@ -19,6 +21,7 @@ export const buildlogEntrySchema = z.object({
   date: z.string().regex(DATE),
   markdown: z.string(),
   commits: z.array(z.string().min(7)).default([]),
+  ...buildlogFields,
 });
 
 export const buildlogFileSchema = z.object({
@@ -54,7 +57,7 @@ export function renderBuildlog(file: BuildlogFile, group: string): string {
     const known = [...new Set([...file.preambles.map((p) => p.group), ...file.entries.map((e) => e.group)])].sort();
     throw new TallyError(`no build log for group '${group}'; known: ${known.join(", ") || "none"}`);
   }
-  const blocks = [preamble?.markdown ?? `# ${group}: build log`, ...entries.map((e) => (e.markdown === "" ? heading(e) : `${heading(e)}\n\n${e.markdown}`))];
+  const blocks = [preamble?.markdown ?? `# ${group}: build log`, ...entries.map((e) => [heading(e), ...(e.markdown === "" ? [] : [e.markdown]), ...fieldBlocks(e)].join("\n\n"))];
   return `${blocks.join("\n\n")}\n`;
 }
 
@@ -97,20 +100,21 @@ export async function importBuildlog(repo: Repo, file: string, group: string): P
   return { entries: parsed.entries.length, commit };
 }
 
-export interface AppendInput {
+export interface AppendInput extends FieldsInput {
   group: string;
   milestone: string;
   title: string;
   date: string;
-  markdown: string;
+  markdown?: string;
   commits?: readonly string[];
 }
 
 export async function appendBuildlog(repo: Repo, input: AppendInput): Promise<{ entry: BuildlogEntry; commit: string | null }> {
   if (!DATE.test(input.date)) throw new TallyError(`the date must be YYYY-MM-DD, not '${input.date}'`);
-  const markdown = blob(input.markdown.split("\n"));
-  if (markdown === "") throw new TallyError("a build log entry needs a body");
-  const entry: BuildlogEntry = { group: input.group, milestone: input.milestone, title: input.title, date: input.date, markdown, commits: [...(input.commits ?? [])] };
+  const markdown = blob((input.markdown ?? "").split("\n"));
+  const fields = fieldsOf(input);
+  if (markdown === "" && Object.keys(fields).length === 0) throw new TallyError(NEEDS_BODY);
+  const entry: BuildlogEntry = { group: input.group, milestone: input.milestone, title: input.title, date: input.date, markdown, commits: [...(input.commits ?? [])], ...fields };
   await update(repo, (current) => {
     if (current.entries.some((e) => e.group === input.group && e.milestone === input.milestone)) throw new TallyError(`${input.group}'s build log already has a section for ${input.milestone}`);
     return { file: { ...current, entries: [...current.entries, entry] }, result: undefined };

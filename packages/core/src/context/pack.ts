@@ -4,6 +4,7 @@ import { TallyError } from "../errors.ts";
 import { findMilestone, findTask } from "../ledger/items.ts";
 import { listEvidence, type RunRecord } from "../records/evidence.ts";
 import { readHandoff, type Handoff } from "../records/handoffs.ts";
+import { keepsContextAsRecords } from "../schema/config.ts";
 import type { Ledger, Milestone, Task } from "../schema/ledger.ts";
 import { listClaims, type Claim } from "../state/claims.ts";
 import { listLocks, type HeldLock } from "../state/locks.ts";
@@ -12,6 +13,8 @@ import { openQuestions } from "../status/questions.ts";
 import { ownersOf } from "../status/summary.ts";
 import type { Repo } from "../store/records.ts";
 import { Records } from "../store/records.ts";
+import { overview, type Live } from "./overview.ts";
+import { projectFromRecords } from "./records-pack.ts";
 
 export type Level = "project" | "track" | "milestone" | "task";
 
@@ -53,7 +56,7 @@ export async function contextPack(repo: Repo, input: PackInput): Promise<Pack> {
   const sessions = await listSessions(repo);
   switch (input.level) {
     case "project":
-      return project(repo, ledger, claims, locks, sessions);
+      return project(repo, ledger, { claims, locks, sessions });
     case "track": {
       if (input.track === undefined) throw new TallyError("a track pack needs the track");
       return track(repo, ledger, input.track, claims, locks, sessions);
@@ -72,37 +75,13 @@ export async function contextPack(repo: Repo, input: PackInput): Promise<Pack> {
   }
 }
 
-async function project(repo: Repo, ledger: Ledger, claims: Claim[], locks: HeldLock[], sessions: Session[]): Promise<Pack> {
+async function project(repo: Repo, ledger: Ledger, live: Live): Promise<Pack> {
+  if (keepsContextAsRecords(repo.config)) return projectFromRecords(repo, ledger, live);
   const rules = await optional(join(repo.root, "RULES.md"));
   const claude = await optional(join(repo.root, "CLAUDE.md"));
-  const questions = await openQuestions(repo);
-  const parts = {
-    name: repo.config.name,
-    mainBranch: repo.config.mainBranch,
-    tracks: repo.config.tracks,
-    stages: repo.config.stages,
-    locks: repo.config.locks,
-    milestones: ledger.milestones.map((m) => ({ id: m.id, stage: m.stage, name: m.name, track: ownersOf(m), built: m.built ?? null, tasks: m.tasks.length, landed: m.tasks.filter((t) => t.commit !== undefined).length })),
-    openQuestions: questions.rows,
-    nextQuestionRow: questions.nextRow,
-    sessions: sessions.map((s) => ({ id: s.id, track: s.track, agent: s.agent, since: s.openedAt })),
-    claims,
-    heldLocks: locks,
-    rules,
-    claude,
-  };
-  const text = [
-    `# ${repo.config.name}: project context`,
-    "",
-    `Tracks: ${repo.config.tracks.map((t) => `${t.name} (${t.worktree}, ${t.branch})`).join("; ") || "none, work alone on " + repo.config.mainBranch}.`,
-    `Milestones: ${parts.milestones.map((m) => `${m.id} ${m.built !== null ? "built" : `${m.landed}/${m.tasks}`}`).join(", ")}.`,
-    `Open questions: ${questions.rows.join(", ") || "none"}; next row ${questions.nextRow ?? "unknown"}.`,
-    `Sessions: ${sessions.map((s) => `${s.agent} on ${s.track}`).join(", ") || "none"}. Locks held: ${locks.map((l) => `${l.name} by ${l.agent}`).join(", ") || "none"}.`,
-    "",
-    rules === null ? "(no RULES.md)" : `## RULES.md\n\n${rules}`,
-    "",
-    claude === null ? "(no CLAUDE.md)" : `## CLAUDE.md\n\n${claude}`,
-  ].join("\n");
+  const shared = overview(repo, ledger, live, await openQuestions(repo));
+  const parts = { ...shared.parts, rules, claude };
+  const text = [...shared.lines, "", rules === null ? "(no RULES.md)" : `## RULES.md\n\n${rules}`, "", claude === null ? "(no CLAUDE.md)" : `## CLAUDE.md\n\n${claude}`].join("\n");
   return { level: "project", parts, text };
 }
 

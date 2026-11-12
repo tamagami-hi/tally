@@ -2,7 +2,7 @@ import { access, appendFile, mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { asIdentity, git, gitMust, gitOut } from "../git/run.ts";
-import { configSchema } from "../schema/config.ts";
+import { CONTEXT_AS_RECORDS, configSchema } from "../schema/config.ts";
 import { RECORDS_DIR, initRecords, type Repo } from "../store/records.ts";
 
 export interface StartDefaults {
@@ -65,6 +65,7 @@ export async function startRecords(root: string, defaults: StartDefaults = {}): 
     commands: { test: await detectedCheck(root) },
     fingerprint: { paths: ["."], exclude: [RECORDS_DIR] },
     identity,
+    context: CONTEXT_AS_RECORDS,
   });
   await ignoreTemp(root);
   const repo = await initRecords(root, config, baseline);
