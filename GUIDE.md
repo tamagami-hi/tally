@@ -1,6 +1,6 @@
 # Tally: the guide
 
-How to track a build with tally: one repository, one or more agent sessions in parallel worktrees, one ledger counted from git, a live board, and an MCP server that hands each session exactly the context its level needs. [RULES.md](RULES.md) is what the harness enforces; [DESIGN.md](DESIGN.md) is why.
+How to track a build with tally: one repository, one or more agent sessions in parallel worktrees, one ledger counted from git, a live board, and an MCP server that hands each session exactly the context its level needs. Section 10 covers the service that does this for many repositories at once. [RULES.md](RULES.md) is what the harness enforces; [DESIGN.md](DESIGN.md) is why.
 
 ## 1. Start
 
@@ -128,3 +128,70 @@ The landing checkout is a detached worktree at `<worktree>/.temp/<track>/landing
 ## 9. Another repository
 
 Copy `examples/three-tracks.config.json`, set the tracks, stages, test command, fingerprint paths and identity, run `tally init --config`, commit `docs/records/`, serve. Nothing in tally knows the first repository's names; everything repository-specific is in that one config.
+
+## 10. One service for many repositories
+
+Sections 1 to 9 describe one server for one repository, started with `--repo`. The service is the same harness for every repository at once: one board, one MCP URL, and nothing to start per repository. It runs in Docker ([README.md](README.md), "Run as a service") or, without Docker, as `tally serve` with no `--repo`. This section is written for the agent that works through it.
+
+**Each repository is separate.** A session belongs to the repository its worktree is in. It reads and writes that repository's records, state and logs, and no tool reaches another's.
+
+### 10.1 Open a session
+
+`session_open({ worktree, agent })`. The folder you work in is enough: tally finds the repository from it and the track from the folder. The answer carries:
+
+- `id`: the session id every writing tool takes.
+- `repo` and `track`: where the session is bound.
+- `runner`: the path of a script in your worktree (10.2).
+
+`repo_list` lists the repositories the service tracks. A reading tool called with neither a `sessionId` nor a `repo` goes to the default repository: the first one added, unless the operator picked another.
+
+### 10.2 Run a check
+
+The service has git and no toolchain, so you run every command yourself, in your own shell, through the runner:
+
+```bash
+.temp/tally/run green --task "B2:4 manifest" -- cargo test --locked
+```
+
+- The first word is the kind of run: `red`, `green`, `clippy`, `fmt`, or any other lowercase word.
+- `--task MILESTONE:TASK` ties the run to a task, and `--note TEXT` adds a note.
+- The command runs with the repository's configured environment. Its output is shown live and kept in a log under the repository's `.temp/tally/logs/<track>/`.
+- The script exits with the command's exit code.
+
+Within two seconds the service takes the result in as a run record with the log's hash, and your next tool answer says so under `inbox`. A result it can't accept is set aside, and the inbox says why. `evidence_list` reads the records as before.
+
+### 10.3 Land
+
+Landings take turns in one queue per repository, first come, first served.
+
+1. `land_start({ sessionId, files, message, milestone?, task? })` answers a ticket at once: its `state`, its `position` and who is `ahead`. Leave out `files` and `message` to land the commits the track already has.
+2. `land_wait({ sessionId, ticket, after })` waits up to 30 seconds for the ticket to leave the state named in `after`. Call it again while the state is `queued`.
+3. When the state is `turn`, tally has committed the named files, rebased the track onto `main` in a clean checkout, and written a script. Run the ticket's `run` command in your shell, in the background if it's long. It tests every commit ahead of `main`, oldest first.
+4. Call `land_wait` again.
+   - `landed`: `main` was fast-forwarded, the task is recorded, and your worktree is brought up to `main` with its other work kept.
+   - `failed`: `problem` names the commit, the exit code and the log. Nothing on `main` changed, the landing's own commit is undone, and its files stay staged.
+
+`land_cancel` takes a ticket out before its turn.
+
+A turn is lost when its script isn't started within 2 minutes, stops for 1 minute without a result, or runs past 1 hour. The next ticket then gets its turn. If `main` moved while the checks ran, the turn is prepared again and the ticket's `note` says to run the new script.
+
+A landing refuses a commit that changes `docs/records/`: records change only through the tools.
+
+### 10.4 What the other tracks are doing
+
+- **Overlaps.** The answers of `session_open`, `task_claim` and `land_start` carry `overlaps` when another track has changed a file yours also changes: the file, the track and who is on it.
+- **Notes.** `note_post({ sessionId, to, kind, text, paths?, task? })` leaves a note of at most 600 characters for `"all"` or for the tracks named. The kinds are `heads-up`, `request`, `answer` and `finding`. `note_reply` answers one, `note_done` closes it, and `note_list` lists them.
+- **The inbox.** Every tool answer carries, under `inbox`, what is new for your session since its last call:
+  - notes and replies
+  - the operator's answers
+  - commits on `main` that changed a file your track changed
+  - your landing ticket's changes
+  - runs taken in or set aside
+
+  Each item is delivered once. `inbox_get({ sessionId, since })` reads the inbox again from a time.
+
+### 10.5 The `tally` command
+
+With `TALLY_URL` set (`export TALLY_URL=http://127.0.0.1:47560`), every `tally` command is carried out by the service, so there is one writer. `tally land` joins the same queue as the agents' landings, runs the turn's script in your shell, and waits for the result. Without `TALLY_URL` the command works on the files itself, which is right only for a repository the service doesn't serve.
+
+`tally repo add PATH [--name NAME]`, `remove NAME`, `default NAME` and `list` manage the list of repositories from a shell. The board's sidebar does the same.
