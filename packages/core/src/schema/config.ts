@@ -17,6 +17,10 @@ export const checkSchema = z.object({
 
 const staysInWorktree = (path: string): boolean => !path.startsWith("/") && !path.split("/").includes("..");
 
+const GIT_DIR = ".git";
+
+const isOwnFolder = (path: string): boolean => staysInWorktree(path) && path.split("/").find((part) => part !== "" && part !== ".") !== GIT_DIR;
+
 export const landingSchema = z.object({
   link: z.array(z.string().min(1).refine(staysInWorktree, "a landing link must be relative to the worktree")).optional(),
   env: z.record(z.string(), z.string()).optional(),
@@ -34,7 +38,7 @@ export const configSchema = z.object({
   mainBranch: z.string().min(1).default("main"),
   docsDir: z.string().min(1).default("docs"),
   extraDocs: z.array(z.string().min(1)).optional(),
-  worktreeRoot: z.string().min(1).optional(),
+  worktreeRoot: z.string().min(1).refine(isOwnFolder, "worktreeRoot is a folder inside the repository, given relative to it, and not under .git").optional(),
   tracks: z.array(trackSchema).superRefine((tracks, context) => {
     const seen = new Set<string>();
     for (const track of tracks) {

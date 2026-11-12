@@ -26,6 +26,10 @@ describe("the config's new fields", () => {
     expect(config.commands.checks).toBeUndefined();
   });
 
+  test.each(["/srv/trees", "../trees", "a/../../trees", ".git/trees", ".git"])("refuse the worktree root %s, which is not a folder of the repository's own", (worktreeRoot) => {
+    expect(() => configSchema.parse({ ...trackedConfig, worktreeRoot })).toThrow("worktreeRoot is a folder inside the repository");
+  });
+
   test("keep a track's parent, the worktree root, the checks and the idle limit", () => {
     const checks = [{ name: "web", command: ["npm", "test"], paths: ["packages/web"] }];
     const config = configSchema.parse({ ...trackedConfig, worktreeRoot: "trees", sessions: { idleMinutes: 30 }, commands: { ...trackedConfig.commands, checks }, tracks: [{ name: "data", worktree: "d", branch: "track/data" }, { name: "helper", worktree: "h", branch: "track/helper", parent: "data" }] });

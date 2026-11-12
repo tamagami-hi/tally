@@ -1,9 +1,9 @@
 import { dirname, relative } from "node:path";
 import { TallyError, namedList } from "../errors.ts";
-import { revCount } from "../git/refs.ts";
 import { gitMust, gitOut } from "../git/run.ts";
 import { landingCheckoutPath } from "../land/checkout.ts";
 import { worktreeOf } from "../land/paths.ts";
+import { isActive, queueFile } from "../land/queue.ts";
 import { RUNNER } from "../land/runner.ts";
 import { commitRecords } from "../records/commit.ts";
 import type { OpenedTrack, TracksFile } from "../schema/tracks.ts";
@@ -28,6 +28,8 @@ const OWN_FOLDER = `${dirname(RUNNER)}/`;
 const commits = (count: number): string => `${count} commit${count === 1 ? "" : "s"}`;
 
 const named = (paths: readonly string[]): string => namedList([...paths].sort());
+
+const revCount = async (cwd: string, range: string): Promise<number> => Number(await gitMust(cwd, ["rev-list", "--count", range]));
 
 function entriesOf(status: string): Entry[] {
   const tokens = status.split("\0").filter((token) => token !== "");
@@ -60,6 +62,8 @@ async function assertIdle(repo: Repo, name: string): Promise<void> {
   if (session !== undefined) throw new TallyError(`track ${name} has an open session (${session.agent}, ${session.id}); close it first`);
   const claim = (await listClaims(repo)).find((held) => held.track === name);
   if (claim !== undefined) throw new TallyError(`track ${name} has a claimed task ('${claim.task}' in ${claim.milestone}, held by ${claim.agent}); release it first`);
+  const ticket = (await queueFile(repo).read()).tickets.find((one) => one.track === name && isActive(one));
+  if (ticket !== undefined) throw new TallyError(`track ${name} has a landing in the queue (ticket ${ticket.id}); wait for it to end, or cancel it`);
 }
 
 async function assertNothingToLose(repo: Repo, track: OpenedTrack, tree: string): Promise<void> {
@@ -79,6 +83,8 @@ async function assertLanded(repo: Repo, branch: string): Promise<void> {
   const main = repo.config.mainBranch;
   const ahead = await revCount(repo.root, `${main}..${branch}`);
   if (ahead > 0) throw new TallyError(`${branch} is ${commits(ahead)} ahead of ${main}; land its work first, or delete the branch yourself`);
+  const unseen = await revCount(repo.root, `HEAD..${branch}`);
+  if (unseen > 0) throw new TallyError(`the checkout at ${repo.root} is not on ${main} and lacks ${commits(unseen)} of ${branch}, so git would keep the branch; check out ${main} there first`);
 }
 
 async function removed(repo: Repo, track: OpenedTrack, tree: string): Promise<void> {

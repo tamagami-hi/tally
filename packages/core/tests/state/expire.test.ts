@@ -7,6 +7,9 @@ import { acquireLock, listLocks } from "../../src/state/locks.ts";
 import { getSession, listSessions, openSession } from "../../src/state/sessions.ts";
 import { writeJsonAtomic } from "../../src/store/json.ts";
 import { Records } from "../../src/store/records.ts";
+import { cancelTicket, joinQueue } from "../../src/land/queue.ts";
+import { commitOn } from "../support/landing.ts";
+import { ready } from "../support/queue.ts";
 import { sh } from "../support/repo.ts";
 import { makeTracked } from "../support/tracked.ts";
 
@@ -16,6 +19,20 @@ const T0 = new Date("2026-11-12T08:00:00.000Z");
 const after = (ms: number): Date => new Date(T0.getTime() + ms);
 
 describe("sessions that go quiet", () => {
+  test("a quiet session with a place in the landing queue is left open, and closes once its ticket has ended", async () => {
+    const q = await ready();
+    await commitOn(q.tree, "src/one.rs", "feat: one");
+    const ticket = await joinQueue(q.repo, q.session, { files: [] });
+    const later = new Date(Date.now() + 5 * HOUR);
+
+    const first = await expireSessions(q.repo, later);
+    await cancelTicket(q.repo, q.session, ticket.id);
+    const second = await expireSessions(q.repo, later);
+
+    expect(first.map((session) => session.id)).toEqual([q.engine.session.id]);
+    expect(second.map((session) => session.id)).toEqual([q.session.id]);
+  });
+
   test("a session not seen for four hours is closed with its claim and its lock, and the others stay", async () => {
     const { repo, trees } = await makeTracked();
     const quiet = await openSession(repo, { worktree: trees["data"] ?? "", agent: "claude" }, T0);

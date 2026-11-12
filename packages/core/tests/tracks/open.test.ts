@@ -1,4 +1,4 @@
-import { access, constants, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, constants, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { RUNNER } from "../../src/land/runner.ts";
@@ -6,7 +6,6 @@ import { openSession } from "../../src/state/sessions.ts";
 import { openTrack } from "../../src/tracks/open.ts";
 import { opening } from "../support/opening.ts";
 import { sh } from "../support/repo.ts";
-import { tmpDir } from "../support/tmp.ts";
 
 const NOW = new Date("2026-11-12T10:00:00.000Z");
 const helper = { name: "helper", purpose: "split the reader" };
@@ -74,16 +73,37 @@ describe("opening a track", () => {
     expect((await fresh()).config.tracks.at(-1)?.paths).toEqual(["src/reader"]);
   });
 
-  test("puts the worktree under the config's worktreeRoot, inside the repository or anywhere else", async () => {
+  test("puts the worktree under the config's worktreeRoot", async () => {
     const { repo, root, operator } = await opening();
-    const elsewhere = await tmpDir("tally-trees-");
 
     const inside = await openTrack({ ...repo, config: { ...repo.config, worktreeRoot: ".temp/trees" } }, operator, helper);
-    const outside = await openTrack({ ...repo, config: { ...repo.config, worktreeRoot: elsewhere } }, operator, { name: "docs", purpose: "the guide" });
 
     expect(inside.track.worktree).toBe(join(root, ".temp/trees/helper"));
-    expect(outside.track.worktree).toBe(join(elsewhere, "docs"));
-    expect(await sh(outside.track.worktree, ["branch", "--show-current"])).toBe("track/docs");
+    expect(await sh(inside.track.worktree, ["branch", "--show-current"])).toBe("track/helper");
+  });
+
+  test("keeps a child inside its parent's paths: it takes them when it names none, and may not go wider", async () => {
+    const { repo, operator, fresh } = await opening();
+    const reader = await openTrack(repo, operator, { name: "reader", purpose: "the reader", paths: ["src/reader"] });
+    const parent = await openSession(await fresh(), { worktree: reader.track.worktree, agent: "claude" });
+
+    const inherits = await openTrack(await fresh(), parent, { name: "reader-a", purpose: "the first half" });
+    const narrower = await openTrack(await fresh(), parent, { name: "reader-b", purpose: "the index", paths: ["src/reader/index"] });
+
+    expect(inherits.track.paths).toEqual(["src/reader"]);
+    expect(narrower.track.paths).toEqual(["src/reader/index"]);
+    await expect(openTrack(await fresh(), parent, { name: "reader-c", purpose: "elsewhere", paths: ["src/writer"] })).rejects.toThrow("track reader may land only src/reader, so its child reader-c cannot land src/writer");
+  });
+
+  test("leaves no branch and no folder behind when the opening fails half way", async () => {
+    const { repo, root, operator } = await opening();
+    const broken = { ...repo, config: { ...repo.config, commands: { ...repo.config.commands, env: { "NOT A NAME": "x" } } } };
+
+    await expect(openTrack(broken, operator, helper)).rejects.toThrow("the config names an environment variable a shell cannot set");
+
+    expect(await sh(root, ["branch", "--list", "track/helper"])).toBe("");
+    expect(await stat(join(root, ".temp/worktrees/helper")).then(() => true, () => false)).toBe(false);
+    expect((await openTrack(repo, operator, helper)).track.name).toBe("helper");
   });
 
   test("commits the record as the other records are committed", async () => {

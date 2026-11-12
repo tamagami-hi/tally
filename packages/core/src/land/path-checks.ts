@@ -20,7 +20,7 @@ function globPattern(glob: string): RegExp {
   const segments = glob.split("/");
   const last = segments.length - 1;
   const parts = segments.map((segment, index) => {
-    if (segment === ANY_DEPTH) return index === last ? ".*" : "(?:[^/]+/)*";
+    if (segment === ANY_DEPTH) return index === last ? "[\\s\\S]*" : "(?:[^/]+/)*";
     return `${segmentPattern(segment)}${index === last ? "" : "/"}`;
   });
   return new RegExp(`^${parts.join("")}$`);

@@ -44,6 +44,6 @@ describe("a child track", () => {
     await advance(repo);
     await endSession(repo, helper.id);
 
-    await expect(closeTrack(repo, q.session, "helper")).rejects.toThrow("track/helper is 1 commit ahead of main; land its work first, or delete the branch yourself");
+    await expect(closeTrack(repo, q.session, "helper")).rejects.toThrow("track helper has a landing in the queue");
   });
 });

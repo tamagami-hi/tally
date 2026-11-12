@@ -2,6 +2,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { openLandingCheckout } from "../../src/land/checkout.ts";
+import { joinQueue } from "../../src/land/queue.ts";
 import { RESULTS } from "../../src/land/runner.ts";
 import { claimTask } from "../../src/state/claims.ts";
 import { closeSession, openSession } from "../../src/state/sessions.ts";
@@ -31,6 +32,30 @@ async function isThere(path: string): Promise<boolean> {
 const recorded = async (root: string): Promise<{ tracks: { name: string; closedAt?: string }[] }> => JSON.parse(await readFile(join(root, "docs/records/tracks.json"), "utf8"));
 
 describe("closing a track", () => {
+  test("is refused while a landing of the track has a place in the queue, and nothing is removed", async () => {
+    const { repo, root, tree, operator } = await helped();
+    const session = await openSession(repo, { worktree: tree, agent: "sonnet" });
+    await commitOn(tree, "src/part.rs", "feat: a part");
+    const ticket = await joinQueue(repo, session, { files: [] });
+    await sh(root, ["merge", "-q", "--ff-only", "track/helper"]);
+    await closeSession(repo, session.id);
+
+    await expect(closeTrack(repo, operator, "helper", NOW)).rejects.toThrow(`track helper has a landing in the queue (ticket ${ticket.id}); wait for it to end, or cancel it`);
+
+    expect(await isThere(tree)).toBe(true);
+  });
+
+  test("is refused, with nothing removed, when the repository's checkout is off main and lacks the track's commits", async () => {
+    const { repo, root, tree, operator } = await helped();
+    await sh(root, ["commit", "-q", "-am", "records: what waited"]);
+    await sh(root, ["checkout", "-q", "--detach", "HEAD~2"]);
+
+    await expect(closeTrack(repo, operator, "helper", NOW)).rejects.toThrow("check out main there first");
+
+    expect(await isThere(tree)).toBe(true);
+    expect(await sh(root, ["branch", "--list", "track/helper"])).toContain("track/helper");
+  });
+
   test("removes the worktree and the branch, marks the record closed, and the track is gone from the repository", async () => {
     const { repo, root, tree, operator, fresh } = await helped();
 

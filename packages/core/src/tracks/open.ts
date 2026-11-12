@@ -1,7 +1,7 @@
 import { isAbsolute, join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { OWN_COMMIT, gitMust, gitOut } from "../git/run.ts";
-import { worktreeOf } from "../land/paths.ts";
+import { isUnder, worktreeOf } from "../land/paths.ts";
 import { writeRunner } from "../land/runner.ts";
 import { commitRecords } from "../records/commit.ts";
 import { REPO_NAME } from "../repos/name.ts";
@@ -47,16 +47,31 @@ async function assertFree(repo: Repo, track: Pick<OpenedTrack, "name" | "branch"
   if (await isPresent(folder)) throw new TallyError(`${folder} already exists; move it away, or pick another name`);
 }
 
+function pathsFor(repo: Repo, name: string, parent: string | undefined, asked: readonly string[] | undefined): readonly string[] | undefined {
+  const allowed = repo.config.tracks.find((track) => track.name === parent)?.paths;
+  if (allowed === undefined || allowed.length === 0) return asked;
+  if (asked === undefined) return allowed;
+  const wider = asked.find((path) => !isUnder(allowed, path.replace(/\/+$/, "")));
+  if (wider !== undefined) throw new TallyError(`track ${parent ?? ""} may land only ${allowed.join(", ")}, so its child ${name} cannot land ${wider}`);
+  return asked;
+}
+
+async function undone(repo: Repo, branch: string, folder: string): Promise<void> {
+  if (await isPresent(folder)) await gitOut(repo.root, ["worktree", "remove", "--force", folder]);
+  await gitOut(repo.root, ["branch", "--quiet", "-D", branch]);
+}
+
 export async function openTrack(repo: Repo, session: Session, input: OpenTrackInput, now = new Date()): Promise<TrackOpened> {
   checkedInput(input);
   const parent = parentFor(repo, session, input.parent);
+  const paths = pathsFor(await reopenRepo(repo), input.name, parent, input.paths);
   const record: OpenedTrack = {
     name: input.name,
     branch: `${TRACK_BRANCH_PREFIX}${input.name}`,
     worktree: join(repo.config.worktreeRoot ?? DEFAULT_WORKTREE_ROOT, input.name),
     ...(parent === undefined ? {} : { parent }),
     purpose: input.purpose,
-    ...(input.paths === undefined ? {} : { paths: [...input.paths] }),
+    ...(paths === undefined ? {} : { paths: [...paths] }),
     openedBy: { track: session.track, agent: session.agent },
     openedAt: now.toISOString(),
   };
@@ -64,8 +79,13 @@ export async function openTrack(repo: Repo, session: Session, input: OpenTrackIn
   const runner = await changeTracks(repo.recordsDir, async (file) => {
     await assertFree(repo, record, folder);
     await gitMust(repo.root, [...OWN_COMMIT, "worktree", "add", "--quiet", "-b", record.branch, folder, repo.config.mainBranch]);
-    const written = await writeRunner(repo, folder, record.name);
-    return { file: { ...file, tracks: [...file.tracks, record] }, result: written };
+    try {
+      const written = await writeRunner(repo, folder, record.name);
+      return { file: { ...file, tracks: [...file.tracks, record] }, result: written };
+    } catch (error: unknown) {
+      await undone(repo, record.branch, folder);
+      throw error;
+    }
   });
   const commit = await commitRecords(repo, `track ${record.name} opened by ${session.agent}`);
   return { track: { ...record, worktree: folder }, runner, commit };

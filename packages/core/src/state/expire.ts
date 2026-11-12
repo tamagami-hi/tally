@@ -1,3 +1,4 @@
+import { isActive, queueFile } from "../land/queue.ts";
 import type { Repo } from "../store/records.ts";
 import { endSession } from "./end.ts";
 import { listSessions, type Session } from "./sessions.ts";
@@ -13,6 +14,8 @@ export async function expireSessions(repo: Repo, now = new Date()): Promise<Sess
   for (const { id } of (await listSessions(repo)).filter(isQuiet)) {
     const still = (await listSessions(repo)).find((session) => session.id === id);
     if (still === undefined || !isQuiet(still)) continue;
+    const landing = (await queueFile(repo).read()).tickets.some((ticket) => ticket.sessionId === id && isActive(ticket));
+    if (landing) continue;
     closed.push((await endSession(repo, id)).session);
   }
   return closed;

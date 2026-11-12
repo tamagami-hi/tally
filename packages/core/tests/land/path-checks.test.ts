@@ -6,6 +6,7 @@ const check = (name: string, ...paths: string[]) => ({ name, command: ["true"], 
 describe("a check's path against a changed file", () => {
   test("matches the file it names, and no other", () => {
     expect(matchesPath("README.md", "README.md")).toBe(true);
+    expect(matchesPath("src/**", "src/a\nb.ts")).toBe(true);
     expect(matchesPath("README.md", "README.mdx")).toBe(false);
     expect(matchesPath("README.md", "docs/README.md")).toBe(false);
   });
