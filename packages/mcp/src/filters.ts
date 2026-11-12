@@ -15,7 +15,7 @@ export function pick<T extends object>(row: T, fields: readonly string[] | undef
 }
 
 export function pickKnown<T extends object>(row: T, fields: readonly string[] | undefined, what: string): Partial<T> {
-  const unknown = (fields ?? []).filter((key) => !(key in row));
+  const unknown = (fields ?? []).filter((key) => !Object.hasOwn(row, key));
   if (unknown.length > 0) throw new TallyError(`${what} has no '${unknown.join("', '")}'; its keys: ${Object.keys(row).join(", ")}`);
   return pick(row, fields);
 }

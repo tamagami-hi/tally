@@ -74,7 +74,10 @@ describe("board_get fields", () => {
     const { call } = await busy();
 
     const refused = await call("board_get", { fields: ["rows", "milestones"] });
+    const inherited = await call("board_get", { fields: ["constructor"] });
 
+    expect(inherited.isError).toBe(true);
+    expect(inherited.text).toMatch(/^the board has no 'constructor'; its keys: name, /);
     expect(refused.isError).toBe(true);
     expect(refused.text).toBe("the board has no 'milestones'; its keys: name, time, overall, stagePct, stages, rows, tracks, main, origin, unpushed, today, questions, nextRow, problems, claims, locks");
   });
