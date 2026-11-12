@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { putEntry, retireEntry } from "../../src/context/entries.ts";
 import { joinQueue } from "../../src/land/queue.ts";
 import { RUNNER, writeRunner } from "../../src/land/runner.ts";
 import { advance } from "../../src/land/turn.ts";
@@ -95,6 +96,34 @@ describe("a session's inbox", () => {
     const items = await collectInbox(q.repo, q.session, new Date(Date.now() + 2000));
 
     expect(items).toEqual([expect.objectContaining({ kind: "run", text: expect.stringContaining("a green run was set aside: the run names no task") })]);
+  });
+
+  test("says when a context entry was added or retired for the files it works on, and not for other files", async () => {
+    const q = await ready();
+    await edit(q.tree, "src/a.rs");
+    const about = await putEntry(q.repo, q.engine.session, { kind: "finding", title: "The reader caches its index", text: "Open it once.", paths: ["src"] });
+    await putEntry(q.repo, q.engine.session, { kind: "finding", title: "The docs build is slow", text: "It takes a minute.", paths: ["docs/site"] });
+    await putEntry(q.repo, q.engine.session, { kind: "convention", title: "Errors carry the file", text: "Name the path." });
+    await putEntry(q.repo, q.session, { kind: "finding", title: "My own finding", text: "I know it already.", paths: ["src"] });
+
+    const added = await collectInbox(q.repo, q.session);
+    await retireEntry(q.repo, q.engine.session, about.entry.id, "the cache is gone");
+    const retired = await collectInbox(q.repo, q.session);
+
+    expect(added.map((item) => [item.kind, item.from, item.text])).toEqual([
+      ["context", "engine", "engine (kiro) added the finding finding-1: The reader caches its index"],
+      ["context", "engine", "engine (kiro) added the convention convention-1: Errors carry the file"],
+    ]);
+    expect(retired.map((item) => item.text)).toEqual(["finding-1 (The reader caches its index) was retired: the cache is gone"]);
+  });
+
+  test("does not tell a new session what happened before it opened", async () => {
+    const q = await ready();
+    const opened = new Date(Date.now() + 60_000);
+    await postNote(q.repo, q.engine.session, { to: "all", kind: "finding", text: "before you came" }, new Date(opened.getTime() - 5_000));
+    const late = { ...q.session, id: "a-later-session", openedAt: opened.toISOString() };
+
+    expect(await collectInbox(q.repo, late, new Date(opened.getTime() + 1_000))).toEqual([]);
   });
 
   test("can be read again without being taken", async () => {

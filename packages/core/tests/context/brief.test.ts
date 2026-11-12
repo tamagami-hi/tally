@@ -86,12 +86,14 @@ describe("a session's brief", () => {
       { id: "2 told", track: "data", status: "planned", also: [], waits: "row 7", brief: "write the manifest", paths: ["src/store"] },
       { id: "3 landed", track: "data", status: "landed", commit: "abc1234", also: [] },
       { id: "4 theirs", track: "engine", status: "planned", also: [] },
+      { id: "5 held", track: "data", status: "planned", also: [], waitsOn: [{ task: "B2:4 theirs", what: "its format" }] },
     ] }] } as unknown as Ledger;
     const claims = [{ milestone: "B2", task: "1 plain", track: "data", sessionId: "s", agent: "claude", since: "2026-11-12T08:00:00.000Z" }];
 
     expect(unlandedTasks(ledger, "data", claims)).toEqual([
       { milestone: "B2", id: "1 plain", claimedBy: "claude" },
       { milestone: "B2", id: "2 told", waits: "row 7", brief: "write the manifest", paths: ["src/store"] },
+      { milestone: "B2", id: "5 held", waits: "B2:4 theirs (its format)" },
     ]);
   });
 });

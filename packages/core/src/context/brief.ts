@@ -1,3 +1,4 @@
+import { waitsOf } from "../ledger/waits.ts";
 import { readHandoff, type HandoffNote } from "../records/handoffs.ts";
 import { readQuestions } from "../records/questions.ts";
 import { NO_CHECK } from "../repos/start.ts";
@@ -51,7 +52,7 @@ function briefTask(milestone: string, task: Told, claims: readonly Claim[]): Bri
   return {
     milestone,
     id: task.id,
-    ...(task.waits === undefined ? {} : { waits: task.waits }),
+    ...(waitsOf(task).length === 0 ? {} : { waits: waitsOf(task).join("; ") }),
     ...(claim === undefined ? {} : { claimedBy: claim.agent }),
     ...(isText(task.brief) ? { brief: task.brief } : {}),
     ...(Array.isArray(task.paths) ? { paths: task.paths.filter(isText) } : {}),

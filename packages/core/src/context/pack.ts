@@ -1,3 +1,4 @@
+import { waitsOf } from "../ledger/waits.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { TallyError } from "../errors.ts";
@@ -45,7 +46,7 @@ function tasksOf(ledger: Ledger, track: string): { milestone: string; task: Task
 
 function taskLine(milestone: string, task: Task, claims: Claim[]): string {
   const claim = claims.find((c) => c.milestone === milestone && c.task === task.id);
-  const state = task.commit !== undefined ? `landed ${task.commit}` : task.waits !== undefined ? `waits for ${task.waits}` : claim !== undefined ? `claimed by ${claim.agent} since ${claim.since}` : "planned";
+  const state = task.commit !== undefined ? `landed ${task.commit}` : waitsOf(task).length > 0 ? `waits for ${waitsOf(task).join("; ")}` : claim !== undefined ? `claimed by ${claim.agent} since ${claim.since}` : "planned";
   return `- ${milestone} / ${task.id}: ${state}`;
 }
 

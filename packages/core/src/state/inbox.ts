@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { readEntries, type Entry } from "../context/entries.ts";
+import { applies, overlaps } from "../context/match.ts";
 import { gitOut } from "../git/run.ts";
 import { statePath } from "../land/paths.ts";
 import { queueFile } from "../land/queue.ts";
@@ -14,7 +16,7 @@ import { StateFile } from "./file.ts";
 import type { Session } from "./sessions.ts";
 
 export interface InboxItem {
-  kind: "note" | "reply" | "answer" | "main" | "landing" | "run";
+  kind: "note" | "reply" | "answer" | "main" | "landing" | "run" | "context";
   at: string;
   text: string;
   from?: string;
@@ -99,6 +101,23 @@ async function fromRuns(session: Session, since: string): Promise<InboxItem[]> {
   return items;
 }
 
+async function worksOn(repo: Repo, session: Session): Promise<(entry: Entry) => boolean> {
+  const areas = repo.config.tracks.find((track) => track.name === session.track)?.paths;
+  const files = areas === undefined ? await changedFiles(repo, session.track) : [];
+  return (entry) => entry.paths.length === 0 || entry.paths.some((path) => (areas ?? []).some((area) => overlaps(path, area)) || files.some((file) => applies(path, file)));
+}
+
+async function fromContext(repo: Repo, session: Session, since: string): Promise<InboxItem[]> {
+  const changed = (await readEntries(repo)).filter((entry) => entry.by.track !== session.track && (entry.at > since || (entry.retiredAt !== undefined && entry.retiredAt > since)));
+  if (changed.length === 0) return [];
+  const isMine = await worksOn(repo, session);
+  return changed.filter(isMine).flatMap((entry) => {
+    const added: InboxItem[] = entry.at > since ? [{ kind: "context", at: entry.at, from: entry.by.track, text: `${entry.by.track} (${entry.by.agent}) added the ${entry.kind} ${entry.id}: ${entry.title}` }] : [];
+    const retired: InboxItem[] = entry.retiredAt !== undefined && entry.retiredAt > since ? [{ kind: "context", at: entry.retiredAt, text: `${entry.id} (${entry.title}) was retired: ${entry.retiredWhy ?? "no reason was kept"}` }] : [];
+    return [...added, ...retired];
+  });
+}
+
 async function gathered(repo: Repo, session: Session, cursor: Cursor, now: Date): Promise<InboxItem[]> {
   const { seenAt } = cursor;
   const found = await Promise.all([
@@ -107,6 +126,7 @@ async function gathered(repo: Repo, session: Session, cursor: Cursor, now: Date)
     fromMain(repo, session, cursor.main, now),
     fromQueue(repo, session, seenAt),
     fromRuns(session, seenAt),
+    fromContext(repo, session, seenAt),
   ]);
   return found.flat().sort((a, b) => a.at.localeCompare(b.at));
 }
@@ -120,7 +140,8 @@ export async function collectInbox(repo: Repo, session: Session, now = new Date(
   const main = (await gitOut(repo.root, ["rev-parse", repo.config.mainBranch])) ?? undefined;
   return cursorFile(repo, session).update(async (cursor) => {
     const delivered = new Set(cursor.recent ?? []);
-    const inWindow = await gathered(repo, session, { ...cursor, seenAt: before(cursor.seenAt, GRACE_MS) }, now);
+    const isFirst = cursor.seenAt === session.openedAt && cursor.recent === undefined;
+    const inWindow = await gathered(repo, session, { ...cursor, seenAt: isFirst ? cursor.seenAt : before(cursor.seenAt, GRACE_MS) }, now);
     const items = inWindow.filter((item) => !delivered.has(keyOf(item)));
     const kept = before(now, GRACE_MS);
     const recent = inWindow.filter((item) => item.at > kept).map(keyOf);
