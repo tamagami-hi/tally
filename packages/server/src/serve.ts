@@ -1,18 +1,30 @@
 import type { Server } from "node:http";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
-import type { Repo } from "@tally/core";
+import type { Hono } from "hono";
+import { Repos, type Repo, type StartDefaults } from "@tally/core";
 import { createApp } from "./app.ts";
+import { Hub } from "./hub.ts";
+import { createServiceApp } from "./service.ts";
 import { Watcher } from "./watcher.ts";
 
 const IDLE_SWEEP_MS = 100;
 
-export interface ServeOptions {
-  repo: Repo;
+interface Listening {
   port: number;
   host: string;
   webDir?: string;
   intervalMs?: number;
+}
+
+export interface ServeOptions extends Listening {
+  repo: Repo;
+}
+
+export interface ServiceStart extends Listening {
+  home: string;
+  workspace: string;
+  defaults?: StartDefaults;
 }
 
 export interface Running {
@@ -22,16 +34,16 @@ export interface Running {
 
 export const defaultWebDir = (): string => fileURLToPath(new URL("../../web/dist/", import.meta.url));
 
-export function startServer(options: ServeOptions): Promise<Running> {
-  const watcher = new Watcher(options.repo, options.intervalMs === undefined ? {} : { intervalMs: options.intervalMs });
-  const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir() });
+const interval = (options: Listening): { intervalMs?: number } => (options.intervalMs === undefined ? {} : { intervalMs: options.intervalMs });
+
+function listen(app: Hono, options: Listening, started: () => void, stopping: () => Promise<void>): Promise<Running> {
   return new Promise((done) => {
     const server = serve({ fetch: app.fetch, port: options.port, hostname: options.host }, (info) => {
-      watcher.start();
+      started();
       done({
         url: `http://${options.host}:${info.port}/`,
         close: async () => {
-          await watcher.stop();
+          await stopping();
           await new Promise<void>((closed) => {
             const sweep = setInterval(() => server.closeIdleConnections(), IDLE_SWEEP_MS);
             server.close(() => {
@@ -43,4 +55,16 @@ export function startServer(options: ServeOptions): Promise<Running> {
       });
     }) as Server;
   });
+}
+
+export function startServer(options: ServeOptions): Promise<Running> {
+  const watcher = new Watcher(options.repo, interval(options));
+  const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir() });
+  return listen(app, options, () => watcher.start(), () => watcher.stop());
+}
+
+export function startService(options: ServiceStart): Promise<Running> {
+  const hub = new Hub(new Repos(options.home), interval(options));
+  const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, ...(options.defaults === undefined ? {} : { defaults: options.defaults }) });
+  return listen(app, options, () => undefined, () => hub.stop());
 }

@@ -173,6 +173,12 @@ describe("what tally mcp serves", () => {
     expect(await servesTheList(undefined, { ...io(cwd, home), env: { TALLY_HOME: home, TALLY_REPO: root } })).toBe(false);
   });
 
+  test("is the list, though empty, when no repository is above the current folder", async () => {
+    const { home, cwd } = await elsewhere();
+
+    expect(await servesTheList(undefined, io(cwd, home))).toBe(true);
+  });
+
   test("is the repository above the current folder while nothing is listed, as before", async () => {
     const { home } = await elsewhere();
     const { root } = await makeTracked();

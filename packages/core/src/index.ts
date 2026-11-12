@@ -15,7 +15,11 @@ export { CONFIG_FILE, LEDGER_FILE, RECORDS_DIR, Records, findRepoRoot, initRecor
 export type { Listed, Repo } from "./store/records.ts";
 export { HOME_ENV, LIST_FILE, listPath, ownerPath, stateDirOf, tallyHome } from "./repos/home.ts";
 export { REPO_NAME, nameFromFolder } from "./repos/name.ts";
-export { addRepo, readRepoList, removeRepo, repoEntrySchema, repoListSchema, setDefaultRepo, unknownRepo } from "./repos/list.ts";
+export { NotListed, addRepo, readRepoList, removeRepo, repoEntrySchema, repoListSchema, setDefaultRepo, unknownRepo } from "./repos/list.ts";
+export { NO_CHECK, START_MESSAGE, startRecords } from "./repos/start.ts";
+export type { StartDefaults } from "./repos/start.ts";
+export { endSession } from "./state/end.ts";
+export type { Ended } from "./state/end.ts";
 export type { AddInput, RepoEntry, RepoList } from "./repos/list.ts";
 export { gitIn, realFolder, rootOfWorktree } from "./repos/find.ts";
 export { entryForRoot, findRepo, openAt } from "./repos/lookup.ts";

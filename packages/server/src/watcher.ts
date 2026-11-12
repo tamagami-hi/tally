@@ -51,9 +51,11 @@ export async function snapshot(repo: Repo): Promise<Snapshot> {
   return { status, graph, graphTotal, state, takenAt: new Date().toISOString() };
 }
 
+export type RepoGetter = () => Promise<Repo>;
+
 export class Watcher {
-  readonly repo: Repo;
   readonly intervalMs: number;
+  private readonly source: RepoGetter;
   private listeners = new Set<Listener>();
   private timer: NodeJS.Timeout | undefined;
   private last: string | undefined;
@@ -66,8 +68,8 @@ export class Watcher {
     this.halt = done;
   });
 
-  constructor(repo: Repo, options: { intervalMs?: number } = {}) {
-    this.repo = repo;
+  constructor(repo: Repo | RepoGetter, options: { intervalMs?: number } = {}) {
+    this.source = typeof repo === "function" ? repo : () => Promise.resolve(repo);
     this.intervalMs = options.intervalMs ?? 2000;
   }
 
@@ -78,8 +80,9 @@ export class Watcher {
 
   async current(): Promise<Snapshot> {
     if (this.latest === undefined) {
-      this.latest = await snapshot(this.repo);
-      this.last = await fingerprint(this.repo);
+      const repo = await this.source();
+      this.latest = await snapshot(repo);
+      this.last = await fingerprint(repo);
     }
     return this.latest;
   }
@@ -105,9 +108,10 @@ export class Watcher {
     this.busy = true;
     this.inFlight = (async () => {
       try {
-        const now = await fingerprint(this.repo);
+        const repo = await this.source();
+        const now = await fingerprint(repo);
         if (now !== this.last) {
-          const fresh = await snapshot(this.repo);
+          const fresh = await snapshot(repo);
           this.last = now;
           this.latest = fresh;
           for (const listener of this.listeners) listener(fresh);

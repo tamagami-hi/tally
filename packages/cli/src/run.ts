@@ -15,7 +15,7 @@ import { recordsCommand } from "./commands/records.ts";
 import { repoCommand } from "./commands/repo.ts";
 import { questionCommand } from "./commands/question.ts";
 import { reportCommand } from "./commands/report.ts";
-import { serveCommand } from "./commands/serve.ts";
+import { serveCommand, serveListCommand } from "./commands/serve.ts";
 import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
 import { taskCommand } from "./commands/task.ts";
@@ -50,7 +50,7 @@ export const USAGE = `tally: the tracking harness
   tally views  claude [--check]                                  write the standing block between CLAUDE.md's tally:standing markers
   tally land   <track> [--message FILE] [--verified-code SHA] [--milestone M --task T] [files...]
   tally repo   add PATH [--name NAME] | remove NAME | default NAME | list   the repositories this tally serves
-  tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR]   the live board, the API and /mcp
+  tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR] [--workspace DIR]   the live board, the API and /mcp: every listed repository, or the one --repo names
   tally mcp                                                      the MCP server on stdio: every listed repository, or the one --repo names (or, with nothing listed, the one above the current folder)
   tally <command> [<verb>] --help                                that command's lines of this list
 
@@ -70,7 +70,8 @@ function namesRepo(repoOption: string | undefined, io: IO): boolean {
 }
 
 export async function servesTheList(repoOption: string | undefined, io: IO): Promise<boolean> {
-  return !namesRepo(repoOption, io) && (await readRepoList(tallyHome(io.env))).repos.length > 0;
+  if (namesRepo(repoOption, io)) return false;
+  return (await readRepoList(tallyHome(io.env))).repos.length > 0 || (await findRepoRoot(io.cwd)) === undefined;
 }
 
 async function locate(repoOption: string | undefined, io: IO): Promise<string> {
@@ -97,7 +98,9 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
     if (command === "init") return await initCommand(repoOption === undefined ? io.cwd : resolve(io.cwd, repoOption), args, io);
     if (command === "repo") return await repoCommand(args, io);
     const home = tallyHome(io.env);
-    if (command === "mcp" && (await servesTheList(repoOption, io))) return await mcpCommand(manyRepos(new Repos(home)), "every listed repository", io);
+    const everyRepo = (command === "mcp" || command === "serve") && (await servesTheList(repoOption, io));
+    if (everyRepo && command === "mcp") return await mcpCommand(manyRepos(new Repos(home)), "every listed repository", io);
+    if (everyRepo) return await serveListCommand(args, io);
     const repo = await openAt(home, await locate(repoOption, io));
     switch (command) {
       case "task":

@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { closeSession, flushWhenFree, listSessions, openSession, releaseClaimsOf, releaseLocksOf } from "@tally/core";
+import { endSession, listSessions, openSession } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 
@@ -20,13 +20,7 @@ export function registerSessionTools(server: McpServer, source: RepoSource): voi
   server.registerTool(
     "session_close",
     { description: "Close a session: its claims and locks are released. In batch mode the last session to close commits every record waiting on disk as one commit; recordsCommit is null when there was nothing to commit or the landing lock stayed held, and then the records wait for `tally records commit`.", inputSchema: { sessionId: z.string() } },
-    ({ sessionId }) => inSession(source, sessionId, async (repo) => {
-      const claims = await releaseClaimsOf(repo, sessionId);
-      const locks = await releaseLocksOf(repo, sessionId);
-      const session = await closeSession(repo, sessionId);
-      const recordsCommit = repo.config.records.batch === true && (await listSessions(repo)).length === 0 ? await flushWhenFree(repo) : null;
-      return ok({ session, releasedClaims: claims, releasedLocks: locks, recordsCommit });
-    }),
+    ({ sessionId }) => inSession(source, sessionId, async (repo) => ok(await endSession(repo, sessionId))),
   );
   server.registerTool(
     "session_list",

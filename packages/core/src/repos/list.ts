@@ -52,9 +52,16 @@ const withDefault = (repos: RepoEntry[], wanted: string | undefined): RepoList =
   return kept === undefined ? { schema: 1, repos } : { schema: 1, default: kept, repos };
 };
 
-export function unknownRepo(name: string, list: RepoList): TallyError {
+export class NotListed extends TallyError {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotListed";
+  }
+}
+
+export function unknownRepo(name: string, list: RepoList): NotListed {
   const listed = list.repos.map((repo) => repo.name).join(", ");
-  return new TallyError(`no repository '${name}'; ${listed === "" ? "none is listed yet" : `listed: ${listed}`}`);
+  return new NotListed(`no repository '${name}'; ${listed === "" ? "none is listed yet" : `listed: ${listed}`}`);
 }
 
 async function hasConfig(root: string): Promise<boolean> {
