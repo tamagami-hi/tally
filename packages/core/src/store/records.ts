@@ -4,6 +4,8 @@ import { TallyError } from "../errors.ts";
 import type { Changed } from "../ledger/ops.ts";
 import { configSchema, type Config } from "../schema/config.ts";
 import { ledgerSchema, type Ledger } from "../schema/ledger.ts";
+import { STATE_DIR } from "../repos/home.ts";
+import { nameFromFolder } from "../repos/name.ts";
 import { readJson, writeJsonAtomic } from "./json.ts";
 import { withLock } from "./lock.ts";
 
@@ -13,8 +15,15 @@ export const LEDGER_FILE = "ledger.json";
 
 export interface Repo {
   root: string;
+  name: string;
   config: Config;
   recordsDir: string;
+  stateDir: string;
+}
+
+export interface Listed {
+  name: string;
+  stateDir: string;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -36,10 +45,16 @@ export async function findRepoRoot(from: string): Promise<string | undefined> {
   }
 }
 
-export async function openRepo(root: string): Promise<Repo> {
+export async function openRepo(root: string, listed?: Listed): Promise<Repo> {
   const absolute = resolve(root);
   const config = await readJson(join(absolute, RECORDS_DIR, CONFIG_FILE), configSchema);
-  return { root: absolute, config, recordsDir: join(absolute, config.records.dir) };
+  return {
+    root: absolute,
+    name: listed?.name ?? nameFromFolder(absolute),
+    config,
+    recordsDir: join(absolute, config.records.dir),
+    stateDir: listed?.stateDir ?? join(absolute, STATE_DIR),
+  };
 }
 
 export async function initRecords(root: string, config: Config, baseline: string): Promise<Repo> {

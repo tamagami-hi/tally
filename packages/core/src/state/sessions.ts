@@ -21,7 +21,7 @@ export type Session = z.infer<typeof sessionSchema>;
 
 const sessionsSchema = z.object({ sessions: z.array(sessionSchema) });
 
-export const sessionsFile = (repo: Repo): StateFile<{ sessions: Session[] }> =>
+export const sessionsFile = (repo: Pick<Repo, "stateDir">): StateFile<{ sessions: Session[] }> =>
   new StateFile(statePath(repo, "sessions.json"), sessionsSchema, () => ({ sessions: [] }));
 
 export interface OpenInput {
@@ -74,7 +74,7 @@ export async function closeSession(repo: Repo, id: string): Promise<Session> {
   });
 }
 
-export async function listSessions(repo: Repo): Promise<Session[]> {
+export async function listSessions(repo: Pick<Repo, "stateDir">): Promise<Session[]> {
   return (await sessionsFile(repo).read()).sessions;
 }
 

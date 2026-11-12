@@ -4,10 +4,10 @@ import { gitMust } from "../git/run.ts";
 import type { Config, Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
 
-export const STATE_DIR = ".temp/tally/state";
+export { STATE_DIR } from "../repos/home.ts";
 
-export function statePath(repo: Repo, ...parts: string[]): string {
-  return join(repo.root, STATE_DIR, ...parts);
+export function statePath(repo: Pick<Repo, "stateDir">, ...parts: string[]): string {
+  return join(repo.stateDir, ...parts);
 }
 
 export function trackOf(config: Config, name: string): Track {
