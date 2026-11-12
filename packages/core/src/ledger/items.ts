@@ -3,6 +3,20 @@ import type { Ledger, Milestone, Task } from "../schema/ledger.ts";
 
 export const SHORT = 7;
 
+const EVERYONE = "all";
+const NO_OWNER = "-";
+
+export function ownersOf(milestone: Pick<Milestone, "track" | "tasks">): string {
+  if (milestone.track === EVERYONE) return EVERYONE;
+  const named = [...milestone.track.split("+"), ...milestone.tasks.map((task) => task.track)].filter((track) => track !== NO_OWNER);
+  return named.length === 0 ? milestone.track : [...new Set(named)].join("+");
+}
+
+export function isOwnedBy(milestone: Pick<Milestone, "track" | "tasks">, track: string): boolean {
+  const owners = ownersOf(milestone);
+  return owners === EVERYONE || owners.split("+").includes(track);
+}
+
 export function isClose(task: Pick<Task, "id">): boolean {
   return task.id.toLowerCase().endsWith("close");
 }

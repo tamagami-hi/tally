@@ -4,7 +4,7 @@ import { currentBranch, porcelain } from "../git/refs.ts";
 import { gitMust } from "../git/run.ts";
 import type { Config, Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
-import { isDocumentation } from "./paths.ts";
+import { isDocumentation, isUnder } from "./paths.ts";
 
 export interface LandOptions {
   track: string;
@@ -28,7 +28,7 @@ export function checkArguments(options: LandOptions, config: Config): void {
 export function checkTrackPaths(track: Track, files: readonly string[]): void {
   const { name, paths } = track;
   if (paths === undefined) return;
-  const outside = files.filter((file) => !paths.some((path) => file === path || file.startsWith(`${path}/`)));
+  const outside = files.filter((file) => !isUnder(paths, file));
   if (outside.length > 0) throw new TallyError(`${name} lands only ${paths.join(", ")}: ${outside.join(", ")} is outside them`);
 }
 

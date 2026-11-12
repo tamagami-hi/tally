@@ -27,6 +27,10 @@ export async function fingerprint(dir: string, config: Config): Promise<string> 
   return gitMust(dir, ["log", "-1", "--format=%h", "--", ...config.fingerprint.paths, ...excludes]);
 }
 
+export function isUnder(paths: readonly string[], file: string): boolean {
+  return paths.some((path) => file === path || file.startsWith(`${path}/`));
+}
+
 export function isDocumentation(path: string, config: Config): boolean {
   return path.endsWith(".md") || path.startsWith(`${config.docsDir}/`);
 }
