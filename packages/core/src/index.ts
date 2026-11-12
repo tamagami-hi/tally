@@ -19,6 +19,8 @@ export { NotListed, addRepo, readRepoList, removeRepo, repoEntrySchema, repoList
 export { NO_CHECK, START_MESSAGE, startRecords } from "./repos/start.ts";
 export type { StartDefaults } from "./repos/start.ts";
 export { configureRepo } from "./repos/configure.ts";
+export { ACTIVITY_DIR, activityEventSchema, activityFileSchema, logActivity, readActivity } from "./records/activity.ts";
+export type { Activity, ActivityEvent, ActivityFile, ActivityFilter, ActivityInput } from "./records/activity.ts";
 export { endSession } from "./state/end.ts";
 export type { Ended } from "./state/end.ts";
 export type { AddInput, RepoEntry, RepoList } from "./repos/list.ts";

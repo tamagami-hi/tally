@@ -1,4 +1,4 @@
-import { TallyError } from "../errors.ts";
+import { askedLimit, askedSince } from "../records/asked.ts";
 import type { Repo } from "../store/records.ts";
 import { readEntries, type Entry, type EntryKind } from "./entries.ts";
 import { applies } from "./match.ts";
@@ -20,25 +20,17 @@ export interface Found {
 
 type Keep = (entry: Entry) => boolean;
 
-const SINCE_SHAPE = "2026-11-12T09:00:00Z";
-
 const changedAt = (entry: Entry): number => Date.parse(entry.retiredAt ?? entry.at);
 
 export const isInForce = (entry: Entry): boolean => entry.retiredAt === undefined;
 
 export const appliesTo = (entry: Entry, asked: readonly string[]): boolean => entry.paths.length === 0 || entry.paths.some((path) => asked.some((file) => applies(path, file)));
 
-function sinceOf(since: string): number {
-  const time = Date.parse(since);
-  if (Number.isNaN(time)) throw new TallyError(`since must be an ISO time such as ${SINCE_SHAPE}, not '${since}'`);
-  return time;
-}
-
 function tests(filter: EntryFilter): Keep[] {
   const { ids, kind, paths, tags, query, since } = filter;
   const wanted = tags?.map((tag) => tag.toLowerCase());
   const words = query?.toLowerCase();
-  const after = since === undefined ? undefined : sinceOf(since);
+  const after = since === undefined ? undefined : askedSince(since);
   return [
     ...(ids === undefined && after === undefined ? [isInForce] : []),
     ...(ids === undefined ? [] : [(entry: Entry) => ids.includes(entry.id)]),
@@ -51,8 +43,7 @@ function tests(filter: EntryFilter): Keep[] {
 }
 
 export function keepEntries(entries: readonly Entry[], filter: EntryFilter = {}): Found {
-  const { limit } = filter;
-  if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) throw new TallyError(`limit must be a whole number above zero, not ${limit}`);
+  const limit = askedLimit(filter.limit);
   const keeps = tests(filter);
   const kept = entries.filter((entry) => keeps.every((keep) => keep(entry)));
   const newestFirst = [...kept].reverse().sort((a, b) => changedAt(b) - changedAt(a));
