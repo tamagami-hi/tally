@@ -1,11 +1,11 @@
-import { access, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { access } from "node:fs/promises";
 import { TallyError, messageOf } from "../errors.ts";
 import { listSessions, type Session } from "../state/sessions.ts";
-import { CONFIG_FILE, RECORDS_DIR, openRepo, type Repo } from "../store/records.ts";
+import { openRepo, type Repo } from "../store/records.ts";
 import { rootOfWorktree } from "./find.ts";
 import { listPath, stateDirOf } from "./home.ts";
 import { readRepoList, unknownRepo, type RepoEntry, type RepoList } from "./list.ts";
+import { fileStamp, recordsStamp } from "./live.ts";
 import { entryForRoot } from "./lookup.ts";
 
 interface Loaded {
@@ -18,15 +18,6 @@ interface Loaded {
 export interface SessionHome {
   repo: Repo;
   session: Session;
-}
-
-async function stampOf(path: string): Promise<string> {
-  try {
-    const { mtimeNs, ctimeNs, size, ino } = await stat(path, { bigint: true });
-    return `${mtimeNs}:${ctimeNs}:${size}:${ino}`;
-  } catch (error: unknown) {
-    return `unreadable:${(error as NodeJS.ErrnoException).code ?? "unknown"}`;
-  }
 }
 
 async function isGone(folder: string): Promise<boolean> {
@@ -105,7 +96,7 @@ export class Repos {
   }
 
   private async current(): Promise<RepoList> {
-    const stamp = await stampOf(listPath(this.home));
+    const stamp = await fileStamp(listPath(this.home));
     if (stamp === this.listStamp) return this.list;
     try {
       const list = await readRepoList(this.home);
@@ -123,8 +114,8 @@ export class Repos {
   }
 
   private async open(entry: RepoEntry): Promise<Repo> {
-    const stamp = await stampOf(join(entry.root, RECORDS_DIR, CONFIG_FILE));
     const cached = this.loaded.get(entry.name);
+    const stamp = await recordsStamp(entry.root, cached?.repo.recordsDir);
     if (cached !== undefined && cached.stamp === stamp) return cached.repo;
     try {
       const repo = await openRepo(entry.root, { name: entry.name, stateDir: stateDirOf(this.home, entry.name) });

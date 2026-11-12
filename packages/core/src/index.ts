@@ -35,6 +35,7 @@ export { gitIn, realFolder, rootOfWorktree } from "./repos/find.ts";
 export { entryForRoot, findRepo, openAt } from "./repos/lookup.ts";
 export { Repos } from "./repos/repos.ts";
 export type { SessionHome } from "./repos/repos.ts";
+export { LiveRepo, fileStamp, recordsStamp } from "./repos/live.ts";
 export { OWN_COMMIT, asIdentity, git, gitMust, gitOut } from "./git/run.ts";
 export type { GitResult } from "./git/run.ts";
 export { currentBranch, isAncestor, logLines, porcelain, resolveOnMain, revCount, shortOf, verifyCommit, worktrees } from "./git/refs.ts";
