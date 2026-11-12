@@ -1,4 +1,7 @@
+import { uncovered, unfinished } from "../ledger/gaps.ts";
 import { ownersOf } from "../ledger/items.ts";
+import type { Milestones } from "../ledger/refs.ts";
+import { waitsOf } from "../ledger/waits.ts";
 import type { Stage } from "../schema/config.ts";
 import type { Ledger, Milestone, Task } from "../schema/ledger.ts";
 
@@ -27,20 +30,32 @@ export function ago(epoch: number, now = Date.now() / 1000): string {
   return `${Math.floor(minutes / 1440)} days ago`;
 }
 
+const isWaiting = (task: Task): boolean => waitsOf(task).length > 0;
+
 function openNotes(tasks: readonly Task[]): string[] {
   const open = tasks.filter((task) => task.commit === undefined);
   const nextByTrack = new Map<string, string>();
   for (const task of open) {
-    if (task.waits === undefined && !nextByTrack.has(task.track)) nextByTrack.set(task.track, task.id);
+    if (!isWaiting(task) && !nextByTrack.has(task.track)) nextByTrack.set(task.track, task.id);
   }
-  return [...[...nextByTrack].map(([track, id]) => `${track} next: ${id}`), ...open.filter((task) => task.waits !== undefined).map((task) => `${task.id}: waits for ${task.waits}`)];
+  return [...[...nextByTrack].map(([track, id]) => `${track} next: ${id}`), ...open.filter(isWaiting).map((task) => `${task.id}: waits for ${waitsOf(task).join(", ")}`)];
 }
 
-async function row(milestone: Milestone, onMain: OnMain, problems: string[]): Promise<MilestoneRow> {
-  if (milestone.built !== undefined) return { ...milestone, share: 1, count: null, notes: ["built"] };
+function owedNotes(ledger: Milestones, milestone: Pick<Milestone, "delivers" | "tasks">, tasks: readonly Task[]): string[] {
+  const partly = tasks.flatMap((task) => {
+    const parts = unfinished(ledger, task);
+    return parts.length === 0 ? [] : [`${task.id} landed in part: ${parts.map((part) => part.what).join(", ")}`];
+  });
+  const owed = uncovered(milestone);
+  return [...partly, ...(owed.length === 0 ? [] : [`no task covers ${owed.map((one) => one.id).join(", ")}`])];
+}
+
+async function row(ledger: Ledger, milestone: Milestone, onMain: OnMain, problems: string[]): Promise<MilestoneRow> {
+  const owed = owedNotes(ledger, milestone, milestone.tasks);
+  if (milestone.built !== undefined) return { ...milestone, share: 1, count: null, notes: ["built", ...owed] };
   if (milestone.tasks.length === 0) {
     const note = milestone.waits === undefined ? "not started" : `waits for ${milestone.waits}`;
-    return { ...milestone, share: 0, count: null, notes: [note] };
+    return { ...milestone, share: 0, count: null, notes: [note, ...owed] };
   }
   let landed = 0;
   for (const task of milestone.tasks) {
@@ -49,7 +64,7 @@ async function row(milestone: Milestone, onMain: OnMain, problems: string[]): Pr
     }
     if (task.commit !== undefined && (await onMain(task.commit))) landed += 1;
   }
-  return { ...milestone, share: landed / milestone.tasks.length, count: [landed, milestone.tasks.length], notes: openNotes(milestone.tasks) };
+  return { ...milestone, share: landed / milestone.tasks.length, count: [landed, milestone.tasks.length], notes: [...openNotes(milestone.tasks), ...owed] };
 }
 
 export function rowsOf(rows: readonly MilestoneRow[], track: string): MilestoneRow[] {
@@ -57,14 +72,14 @@ export function rowsOf(rows: readonly MilestoneRow[], track: string): MilestoneR
     .filter((row) => row.track.split("+").includes(track) || row.tasks.some((task) => task.track === track))
     .map((row) => {
       const tasks = row.tasks.filter((task) => task.track === track);
-      return { ...row, tasks, notes: row.count === null ? row.notes : openNotes(tasks) };
+      return { ...row, tasks, notes: row.count === null ? row.notes : [...openNotes(tasks), ...owedNotes({ milestones: rows }, row, tasks)] };
     });
 }
 
 export async function summarize(ledger: Ledger, stages: readonly Stage[], onMain: OnMain): Promise<Summary> {
   const problems: string[] = [];
   const rows: MilestoneRow[] = [];
-  for (const milestone of ledger.milestones) rows.push({ ...(await row(milestone, onMain, problems)), track: ownersOf(milestone) });
+  for (const milestone of ledger.milestones) rows.push({ ...(await row(ledger, milestone, onMain, problems)), track: ownersOf(milestone) });
   const stagePct: Record<string, number> = {};
   for (const stage of stages) {
     const inStage = rows.filter((r) => r.stage === stage.id);
