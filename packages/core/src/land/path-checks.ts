@@ -1,4 +1,4 @@
-import { TallyError } from "../errors.ts";
+import { TallyError, namedList } from "../errors.ts";
 import { gitMust } from "../git/run.ts";
 import type { Check, Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
@@ -11,7 +11,6 @@ export interface TurnCheck {
 const ANY_DEPTH = "**";
 const WILDCARD = "*";
 const REGEX_SPECIAL = /[.+?^${}()|[\]\\]/g;
-const MAX_NAMED = 20;
 
 const literal = (text: string): string => text.replace(REGEX_SPECIAL, "\\$&");
 
@@ -42,16 +41,11 @@ export async function changedFiles(checkout: string, range: string): Promise<str
   return [...new Set(names.split("\0").filter((name) => name !== ""))].sort();
 }
 
-function named(files: readonly string[]): string {
-  const shown = files.slice(0, MAX_NAMED).join(", ");
-  return files.length > MAX_NAMED ? `${shown} and ${files.length - MAX_NAMED} more` : shown;
-}
-
 export async function turnChecks(repo: Repo, track: Track, checkout: string, range: string): Promise<TurnCheck[]> {
   const { checks = [], test } = repo.config.commands;
   if (checks.length === 0) return [{ command: track.test ?? test }];
   const files = await changedFiles(checkout, range);
   const chosen = checksFor(checks, files);
-  if (chosen.length === 0) throw new TallyError(`no check in commands.checks covers what this landing changes: ${named(files)}; add a check whose paths match them, so that nothing lands unchecked`);
+  if (chosen.length === 0) throw new TallyError(`no check in commands.checks covers what this landing changes: ${namedList(files)}; add a check whose paths match them, so that nothing lands unchecked`);
   return chosen.map(({ name, command }) => ({ name, command }));
 }

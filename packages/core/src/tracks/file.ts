@@ -1,3 +1,4 @@
+import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { TRACKS_FILE, tracksFileSchema, type OpenedTrack, type TracksFile } from "../schema/tracks.ts";
@@ -7,6 +8,15 @@ import { withLock } from "../store/lock.ts";
 export const tracksPath = (recordsDir: string): string => join(recordsDir, TRACKS_FILE);
 
 export const isOpen = (track: OpenedTrack): boolean => track.closedAt === undefined;
+
+export async function isPresent(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function readTracks(recordsDir: string): Promise<TracksFile> {
   try {

@@ -1,6 +1,5 @@
-import { access } from "node:fs/promises";
 import { dirname, relative } from "node:path";
-import { TallyError } from "../errors.ts";
+import { TallyError, namedList } from "../errors.ts";
 import { revCount } from "../git/refs.ts";
 import { gitMust, gitOut } from "../git/run.ts";
 import { landingCheckoutPath } from "../land/checkout.ts";
@@ -11,7 +10,7 @@ import type { OpenedTrack, TracksFile } from "../schema/tracks.ts";
 import { listClaims } from "../state/claims.ts";
 import { isOperator, listSessions, type Session } from "../state/sessions.ts";
 import { CONFIG_FILE, type Repo } from "../store/records.ts";
-import { changeTracks, isOpen } from "./file.ts";
+import { changeTracks, isOpen, isPresent } from "./file.ts";
 
 export interface TrackClosed {
   track: OpenedTrack;
@@ -25,23 +24,10 @@ interface Entry {
 
 const IGNORED = "!!";
 const OWN_FOLDER = `${dirname(RUNNER)}/`;
-const MAX_NAMED = 20;
 
 const commits = (count: number): string => `${count} commit${count === 1 ? "" : "s"}`;
 
-function named(paths: readonly string[]): string {
-  const shown = [...paths].sort().slice(0, MAX_NAMED).join(", ");
-  return paths.length > MAX_NAMED ? `${shown} and ${paths.length - MAX_NAMED} more` : shown;
-}
-
-async function isPresent(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
+const named = (paths: readonly string[]): string => namedList([...paths].sort());
 
 function entriesOf(status: string): Entry[] {
   const tokens = status.split("\0").filter((token) => token !== "");

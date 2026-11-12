@@ -1,4 +1,3 @@
-import { access } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { OWN_COMMIT, gitMust, gitOut } from "../git/run.ts";
@@ -9,7 +8,7 @@ import { REPO_NAME } from "../repos/name.ts";
 import { DEFAULT_WORKTREE_ROOT, TRACK_BRANCH_PREFIX, type OpenedTrack } from "../schema/tracks.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import { reopenRepo, type Repo } from "../store/records.ts";
-import { changeTracks } from "./file.ts";
+import { changeTracks, isPresent } from "./file.ts";
 
 export interface OpenTrackInput {
   name: string;
@@ -35,15 +34,6 @@ function parentFor(repo: Repo, session: Session, asked: string | undefined): str
   if (isOperator(repo, session)) return asked;
   if (asked !== undefined && asked !== session.track) throw new TallyError(`session ${session.id} is bound to track ${session.track} and may open only a child of ${session.track}, not of ${asked}`);
   return session.track;
-}
-
-async function isPresent(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function assertFree(repo: Repo, track: Pick<OpenedTrack, "name" | "branch" | "parent">, folder: string): Promise<void> {
