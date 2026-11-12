@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
-import { connect, keepingContextAsRecords, opened } from "./support/calling.ts";
+import { connect, keepingContextAsRecords, opened } from "./support/connect.ts";
 
 describe("a session's first call", () => {
   test("in a repository that keeps its context as records, session_open answers with the brief", async () => {

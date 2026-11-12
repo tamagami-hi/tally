@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
-import { connect, opened, type Call } from "./support/calling.ts";
+import { connect, opened, type Call } from "./support/connect.ts";
 
 interface Serving {
   call: Call;

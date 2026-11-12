@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
-import { connect, opened } from "./support/calling.ts";
+import { connect, opened } from "./support/connect.ts";
 
 const section = { group: "data", milestone: "B2", title: "The replay store", date: "2026-11-05" };
 

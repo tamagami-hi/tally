@@ -1,8 +1,9 @@
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { isRead, targetOf } from "../src/decorators/activity.ts";
-import { manyRepos } from "../src/source.ts";
+import { activity, isRead, targetOf } from "../src/decorators/activity.ts";
+import { ok } from "../src/respond.ts";
+import { manyRepos, oneRepo } from "../src/source.ts";
 import { logActivity } from "../../core/src/records/activity.ts";
 import { configureRepo } from "../../core/src/repos/configure.ts";
 import { addRepo } from "../../core/src/repos/list.ts";
@@ -11,7 +12,7 @@ import { busyLock } from "../../core/tests/support/busy.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
-import { connect, keepingContextAsRecords, opened, type Call } from "./support/calling.ts";
+import { connect, keepingContextAsRecords, opened, type Call } from "./support/connect.ts";
 
 interface Logged {
   session: string;
@@ -81,15 +82,18 @@ describe("the activity log through the tools", () => {
     expect(await logged(call)).toMatchObject([{ verb: "session_close", session: data, track: "data", agent: "claude" }]);
   });
 
-  test("in a repository that keeps its context in Markdown nothing is logged and no answer changes", async () => {
+  test("in a repository that keeps its context in Markdown nothing is logged and the answer is handed back as it came", async () => {
     const { repo, root, trees } = await makeTracked();
     const { call } = await connect(repo);
     const data = await opened(call, trees["data"]!);
+    const answer = ok({ message: "B2: planned", commit: null });
 
     const planned = await call("task_plan", { sessionId: data, milestone: "B2", tasks: ["6 more"] });
+    const decorated = await activity({ tool: "task_plan", args: { sessionId: data, milestone: "B2" }, result: answer, source: oneRepo(repo) });
     const closed = await call("session_close", { sessionId: data });
 
-    expect(Object.keys(planned.structured)).toEqual(["message", "commit"]);
+    expect(planned.isError).toBe(false);
+    expect(decorated).toBe(answer);
     expect(Object.keys(closed.structured)).toEqual(["session", "releasedClaims", "releasedLocks", "recordsCommit"]);
     await expect(access(join(root, "docs/records/log"))).rejects.toThrow();
     expect(await logged(call)).toEqual([]);
