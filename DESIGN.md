@@ -237,6 +237,8 @@ What the morning's approval settled still stands unless §18 lists it: records a
 - Agents reach it at one MCP URL. The CLI becomes a client of the same server (§14.9).
 - The container has no compiler and no test runner, so it never runs a repository's commands. The agent runs them through a script tally writes, and tally checks the result (§14.8).
 
+**Repositories are isolated.** A session reads and writes only its own repository's records, context and logs. Nothing is shared between repositories: what agents working in parallel share, they share inside one repository. The overview and `repo_list` show every repository's name and progress, and nothing more.
+
 ### 14.2 The service
 
 `Dockerfile` and `compose.yaml` at this repository's root build one image: Node 24, git, and the built packages. Nothing of any tracked repository's toolchain is in it.
