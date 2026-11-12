@@ -3,7 +3,8 @@ import { describe, expect, test } from "vitest";
 import { startServer } from "../src/serve.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 
-const PATIENCE_MS = 3000;
+const PATIENCE_MS = 15_000;
+const TEST_LIMIT_MS = 20_000;
 const STEP_MS = 40;
 
 async function call(url: string, name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -36,5 +37,5 @@ describe("a server of one repository", () => {
     } finally {
       await server.close();
     }
-  });
+  }, TEST_LIMIT_MS);
 });

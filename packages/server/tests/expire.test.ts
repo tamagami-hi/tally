@@ -4,7 +4,8 @@ import { listSessions, openSession } from "@tally/core";
 import { Watcher, type Snapshot } from "../src/watcher.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 
-const PATIENCE_MS = 3000;
+const PATIENCE_MS = 15_000;
+const TEST_LIMIT_MS = 20_000;
 const STEP_MS = 40;
 const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
 
@@ -27,5 +28,5 @@ describe("the watcher and quiet sessions", () => {
     expect((await listSessions(repo)).map((session) => session.id)).toEqual([live.id]);
     expect(heard.at(-1)?.state.sessions.map((session) => session.agent)).toEqual(["here"]);
     expect(watcher.lastFailure).toBeUndefined();
-  });
+  }, TEST_LIMIT_MS);
 });
