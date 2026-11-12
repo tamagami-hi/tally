@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Repo } from "@tally/core";
 import { registerCheckTools } from "./tools/checks.ts";
+import { registerContextTools } from "./tools/context.ts";
 import { registerDocTools } from "./tools/docs.ts";
 import { registerLandTools } from "./tools/land.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
@@ -24,6 +25,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   registerLandTools(tools, source);
   registerDocTools(tools, source);
   registerCheckTools(tools, source);
+  registerContextTools(tools, source);
   return server;
 }
 
