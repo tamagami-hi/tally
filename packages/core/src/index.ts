@@ -1,5 +1,5 @@
 export { TallyError, messageOf } from "./errors.ts";
-export { configSchema, stageSchema, trackSchema } from "./schema/config.ts";
+export { CONTEXT_AS_RECORDS, configSchema, keepsContextAsRecords, stageSchema, trackSchema } from "./schema/config.ts";
 export type { Config, Stage, Track } from "./schema/config.ts";
 export { ledgerSchema, milestoneSchema, taskSchema, taskStatuses } from "./schema/ledger.ts";
 export type { Ledger, Milestone, OtherCommit, Task, TaskStatus } from "./schema/ledger.ts";

@@ -21,6 +21,15 @@ describe("starting a repository's records", () => {
     expect(await sh(git.root, ["show", "--stat", "--format=", "HEAD"])).toContain("docs/records/config.json");
   });
 
+  test("marks the repository as one whose context is kept as records", async () => {
+    const git = await makeRepo();
+
+    const repo = await startRecords(git.root, IDENTITY);
+
+    expect(repo.config.context).toBe("records");
+    expect(JSON.parse(await readFile(join(git.root, "docs/records/config.json"), "utf8"))).toMatchObject({ context: "records" });
+  });
+
   test.each([["package.json", ["npm", "test"]], ["Cargo.toml", ["cargo", "test"]], ["pyproject.toml", ["pytest"]], ["go.mod", ["go", "test", "./..."]]])("reads the check from %s", async (file, command) => {
     const git = await makeRepo();
     await git.commit(file, "", "chore: a project file");

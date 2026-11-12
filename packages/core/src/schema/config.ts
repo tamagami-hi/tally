@@ -21,6 +21,8 @@ export const stageSchema = z.object({
   weight: z.number().int().positive(),
 });
 
+export const CONTEXT_AS_RECORDS = "records";
+
 export const configSchema = z.object({
   schema: z.literal(1),
   name: z.string().min(1),
@@ -56,9 +58,12 @@ export const configSchema = z.object({
     })
     .default({ dir: "docs/records", commitPrefix: "records:", commit: true }),
   locks: z.array(z.string().min(1)).default(["landing"]),
+  context: z.literal(CONTEXT_AS_RECORDS).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
+
+export const keepsContextAsRecords = (config: Pick<Config, "context">): boolean => config.context === CONTEXT_AS_RECORDS;
 export type Track = z.infer<typeof trackSchema>;
 export type Landing = z.infer<typeof landingSchema>;
 export type Stage = z.infer<typeof stageSchema>;

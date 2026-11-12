@@ -42,6 +42,13 @@ describe("the config schema", () => {
     expect(() => configSchema.parse(bad)).toThrow(/weight/);
   });
 
+  test("takes the marker that a repository's context is kept as records, and leaves it out by default", () => {
+    expect(configSchema.parse(minimal).context).toBeUndefined();
+
+    expect(configSchema.parse({ ...minimal, context: "records" }).context).toBe("records");
+    expect(() => configSchema.parse({ ...minimal, context: "markdown" })).toThrow(/context/);
+  });
+
   test("refuses two tracks with one name", () => {
     const twice = { ...minimal, tracks: [minimal.tracks[0], minimal.tracks[0]] };
     expect(() => configSchema.parse(twice)).toThrow(/track/);
