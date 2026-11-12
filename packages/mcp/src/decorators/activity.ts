@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { keepsContextAsRecords, listSessions, logActivity, messageOf, sessionSchema, type Repo, type Session } from "@tally/core";
+import { flushWhenFree, keepsContextAsRecords, listSessions, logActivity, messageOf, sessionSchema, type Repo, type Session } from "@tally/core";
 import type { Called, Decorator } from "../decorate.ts";
 
 interface Actor {
@@ -54,6 +54,7 @@ export const activity: Decorator = async (called) => {
   const target = targetOf(args);
   try {
     await logActivity(actor.repo, { session: actor.session.id, track: actor.session.track, agent: actor.session.agent, verb: tool, ...(target === undefined ? {} : { target }) });
+    if ((await listSessions(actor.repo)).length === 0) await flushWhenFree(actor.repo);
     return result;
   } catch (error: unknown) {
     return withProblem(result, messageOf(error));

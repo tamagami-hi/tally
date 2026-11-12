@@ -113,6 +113,17 @@ describe("the activity log through the tools", () => {
     expect(await waiting()).toBe(`M docs/records/log/${day}.json`);
   });
 
+  test("when the last session closes, what waited is committed and the checkout is left clean", async () => {
+    const { call, data, root } = await serving({ commit: true });
+    await call("task_plan", { sessionId: data, milestone: "B2", tasks: ["6 more"] });
+
+    await call("session_close", { sessionId: data });
+
+    expect(await sh(root, ["status", "--porcelain", "--untracked-files=all", "--", "docs/records"])).toBe("");
+    expect(await sh(root, ["log", "-1", "--format=%s"])).toMatch(/^records: 1 record file up to [0-9a-f]{7}$/);
+    expect((await logged(call)).map((event) => event.verb)).toEqual(["task_plan", "session_close"]);
+  });
+
   test("a log that could not be written is said in the answer, and the write itself stands", async () => {
     const { call, data } = await serving();
     busyLock(`${new Date().toISOString().slice(0, 10)}.json`);
