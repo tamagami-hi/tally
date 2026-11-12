@@ -582,7 +582,7 @@ RULES.md is amended as each phase is built:
 
 ### 17.4 As built (2026-11-12)
 
-Phases 5, 6 and 7 are built on the branch `phase5-service`, tests first, with 54 MCP tools. The first tracked repository's cut-over (§17.2) has not been made. Where the build differs from the sections above:
+Phases 5, 6 and 7 are built, tests first, with 54 MCP tools, and are on `main`. The first tracked repository's cut-over (§17.2) has not been made. Where the build differs from the sections above:
 
 **Kept until the cut-over, as §18's decision 10 says:**
 - `evidence_run`, `land_run` and the three `docs_*` tools are still there. A server of one repository, started with `--repo` on the host, needs them.
