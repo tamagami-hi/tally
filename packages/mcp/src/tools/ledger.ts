@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
-  COVERED, Records, TallyError, addMilestone, assertMayWrite, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, findMilestone, findTask, getSession, isOperator,
-  listClaims, listLocks, logLines, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unrecorded, unwait, wait, type Ledger, type Repo, type Session,
+  Records, TallyError, addMilestone, assertMayWrite, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, findMilestone, findTask, getSession, isOperator,
+  listClaims, listLocks, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -14,6 +14,13 @@ async function recorded(repo: Repo, message: string): Promise<{ message: string;
 function assertMayWriteTask(repo: Repo, session: Session, ledger: Ledger, milestone: string, task: string): void {
   const track = findTask(findMilestone(ledger, milestone), task)?.track;
   if (track !== undefined) assertMayWrite(repo, session, track);
+}
+
+const SCOPE = z.enum(["all", "mine"]).default("all");
+
+async function own(repo: Repo, sessionId: string | undefined): Promise<Session> {
+  if (sessionId === undefined) throw new TallyError("scope 'mine' needs the sessionId");
+  return getSession(repo, sessionId);
 }
 
 function scopedTrack(repo: Repo, session: Session, given: string | undefined): string {
@@ -32,24 +39,23 @@ const plannedTask = z.object({
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "board_get",
-    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps only the session's track: its rows, their tasks and notes, its branch and its claims.", inputSchema: { scope: z.enum(["all", "mine"]).default("all"), ...WHERE } },
+    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps only the session's track: its rows, their tasks and notes, its branch and its claims.", inputSchema: { scope: SCOPE, ...WHERE } },
     ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const status = await collect(repo, await new Records(repo).readLedger());
       const claims = await listClaims(repo);
       const locks = await listLocks(repo);
       if (scope === "all") return ok({ ...status, claims, locks });
-      if (sessionId === undefined) throw new TallyError("scope 'mine' needs the sessionId");
-      const session = await getSession(repo, sessionId);
+      const session = await own(repo, sessionId);
       return ok({ ...status, rows: rowsOf(status.rows, session.track), tracks: status.tracks.filter((t) => t.isMain || t.track === session.track), claims: claims.filter((c) => c.track === session.track), locks });
     }),
   );
   server.registerTool(
     "ledger_check",
-    { description: "The commits on main the ledger does not account for; empty when every commit is recorded.", inputSchema: { ...WHERE } },
-    ({ sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
-      const ledger = await new Records(repo).readLedger();
-      const missing = unrecorded(ledger, await logLines(repo.root, `${ledger.baseline}..${repo.config.mainBranch}`), repo.config.records.commitPrefix);
-      return ok({ missing, covered: missing.length === 0 }, missing.length === 0 ? COVERED : missing.join("\n"));
+    { description: "The commits on main the ledger does not account for, in `missing`; empty when every commit is recorded. `gaps` lists, each as a sentence, a deliverable no task covers, a wait on a task that is not in the ledger, and a deferred part with no task there to finish it. scope 'mine' (with sessionId) keeps only the gaps of the session's track, and, when the track has paths in the config, only the commits whose files are all under them; without paths `missing` is unchanged and `note` says so.", inputSchema: { scope: SCOPE, ...WHERE } },
+    ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+      const track = scope === "all" ? undefined : (await own(repo, sessionId)).track;
+      const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), track);
+      return ok(check, text);
     }),
   );
   server.registerTool(
