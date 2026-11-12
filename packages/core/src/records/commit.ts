@@ -1,5 +1,5 @@
 import { TallyError } from "../errors.ts";
-import { git, gitMust, type GitResult } from "../git/run.ts";
+import { asIdentity, git, gitMust, type GitResult } from "../git/run.ts";
 import { statePath } from "../land/paths.ts";
 import { LANDING_RETRIES, LockBusy, withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
@@ -23,8 +23,7 @@ async function commitStaged(repo: Repo, message: (files: number, head: string) =
     const files = staged.stdout.split("\n").filter((line) => line !== "").length;
     if (files === 0) return null;
     const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
-    const identity = ["-c", `user.name=${config.identity.name}`, "-c", `user.email=${config.identity.email}`];
-    const committed = await untilIndexFree(root, [...identity, "commit", "-q", "-m", `${config.records.commitPrefix} ${message(files, head)}`, "--", config.records.dir]);
+    const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", "-m", `${config.records.commitPrefix} ${message(files, head)}`, "--", config.records.dir]);
     if (committed.code !== 0) throw new TallyError(`git commit failed in ${root}:\n${committed.stderr.trim()}`);
     return gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
   }, LANDING_RETRIES);

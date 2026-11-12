@@ -1,6 +1,10 @@
 import { execFile } from "node:child_process";
 import { TallyError } from "../errors.ts";
 
+export const OWN_COMMIT: readonly string[] = ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false"];
+
+export const asIdentity = (identity: { name: string; email: string }): string[] => [...OWN_COMMIT, "-c", `user.name=${identity.name}`, "-c", `user.email=${identity.email}`];
+
 export interface GitResult {
   code: number;
   stdout: string;

@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { TallyError, messageOf } from "../errors.ts";
-import { gitMust } from "../git/run.ts";
+import { asIdentity, gitMust } from "../git/run.ts";
 import type { Landing, Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
 import { LANDING_RETRIES, withLock } from "../store/lock.ts";
@@ -54,9 +54,8 @@ async function reuseVerification({ repo, deps, tree }: Attempt, verified: string
 
 async function commitNamedFiles({ repo, options, tree }: Attempt): Promise<void> {
   if (options.messageFile === undefined) return;
-  const { name, email } = repo.config.identity;
   await gitMust(tree, ["add", "--", ...options.files]);
-  await gitMust(tree, ["-c", `user.name=${name}`, "-c", `user.email=${email}`, "commit", "--file", resolve(options.messageFile)]);
+  await gitMust(tree, [...asIdentity(repo.config.identity), "commit", "--file", resolve(options.messageFile)]);
 }
 
 async function fastForward({ repo, main }: Attempt, target: string): Promise<void> {

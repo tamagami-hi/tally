@@ -1,7 +1,7 @@
 import { access, appendFile, mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { TallyError } from "../errors.ts";
-import { git, gitMust, gitOut } from "../git/run.ts";
+import { asIdentity, git, gitMust, gitOut } from "../git/run.ts";
 import { configSchema } from "../schema/config.ts";
 import { RECORDS_DIR, initRecords, type Repo } from "../store/records.ts";
 
@@ -13,7 +13,6 @@ export const NO_CHECK = ["sh", "-c", "echo 'no check is set for this repository 
 export const START_MESSAGE = "records: start tracking";
 
 const TEMP = ".temp/";
-const QUIET = ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false"];
 const DETECTED: readonly (readonly [file: string, command: readonly string[]])[] = [
   ["package.json", ["npm", "test"]],
   ["Cargo.toml", ["cargo", "test"]],
@@ -70,6 +69,6 @@ export async function startRecords(root: string, defaults: StartDefaults = {}): 
   await ignoreTemp(root);
   const repo = await initRecords(root, config, baseline);
   await gitMust(root, ["add", "--", RECORDS_DIR]);
-  await gitMust(root, [...QUIET, "-c", `user.name=${identity.name}`, "-c", `user.email=${identity.email}`, "commit", "-q", "-m", START_MESSAGE, "--", RECORDS_DIR]);
+  await gitMust(root, [...asIdentity(identity), "commit", "-q", "-m", START_MESSAGE, "--", RECORDS_DIR]);
   return repo;
 }
