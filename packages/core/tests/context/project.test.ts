@@ -40,6 +40,7 @@ describe("the project record", () => {
 
     await expect(setProject(repo, DATA, { purpose: "x" })).rejects.toThrow("only an operator session writes the project record; a track that wants a change asks a question with question_add");
     await expect(setProject(repo, OPERATOR, {})).rejects.toThrow("the project record needs at least one of purpose, stack, layout and glossary");
+    await expect(setProject(repo, OPERATOR, { stack: ["rust", ""], layout: [{ path: "src", what: "" }] })).rejects.toThrow(/^the project record would not fit its schema:\n  stack\.1: .*\n  layout\.0\.what: /);
     expect(await readProject(repo)).toMatchObject({ purpose: "" });
   });
 
