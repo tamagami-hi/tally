@@ -24,6 +24,59 @@ function draw(overrides: Partial<AddRepoProps> = {}) {
   return props;
 }
 
+describe("the panel for adding a repository", () => {
+  test("is a dialog that floats over the page, whatever is open behind it", () => {
+    draw();
+
+    const dialog = screen.getByRole("dialog", { name: "Add a repository" });
+
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog.parentElement).toHaveClass("overlay");
+  });
+
+  test("closes on Escape, and when the page behind it is pressed, and not when the panel itself is", () => {
+    const props = draw();
+    const dialog = screen.getByRole("dialog", { name: "Add a repository" });
+
+    fireEvent.mouseDown(dialog);
+    expect(props.onClose).not.toHaveBeenCalled();
+    fireEvent.mouseDown(dialog.parentElement ?? dialog);
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(props.onClose).toHaveBeenCalledTimes(2);
+  });
+
+  test("takes the focus when it opens and gives it back when it closes", () => {
+    render(<button type="button">Add repository</button>);
+    const opener = screen.getByRole("button", { name: "Add repository" });
+    opener.focus();
+
+    const props: AddRepoProps = { listing, error: null, busy: false, onOpen: vi.fn(), onAdd: vi.fn(), onClose: vi.fn() };
+    const drawn = render(<AddRepo {...props} />);
+    const heldInside = screen.getByRole("dialog", { name: "Add a repository" }).contains(document.activeElement);
+    drawn.unmount();
+
+    expect(heldInside).toBe(true);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  test("keeps Tab inside itself: from the last control to the first, and back", () => {
+    draw();
+    const dialog = screen.getByRole("dialog", { name: "Add a repository" });
+    const controls = [...dialog.querySelectorAll<HTMLElement>("button, input")];
+    const first = controls[0];
+    const last = controls.at(-1);
+
+    last?.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    const afterLast = document.activeElement;
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+
+    expect(afterLast).toBe(first);
+    expect(document.activeElement).toBe(last);
+  });
+});
+
 describe("adding a repository", () => {
   test("shows the folder it is in and goes up to its parent", () => {
     const props = draw();

@@ -83,6 +83,7 @@ describe("the page on a server for every repository", () => {
     at("/");
 
     fireEvent.click(await screen.findByRole("button", { name: "Add repository" }));
+    expect(screen.getByRole("dialog", { name: "Add a repository" }).closest(".frame-main")).toBeNull();
     fireEvent.click(await screen.findByRole("button", { name: "Add gamma" }));
 
     await waitFor(() => expect(sent.some((request) => request.method === "POST")).toBe(true));
@@ -90,7 +91,7 @@ describe("the page on a server for every repository", () => {
     expect(posted?.path).toBe("/api/repos");
     expect(posted?.body).toEqual({ root: "/work/gamma" });
     expect(posted?.headers).toMatchObject({ "content-type": "application/json", "x-tally-operator": "1" });
-    await waitFor(() => expect(screen.queryByRole("region", { name: "Add a repository" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add a repository" })).toBeNull());
   });
 
   test("shows why the server refused an action", async () => {

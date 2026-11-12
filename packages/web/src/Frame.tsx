@@ -52,9 +52,9 @@ export function Frame({ index, current, layout, children }: FrameProps) {
       <Sidebar index={index} current={current} collapsed={collapsed} onToggle={toggle} onAdd={() => setAdding(true)} onRemove={remove} onDefault={makeDefault} />
       <div className="frame-main">
         {refused !== null && !adding ? <p className="problems" role="alert">{refused}</p> : null}
-        {adding ? <AddRepo listing={folders.listing} error={refused ?? folders.error?.message ?? null} busy={busy} onOpen={setDir} onAdd={add} onClose={close} /> : null}
         {children}
       </div>
+      {adding ? <AddRepo listing={folders.listing} error={refused ?? folders.error?.message ?? null} busy={busy} onOpen={setDir} onAdd={add} onClose={close} /> : null}
     </div>
   );
 }
