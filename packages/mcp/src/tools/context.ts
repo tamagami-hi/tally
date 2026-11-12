@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ENTRY_KINDS, MAX_TEXT, MAX_TITLE, TallyError, configureRepo, entrySchema, findEntries, putEntry, retireEntry, setProject, type Entry } from "@tally/core";
+import { ENTRY_KINDS, MAX_TEXT, MAX_TITLE, TallyError, configureRepo, entrySchema, findEntries, putEntry, readActivity, retireEntry, setProject, type Entry } from "@tally/core";
 import { defined } from "../defined.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -7,6 +7,8 @@ import type { ToolHost } from "../decorate.ts";
 
 const DEFAULT_ENTRIES = 50;
 const MOST_ENTRIES = 200;
+const DEFAULT_EVENTS = 100;
+const MOST_EVENTS = 500;
 const ENTRY_FIELDS = Object.keys(entrySchema.shape);
 
 function keeping(fields: readonly string[] | undefined): (entry: Entry) => Record<string, unknown> {
@@ -77,5 +79,18 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
     "repo_configure",
     { description: "Change the repository's config record (operator session only). `config` holds the keys to set: a top-level key replaces what was there, and `commands` merges one level deep, so setting `commands.test` keeps the rest. The result must fit the config's schema, and a key the schema does not have is refused by name; nothing is written then.", inputSchema: { sessionId: z.string(), config: z.record(z.string(), z.unknown()) } },
     ({ sessionId, config }) => inSession(source, sessionId, async (repo, session) => ok(await configureRepo(repo, session, config))),
+  );
+  server.registerTool(
+    "activity_get",
+    {
+      description: "What sessions did in this repository, the oldest first: one event for each write a tool made, with when, the session, its track and agent, the tool (`verb`) and what it was aimed at (`target`). Ask with the time you last looked to read what happened while you were away. `matched` says how many there were before `limit`, which keeps the latest. The log is kept only by a repository whose config says `context: \"records\"`.",
+      inputSchema: {
+        since: z.string().optional().describe("an ISO time: only what came after it"),
+        track: z.string().optional().describe("only this track's events"),
+        limit: z.number().int().positive().max(MOST_EVENTS).default(DEFAULT_EVENTS),
+        ...WHERE,
+      },
+    },
+    ({ sessionId, repo: name, ...filter }) => reading(source, { sessionId, repo: name }, async (repo) => ok(await readActivity(repo, defined(filter)))),
   );
 }
