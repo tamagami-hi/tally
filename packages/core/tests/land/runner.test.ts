@@ -104,6 +104,15 @@ describe("the runner tally writes into a worktree", () => {
     expect(result["note"]).toBe("after the rename\n");
   });
 
+  test("refuses a kind that is not a plain word, so a log never lands outside its folder", async () => {
+    const { tree } = await ready();
+
+    const ran = await run(tree, ["../../escape", "--task", "B2:4 manifest", "--", "true"]);
+
+    expect(ran.exit).toBe(2);
+    await expect(readdir(join(tree, RESULTS))).rejects.toThrow();
+  });
+
   test("refuses a call with no command and leaves no result", async () => {
     const { tree } = await ready();
 

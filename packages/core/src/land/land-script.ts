@@ -1,6 +1,6 @@
 import type { Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
-import { environmentLines, quoted } from "./runner.ts";
+import { environmentLines, quoted, variable } from "./runner.ts";
 
 export interface LandScriptInput {
   repo: Repo;
@@ -10,17 +10,20 @@ export interface LandScriptInput {
   commits: readonly string[];
   resultDir: string;
   log: string;
+  name: string;
+  owner: string;
 }
 
 const BEAT_SECONDS = 5;
+const REPLACED = 3;
 
 function landingEnvironment({ repo, tree, track }: LandScriptInput): string[] {
   const filled = (value: string): string => value.replaceAll("{worktree}", () => tree).replaceAll("{track}", () => track.name);
-  return Object.entries(repo.config.commands.landing?.env ?? {}).map(([name, value]) => `export ${name}=${quoted(filled(value))}`);
+  return Object.entries(repo.config.commands.landing?.env ?? {}).map(([name, value]) => `export ${variable(name)}=${quoted(filled(value))}`);
 }
 
 export function landScript(input: LandScriptInput): string {
-  const { repo, track, tree, checkout, commits, resultDir, log } = input;
+  const { repo, track, tree, checkout, commits, resultDir, log, name, owner } = input;
   const command = (track.test ?? repo.config.commands.test).map(quoted).join(" ");
   const links = (repo.config.commands.landing?.link ?? []).map((path) => `  [ "$one" -ne 0 ] || link ${quoted(path)} >> "$log" 2>&1 || one=1`);
   return [
@@ -30,10 +33,15 @@ export function landScript(input: LandScriptInput): string {
     `checkout=${quoted(checkout)}`,
     `final=${quoted(resultDir)}`,
     `log=${quoted(log)}`,
+    `name=${quoted(name)}`,
+    `owner=${quoted(owner)}`,
     'out="$final.tmp"',
     'beat="$final.beat"',
-    'rm -rf "$out"',
-    'mkdir -p "$out" "$(dirname "$log")"',
+    'owns() { [ "$(cat "$owner" 2>/dev/null)" = "$name" ]; }',
+    'if [ -e "$final/exit" ]; then echo "tally: the checks of this turn already ran; call land_wait" >&2; exit "$(cat "$final/exit")"; fi',
+    `if ! owns; then echo "tally: this turn was replaced by a later one, so nothing is run; call land_wait" >&2; exit ${REPLACED}; fi`,
+    `if ! mkdir "$out" 2>/dev/null; then echo "tally: the checks of this turn are already running" >&2; exit ${REPLACED}; fi`,
+    'mkdir -p "$(dirname "$log")"',
     ': > "$log"',
     'touch "$beat"',
     `( while kill -0 $$ 2>/dev/null; do touch "$beat"; sleep ${BEAT_SECONDS}; done ) >/dev/null 2>&1 &`,
@@ -48,7 +56,8 @@ export function landScript(input: LandScriptInput): string {
     '  ln -s "$tree/$1" "$checkout/$1"',
     "}",
     "code=0",
-    `for commit in ${commits.join(" ")}; do`,
+    `for commit in ${commits.map(quoted).join(" ")}; do`,
+    `  if ! owns; then echo "tally: this turn was replaced by a later one; its checks stop here" | tee -a "$log" >&2; kill "$beater" 2>/dev/null; exit ${REPLACED}; fi`,
     '  echo "== $(git -C "$checkout" log -1 --format=\'%h %s\' "$commit")" | tee -a "$log"',
     "  one=0",
     '  git -C "$checkout" checkout --quiet --detach --force "$commit" >> "$log" 2>&1 && git -C "$checkout" clean --quiet -fd >> "$log" 2>&1 || one=1',
@@ -56,6 +65,7 @@ export function landScript(input: LandScriptInput): string {
     '  if [ "$one" -eq 0 ]; then',
     `    { ( cd "$checkout" && ${command} ); echo "$?" > "$out/one"; } 2>&1 | tee -a "$log"`,
     '    one="$(cat "$out/one" 2>/dev/null || echo 1)"',
+    '    if [ "$(git -C "$checkout" rev-parse HEAD 2>/dev/null)" != "$commit" ]; then echo "tally: the checkout moved while the checks ran, so this run does not count" | tee -a "$log" >&2; one=1; fi',
     "  fi",
     '  echo "$commit $one" >> "$out/commits"',
     '  if [ "$one" -ne 0 ]; then code="$one"; break; fi',
@@ -65,7 +75,7 @@ export function landScript(input: LandScriptInput): string {
     'printf \'%s\\n\' "$code" > "$out/exit"',
     'printf \'%s\\n\' "$log" > "$out/log"',
     'mv "$out" "$final"',
-    'echo "tally: the landing\'s checks exited $code; the log is $log" >&2',
+    'echo "tally: the checks of this landing exited $code; the log is $log" >&2',
     'exit "$code"',
     "",
   ].join("\n");

@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { readFile, realpath } from "node:fs/promises";
+import { relative, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -14,11 +14,11 @@ const MS_PER_SECOND = 1000;
 async function messageOfLanding(worktree: string, message: string | undefined, messageFile: string | undefined): Promise<string | undefined> {
   if (message !== undefined && messageFile !== undefined) throw new TallyError("give the message or a file that holds it, not both");
   if (messageFile === undefined) return message;
-  try {
-    return await readFile(resolve(worktree, messageFile), "utf8");
-  } catch {
-    throw new TallyError(`the message file does not exist: ${resolve(worktree, messageFile)}`);
-  }
+  const outside = new TallyError(`the message file must be inside the worktree: ${messageFile}`);
+  const real = await realpath(resolve(worktree, messageFile)).catch(() => undefined);
+  if (real === undefined) throw relative(worktree, resolve(worktree, messageFile)).startsWith("..") ? outside : new TallyError(`the message file does not exist: ${messageFile}`);
+  if (relative(await realpath(worktree), real).startsWith("..")) throw outside;
+  return readFile(real, "utf8");
 }
 
 const settled = (view: TicketView, after: string | undefined): boolean => view.state !== "queued" && view.state !== after;

@@ -13,7 +13,7 @@ const USAGE = "usage: .temp/tally/run <kind> [--task MILESTONE:TASK] [--note TEX
 
 export const quoted = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
 
-function variable(name: string): string {
+export function variable(name: string): string {
   if (!VARIABLE.test(name)) throw new TallyError(`the config names an environment variable a shell cannot set: '${name}'`);
   return name;
 }
@@ -39,6 +39,7 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     `usage=${quoted(USAGE)}`,
     'if [ "$#" -lt 1 ]; then echo "$usage" >&2; exit 2; fi',
     'kind="$1"; shift',
+    'case "$kind" in ""|*[!a-z-]*) echo "$usage" >&2; exit 2 ;; esac',
     "task=''; note=''",
     'while [ "$#" -gt 0 ]; do',
     '  case "$1" in',

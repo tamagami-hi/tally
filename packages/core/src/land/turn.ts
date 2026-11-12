@@ -12,12 +12,11 @@ import { openLandingCheckout } from "./checkout.ts";
 import { undoCommit } from "./clean.ts";
 import { landScript } from "./land-script.ts";
 import { statePath, trackOf } from "./paths.ts";
-import { isActive, putTicket, queueFile, type Ticket } from "./queue.ts";
+import { isActive, putTicket, queueFile, swapTicket, type Ticket } from "./queue.ts";
 import { recordLanding } from "./record.ts";
 import { LOGS } from "./runner.ts";
 
 export const LANDING_DIR = ".temp/tally/landing";
-export const LAND_SCRIPT = ".temp/tally/land.sh";
 
 const START_MS = 120_000;
 const STALL_MS = 60_000;
@@ -41,7 +40,7 @@ interface Result {
 
 const short = (sha: string): string => sha.slice(0, SHORT_HASH);
 
-const resultDir = (ticket: Ticket): string => join(ticket.worktree, LANDING_DIR, ticket.id);
+const ownerFile = (ticket: Ticket): string => join(ticket.worktree, LANDING_DIR, "owner");
 
 const ended = (ticket: Ticket, state: "landed" | "failed", now: Date, more: Partial<Ticket>): Ticket => {
   const { turn: _turn, ...rest } = ticket;
@@ -62,6 +61,8 @@ async function commitNamed(repo: Repo, ticket: Ticket): Promise<Committed> {
   await writeFile(file, ticket.message);
   await gitMust(tree, ["diff", "--check", "--", ...ticket.files]);
   await gitMust(tree, ["add", "--", ...ticket.files]);
+  const nothingNew = (await git(tree, ["diff", "--cached", "--quiet", "--", ...ticket.files])).code === 0;
+  if (nothingNew) return { before, tip: before };
   await gitMust(tree, [...asIdentity(repo.config.identity), "commit", "--quiet", "--file", file, "--", ...ticket.files]);
   return { before, tip: await gitMust(tree, ["rev-parse", "HEAD"]) };
 }
@@ -84,21 +85,30 @@ async function prepare(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket> {
   let made = ticket.committed;
   try {
     const track = trackOf(config, ticket.track);
+    if ((track.test ?? config.commands.test).length === 0) throw new TallyError(`the config names no check for track ${track.name}`);
     await checkCheckout(repo);
     if ((await currentBranch(ticket.worktree)) !== track.branch) throw new TallyError("worktree is not on its track branch");
-    made = made ?? (await commitNamed(repo, ticket));
+    if (made === undefined) {
+      made = await commitNamed(repo, ticket);
+      await putTicket(repo, { ...ticket, committed: made });
+    }
     const base = await gitMust(root, ["rev-parse", config.mainBranch]);
     const checkout = await openLandingCheckout(ticket.worktree, track.name);
     const top = await rebased(repo, checkout, track.name, made.tip);
     const commits = (await gitMust(checkout, ["rev-list", "--reverse", `${base}..${top}`])).split("\n").filter((line) => line !== "");
     if (commits.length === 0) return ended(ticket, "landed", now, { committed: made, landed: { head: short(base), commits: [] }, note: "nothing new to land" });
-    const script = join(ticket.worktree, LAND_SCRIPT);
+    const attempts = ticket.attempts + 1;
+    const name = `${ticket.id}-${attempts}`;
+    const result = join(ticket.worktree, LANDING_DIR, name);
+    const script = `${result}.sh`;
     await mkdir(dirname(script), { recursive: true });
-    await writeFile(script, landScript({ repo, track, tree: ticket.worktree, checkout, commits, resultDir: resultDir(ticket), log: join(root, LOGS, track.name, `land-${ticket.id}.log`) }));
-    await chmod(script, 0o755);
-    return { ...ticket, state: "turn", committed: made, turn: { startedAt: now.toISOString(), base, rebased: top, commits, script } };
+    await writeFile(`${script}.tmp`, landScript({ repo, track, tree: ticket.worktree, checkout, commits, resultDir: result, log: join(root, LOGS, track.name, `land-${name}.log`), name, owner: ownerFile(ticket) }));
+    await chmod(`${script}.tmp`, 0o755);
+    await rename(`${script}.tmp`, script);
+    await writeFile(`${ownerFile(ticket)}.tmp`, `${name}\n`);
+    await rename(`${ownerFile(ticket)}.tmp`, ownerFile(ticket));
+    return { ...ticket, state: "turn", attempts, committed: made, turn: { name, startedAt: now.toISOString(), base, rebased: top, commits, script, result } };
   } catch (error: unknown) {
-    if (!(error instanceof TallyError)) throw error;
     return failed(ticket, made, now, messageOf(error));
   }
 }
@@ -120,26 +130,39 @@ async function readResult(folder: string): Promise<Result | undefined> {
   }
 }
 
-async function stalled(ticket: Ticket, startedAt: string, now: Date): Promise<string | undefined> {
+async function stalled(result: string, startedAt: string, now: Date): Promise<string | undefined> {
   const waited = now.getTime() - new Date(startedAt).getTime();
   if (waited > LIMIT_MS) return `it passed the turn's limit of ${LIMIT_MS / 60_000} minutes`;
-  const beat = await stat(`${resultDir(ticket)}.beat`).catch(() => undefined);
+  const beat = await stat(`${result}.beat`).catch(() => undefined);
   if (beat === undefined) return waited > START_MS ? `the script was not started within ${START_MS / 60_000} minutes` : undefined;
   return now.getTime() - beat.mtimeMs > STALL_MS ? "the script stopped and left no result" : undefined;
 }
 
 async function follow(ticket: Ticket, made: Committed, top: string): Promise<string | undefined> {
-  if ((await gitMust(ticket.worktree, ["rev-parse", "HEAD"])) !== made.tip) return `the landing is done; your worktree has commits made since, so ${BEHIND}`;
-  const reset = await git(ticket.worktree, ["reset", "--quiet", "--keep", top]);
-  return reset.code === 0 ? undefined : `the landing is done; main changed a file you have open changes in, so ${BEHIND}`;
+  const tree = ticket.worktree;
+  const moved = `the landing is done; your worktree has commits made since, so ${BEHIND}`;
+  if ((await gitMust(tree, ["rev-parse", "HEAD"])) === top) return undefined;
+  if ((await gitMust(tree, ["rev-parse", "HEAD"])) !== made.tip) return moved;
+  const reset = await git(tree, ["reset", "--quiet", "--keep", top]);
+  if (reset.code !== 0) return `the landing is done; main changed a file you have open changes in, so ${BEHIND}`;
+  const prior = await gitMust(tree, ["rev-parse", "HEAD@{1}"]);
+  if (prior === made.tip) return undefined;
+  await git(tree, ["reset", "--quiet", "--keep", prior]);
+  return moved;
 }
 
 async function settle(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket | undefined> {
   const { turn, committed: made } = ticket;
   if (turn === undefined || made === undefined) return failed(ticket, made, now, "the ticket lost its turn's details");
-  const result = await readResult(resultDir(ticket));
+  const landedNow = (note: string | undefined): Ticket => ended(ticket, "landed", now, { landed: { head: short(turn.rebased), commits: turn.commits.map(short) }, ...(note === undefined ? {} : { note }) });
+  try {
+    if ((await gitMust(repo.root, ["rev-parse", repo.config.mainBranch])) === turn.rebased) return landedNow(await follow(ticket, made, turn.rebased));
+  } catch (error: unknown) {
+    return failed(ticket, made, now, messageOf(error));
+  }
+  const result = await readResult(turn.result);
   if (result === undefined) {
-    const why = await stalled(ticket, turn.startedAt, now);
+    const why = await stalled(turn.result, turn.startedAt, now);
     return why === undefined ? undefined : failed(ticket, made, now, `its turn timed out: ${why}`);
   }
   try {
@@ -147,17 +170,14 @@ async function settle(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket | u
     if (bad !== undefined || result.exit !== 0) throw new TallyError(`${short(bad?.sha ?? turn.rebased)} failed its checks (exit ${bad?.exit ?? result.exit}); the log is ${result.log}`);
     if (result.commits.map((commit) => commit.sha).join() !== turn.commits.join()) throw new TallyError("the result is not for the commits being landed");
     if ((await gitMust(repo.root, ["rev-parse", repo.config.mainBranch])) !== turn.base) {
-      await rename(resultDir(ticket), `${resultDir(ticket)}.stale-${now.getTime()}`);
       const { turn: _turn, ...waiting } = ticket;
       const again = await prepare(repo, { ...waiting, state: "queued" }, now);
       return again.state === "turn" ? { ...again, note: MAIN_MOVED } : again;
     }
     await checkCheckout(repo);
     await gitMust(repo.root, ["merge", "--quiet", "--ff-only", turn.rebased]);
-    const note = await follow(ticket, made, turn.rebased);
-    return ended(ticket, "landed", now, { landed: { head: short(turn.rebased), commits: turn.commits.map(short) }, ...(note === undefined ? {} : { note }) });
+    return landedNow(await follow(ticket, made, turn.rebased));
   } catch (error: unknown) {
-    if (!(error instanceof TallyError)) throw error;
     return failed(ticket, made, now, messageOf(error));
   }
 }
@@ -167,7 +187,12 @@ async function step(repo: Repo, now: Date): Promise<Ticket | undefined> {
     const head = (await queueFile(repo).read()).tickets.find(isActive);
     if (head === undefined) return undefined;
     const next = head.state === "queued" ? await prepare(repo, head, now) : await settle(repo, head, now);
-    return next === undefined ? undefined : putTicket(repo, next);
+    if (next === undefined) return undefined;
+    const { ticket, swapped } = await swapTicket(repo, head, next);
+    if (swapped) return ticket;
+    const made = next.committed;
+    if (ticket.state === "cancelled" && made !== undefined && made.tip !== made.before && next.message !== undefined) await undoCommit(next.worktree, made.before, made.tip);
+    return ticket;
   }, QUICK);
 }
 

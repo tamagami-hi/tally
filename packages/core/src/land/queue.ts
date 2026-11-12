@@ -11,11 +11,13 @@ import { statePath, trackOf } from "./paths.ts";
 export const ticketStates = ["queued", "turn", "landed", "failed", "cancelled"] as const;
 
 const turnSchema = z.object({
+  name: z.string(),
   startedAt: z.string(),
   base: z.string(),
   rebased: z.string(),
   commits: z.array(z.string()),
   script: z.string(),
+  result: z.string(),
 });
 
 export const ticketSchema = z.object({
@@ -29,6 +31,7 @@ export const ticketSchema = z.object({
   target: z.object({ milestone: z.string().min(1), task: z.string().min(1) }).optional(),
   state: z.enum(ticketStates),
   since: z.string(),
+  attempts: z.number().int().nonnegative().default(0),
   committed: z.object({ before: z.string(), tip: z.string() }).optional(),
   turn: turnSchema.optional(),
   landed: z.object({ head: z.string(), commits: z.array(z.string()), recording: z.string().optional() }).optional(),
@@ -81,6 +84,19 @@ export async function putTicket(repo: Repo, next: Ticket): Promise<Ticket> {
   return queueFile(repo).update((queue) => ({ value: { tickets: trimmed(queue.tickets.map((ticket) => (ticket.id === next.id ? next : ticket))) }, result: next }));
 }
 
+export interface Swapped {
+  ticket: Ticket;
+  swapped: boolean;
+}
+
+export async function swapTicket(repo: Repo, read: Ticket, next: Ticket): Promise<Swapped> {
+  return queueFile(repo).update((queue): { value: Queue; result: Swapped } => {
+    const current = queue.tickets.find((ticket) => ticket.id === read.id);
+    if (current === undefined || current.state !== read.state) return { value: queue, result: { ticket: current ?? read, swapped: false } };
+    return { value: { tickets: trimmed(queue.tickets.map((ticket) => (ticket.id === next.id ? next : ticket))) }, result: { ticket: next, swapped: true } };
+  });
+}
+
 export async function joinQueue(repo: Repo, session: Session, input: JoinInput, now = new Date()): Promise<Ticket> {
   const track = trackOf(repo.config, session.track);
   if ((input.message !== undefined) !== (input.files.length > 0)) throw new TallyError("a new commit needs both a message and explicit files");
@@ -99,6 +115,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     ...(input.target === undefined ? {} : { target: input.target }),
     state: "queued",
     since: now.toISOString(),
+    attempts: 0,
   };
   return queueFile(repo).update((queue) => {
     const held = queue.tickets.find((other) => other.sessionId === session.id && isActive(other));

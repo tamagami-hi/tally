@@ -1,39 +1,14 @@
-import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { cancelTicket, joinQueue, ticketView, type JoinInput } from "../../src/land/queue.ts";
+import { cancelTicket, joinQueue, ticketView } from "../../src/land/queue.ts";
 import { advance } from "../../src/land/turn.ts";
-import { openSession, type Session } from "../../src/state/sessions.ts";
 import { Records, type Repo } from "../../src/store/records.ts";
-import { commitOn, edit, landingFixture, type LandingFixture } from "../support/landing.ts";
+import { commitOn, edit } from "../support/landing.ts";
+import { landing, ready, runHead } from "../support/queue.ts";
 import { sh } from "../support/repo.ts";
 
-const MESSAGE = "feat(data): the task\n\nwhy it is so\n";
 const MINUTE = 60_000;
-
-interface Queued extends LandingFixture {
-  session: Session;
-  engine: { tree: string; session: Session };
-}
-
-async function ready(script = "true"): Promise<Queued> {
-  const fixture = await landingFixture(script);
-  const engineTree = join(fixture.root, ".temp", "worktrees", "engine");
-  await sh(fixture.root, ["worktree", "add", "-q", engineTree, "-b", "track/engine", "main"]);
-  const repo: Repo = { ...fixture.repo, config: { ...fixture.repo.config, tracks: [...fixture.repo.config.tracks, { name: "engine", worktree: ".temp/worktrees/engine", branch: "track/engine" }] } };
-  const session = await openSession(repo, { worktree: fixture.tree, agent: "claude" });
-  const engine = { tree: engineTree, session: await openSession(repo, { worktree: engineTree, agent: "kiro" }) };
-  return { ...fixture, repo, session, engine };
-}
-
-const landing = (files: string[], extra: Partial<JoinInput> = {}): JoinInput => ({ files, message: MESSAGE, ...extra });
-
-function runScript(path: string): Promise<number> {
-  return new Promise((done) => {
-    execFile("sh", [path], (error) => done(error === null ? 0 : typeof error.code === "number" ? error.code : 1));
-  });
-}
 
 async function view(repo: Repo, ticket: string) {
   return ticketView(repo, ticket);
@@ -51,7 +26,7 @@ describe("joining the landing queue", () => {
     const seen = await view(q.repo, ticket.id);
     expect(seen.state).toBe("turn");
     expect(seen.position).toBe(0);
-    expect(seen.run).toBe(`sh ${join(q.tree, ".temp/tally/land.sh")}`);
+    expect(seen.run).toBe(`sh ${join(q.tree, ".temp/tally/landing", `${ticket.id}-1.sh`)}`);
     expect(await sh(q.tree, ["log", "-1", "--format=%s"])).toBe("feat(data): the task");
     expect(await sh(q.tree, ["status", "--porcelain"])).toBe("?? src/draft.rs");
     expect(await q.main()).not.toBe(await q.head());
@@ -96,7 +71,7 @@ describe("a turn whose checks pass", () => {
     const ticket = await joinQueue(q.repo, q.session, landing(["src/a.rs"], { target: { milestone: "A1", task: "t1" } }));
     await advance(q.repo);
 
-    expect(await runScript(join(q.tree, ".temp/tally/land.sh"))).toBe(0);
+    expect(await runHead(q.repo)).toBe(0);
     await advance(q.repo);
 
     const seen = await view(q.repo, ticket.id);
@@ -117,7 +92,7 @@ describe("a turn whose checks pass", () => {
     const ticket = await joinQueue(q.repo, q.session, { files: [] });
     await advance(q.repo);
 
-    await runScript(join(q.tree, ".temp/tally/land.sh"));
+    await runHead(q.repo);
     await advance(q.repo);
 
     expect((await q.runs()).map((line) => line.split(" ").slice(1).join(" "))).toEqual(["feat: one", "feat: two"]);
@@ -133,7 +108,7 @@ describe("a turn whose checks pass", () => {
     await joinQueue(q.repo, q.session, landing(["src/a.rs"]));
     await advance(q.repo);
 
-    await runScript(join(q.tree, ".temp/tally/land.sh"));
+    await runHead(q.repo);
     await advance(q.repo);
 
     expect((await sh(q.root, ["log", "-2", "--format=%s", "main"])).split("\n")).toEqual(["feat(data): the task", "feat: on main"]);
@@ -149,7 +124,7 @@ describe("a turn whose checks fail", () => {
     const ticket = await joinQueue(q.repo, q.session, landing(["src/a.rs"]));
     await advance(q.repo);
 
-    expect(await runScript(join(q.tree, ".temp/tally/land.sh"))).toBe(7);
+    expect(await runHead(q.repo)).toBe(7);
     await advance(q.repo);
 
     const seen = await view(q.repo, ticket.id);
@@ -189,12 +164,12 @@ describe("the order of the queue", () => {
     expect(waiting.position).toBe(1);
     expect(waiting.ahead.map((ahead) => [ahead.track, ahead.agent, ahead.state])).toEqual([["data", "claude", "turn"]]);
 
-    await runScript(join(q.tree, ".temp/tally/land.sh"));
+    await runHead(q.repo);
     await advance(q.repo);
 
     expect((await view(q.repo, first.id)).state).toBe("landed");
     expect((await view(q.repo, second.id)).state).toBe("turn");
-    await runScript(join(q.engine.tree, ".temp/tally/land.sh"));
+    await runHead(q.repo);
     await advance(q.repo);
     expect((await sh(q.root, ["log", "-2", "--format=%s", "main"])).split("\n")).toEqual(["feat(data): the task", "feat(data): the task"]);
     expect((await view(q.repo, second.id)).state).toBe("landed");
@@ -207,7 +182,7 @@ describe("a turn that goes wrong on the way", () => {
     await edit(q.tree, "src/a.rs");
     const ticket = await joinQueue(q.repo, q.session, landing(["src/a.rs"]));
     await advance(q.repo);
-    await runScript(join(q.tree, ".temp/tally/land.sh"));
+    await runHead(q.repo);
     await writeFile(join(q.root, "src", "main-side.rs"), "x\n");
     await sh(q.root, ["add", "src/main-side.rs"]);
     await sh(q.root, ["commit", "-q", "-m", "feat: on main meanwhile"]);
@@ -217,7 +192,7 @@ describe("a turn that goes wrong on the way", () => {
     const again = await view(q.repo, ticket.id);
     expect(again.state).toBe("turn");
     expect(again.note).toBe("main moved while the checks ran, so the turn was prepared again; run the script again");
-    await runScript(join(q.tree, ".temp/tally/land.sh"));
+    await runHead(q.repo);
     await advance(q.repo);
     expect((await view(q.repo, ticket.id)).state).toBe("landed");
     expect((await sh(q.root, ["log", "-2", "--format=%s", "main"])).split("\n")).toEqual(["feat(data): the task", "feat: on main meanwhile"]);
@@ -245,7 +220,7 @@ describe("a turn that goes wrong on the way", () => {
     await edit(q.tree, "src/a.rs");
     const ticket = await joinQueue(q.repo, q.session, landing(["src/a.rs"]));
     await advance(q.repo);
-    await runScript(join(q.tree, ".temp/tally/land.sh"));
+    await runHead(q.repo);
     const later = await commitOn(q.tree, "src/next.rs", "feat: the next thing");
 
     await advance(q.repo);
@@ -261,8 +236,8 @@ describe("a turn that goes wrong on the way", () => {
     await edit(q.tree, "src/a.rs");
     const ticket = await joinQueue(q.repo, q.session, landing(["src/a.rs"]));
     await advance(q.repo);
-    await runScript(join(q.tree, ".temp/tally/land.sh"));
-    const result = join(q.tree, ".temp/tally/landing", ticket.id, "commits");
+    await runHead(q.repo);
+    const result = join(q.tree, ".temp/tally/landing", `${ticket.id}-1`, "commits");
     await writeFile(result, "0000000000000000000000000000000000000000 0\n");
 
     await advance(q.repo);

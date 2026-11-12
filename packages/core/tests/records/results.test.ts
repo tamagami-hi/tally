@@ -120,6 +120,16 @@ describe("taking the runner's results in", () => {
     expect(await listEvidence(repo, "B2", "4 manifest")).toHaveLength(1);
   });
 
+  test("records a result once though two sweeps find it at the same moment", async () => {
+    const { repo, tree } = await ready();
+    await run(tree, ["green", "--task", "B2:4 manifest", "--", "true"]);
+
+    const sweeps = await Promise.all([takeResults(repo), takeResults(repo)]);
+
+    expect(sweeps.flat()).toHaveLength(1);
+    expect(await listEvidence(repo, "B2", "4 manifest")).toHaveLength(1);
+  });
+
   test("takes results from every track's worktree and from the repository's own checkout", async () => {
     const { repo, tree, root, trees } = await ready();
     await writeRunner(repo, trees["engine"] ?? "", "engine");

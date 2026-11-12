@@ -47,7 +47,7 @@ describe("landing through the queue", () => {
 
     expect(started.isError).toBe(false);
     expect(started.structured["state"]).toBe("turn");
-    expect(started.structured["run"]).toBe(`sh ${join(s.tree, ".temp/tally/land.sh")}`);
+    expect(started.structured["run"]).toBe(`sh ${join(s.tree, ".temp/tally/landing", `${String(started.structured["ticket"])}-1.sh`)}`);
     expect(await runScript(started.structured["run"] as string)).toBe(0);
     const landed = await s.call("land_wait", { sessionId: s.session, ticket: started.structured["ticket"], after: "turn", seconds: 5 });
     expect(landed.structured["state"]).toBe("landed");
@@ -63,6 +63,18 @@ describe("landing through the queue", () => {
 
     expect(started.structured["state"]).toBe("turn");
     expect(await sh(s.tree, ["log", "-1", "--format=%s"])).toBe("feat(data): from a file");
+  });
+
+  test("land_start refuses a message file outside the worktree", async () => {
+    const s = await serving();
+    await edit(s.tree, "src/a.rs");
+
+    const outside = await s.call("land_start", { sessionId: s.session, files: ["src/a.rs"], messageFile: "/etc/hostname" });
+    const climbing = await s.call("land_start", { sessionId: s.session, files: ["src/a.rs"], messageFile: "../../../README.md" });
+
+    expect(outside.isError).toBe(true);
+    expect(outside.text).toBe("the message file must be inside the worktree: /etc/hostname");
+    expect(climbing.isError).toBe(true);
   });
 
   test("land_wait answers a failure with the reason", async () => {

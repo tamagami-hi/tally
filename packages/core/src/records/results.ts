@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { TallyError, messageOf } from "../errors.ts";
 import { worktreeOf } from "../land/paths.ts";
@@ -25,6 +25,8 @@ interface Place {
 const TAKEN = "taken";
 const REFUSED = "refused";
 const PARTIAL = ".tmp";
+const CLAIMED = ".taking";
+const ABANDONED_MS = 60_000;
 const RUNNER_AGENT = "runner";
 
 const placesOf = (repo: Repo): Place[] => [
@@ -35,7 +37,7 @@ const placesOf = (repo: Repo): Place[] => [
 async function waiting(folder: string): Promise<string[]> {
   try {
     const entries = await readdir(folder, { withFileTypes: true });
-    return entries.filter((entry) => entry.isDirectory() && !entry.name.endsWith(PARTIAL) && entry.name !== TAKEN && entry.name !== REFUSED).map((entry) => entry.name).sort();
+    return entries.filter((entry) => entry.isDirectory() && !entry.name.endsWith(PARTIAL) && !entry.name.endsWith(CLAIMED) && entry.name !== TAKEN && entry.name !== REFUSED).map((entry) => entry.name).sort();
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
@@ -93,22 +95,40 @@ async function record(repo: Repo, session: Session, folder: string): Promise<Pic
   return { record: kept.record, ...(kept.notice === undefined ? {} : { notice: kept.notice }) };
 }
 
-async function putAway(results: string, id: string, into: string, problem?: string): Promise<void> {
-  await mkdir(join(results, into), { recursive: true });
-  if (problem !== undefined) await writeFile(join(results, id, "problem"), `${problem}\n`);
-  await rename(join(results, id), join(results, into, id));
+async function claimed(results: string, id: string): Promise<string | undefined> {
+  const mine = `${id}${CLAIMED}`;
+  try {
+    await rename(join(results, id), join(results, mine));
+    return mine;
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
 }
 
-async function takeOne(repo: Repo, place: Place, session: Session, id: string): Promise<Taken> {
+async function abandoned(results: string, now: Date): Promise<void> {
+  const entries = await readdir(results, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries.filter((one) => one.isDirectory() && one.name.endsWith(CLAIMED))) {
+    const age = now.getTime() - (await stat(join(results, entry.name))).mtimeMs;
+    if (age > ABANDONED_MS) await rename(join(results, entry.name), join(results, entry.name.slice(0, -CLAIMED.length))).catch(() => undefined);
+  }
+}
+
+async function takeOne(repo: Repo, place: Place, session: Session, id: string): Promise<Taken | undefined> {
   const results = join(place.worktree, RESULTS);
+  const mine = await claimed(results, id);
+  if (mine === undefined) return undefined;
   try {
-    const kept = await record(repo, session, join(results, id));
-    await putAway(results, id, TAKEN);
+    const kept = await record(repo, session, join(results, mine));
+    await mkdir(join(results, TAKEN), { recursive: true });
+    await rename(join(results, mine), join(results, TAKEN, id));
     return { id, worktree: place.worktree, ...kept };
   } catch (error: unknown) {
     if (!(error instanceof TallyError)) throw error;
     const problem = messageOf(error);
-    await putAway(results, id, REFUSED, problem);
+    await mkdir(join(results, REFUSED), { recursive: true });
+    await writeFile(join(results, mine, "problem"), `${problem}\n`);
+    await rename(join(results, mine), join(results, REFUSED, id));
     return { id, worktree: place.worktree, problem };
   }
 }
@@ -116,10 +136,14 @@ async function takeOne(repo: Repo, place: Place, session: Session, id: string): 
 export async function takeResults(repo: Repo, now = new Date()): Promise<Taken[]> {
   const taken: Taken[] = [];
   for (const place of placesOf(repo)) {
+    await abandoned(join(place.worktree, RESULTS), now);
     const ids = await waiting(join(place.worktree, RESULTS));
     if (ids.length === 0) continue;
     const session = sessionAt(place, await listSessions(repo), now);
-    for (const id of ids) taken.push(await takeOne(repo, place, session, id));
+    for (const id of ids) {
+      const one = await takeOne(repo, place, session, id);
+      if (one !== undefined) taken.push(one);
+    }
   }
   return taken;
 }
