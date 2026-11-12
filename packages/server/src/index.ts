@@ -3,7 +3,7 @@ export type { AppOptions } from "./app.ts";
 export { commitGraph, layOut } from "./graph.ts";
 export type { Commit, LaidCommit, Segment } from "./graph.ts";
 export { Watcher, fingerprint, snapshot } from "./watcher.ts";
-export type { Listener, LiveState, RepoGetter, Snapshot } from "./watcher.ts";
+export type { Listener, LiveState, QueuedLanding, RepoGetter, Snapshot } from "./watcher.ts";
 export { Hub } from "./hub.ts";
 export { cliRoutes } from "./cli-api.ts";
 export type { CliAnswer, CliRunner } from "./cli-api.ts";

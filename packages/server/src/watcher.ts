@@ -1,13 +1,22 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, advance, collect, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
+import { Records, advance, collect, isActive, queueFile, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitCount, commitGraph, graphBranches, type LaidCommit } from "./graph.ts";
+
+export interface QueuedLanding {
+  ticket: string;
+  track: string;
+  agent: string;
+  state: "queued" | "turn";
+  since: string;
+}
 
 export interface LiveState {
   sessions: Session[];
   claims: Claim[];
   locks: HeldLock[];
+  queue: QueuedLanding[];
 }
 
 export interface Snapshot {
@@ -41,13 +50,18 @@ export async function fingerprint(repo: Repo): Promise<string> {
   return createHash("sha256").update(parts.join("\u0000")).digest("hex");
 }
 
+async function landings(repo: Repo): Promise<QueuedLanding[]> {
+  const waiting = (await queueFile(repo).read()).tickets.filter(isActive);
+  return waiting.map((ticket) => ({ ticket: ticket.id, track: ticket.track, agent: ticket.agent, state: ticket.state === "turn" ? "turn" : "queued", since: ticket.turn?.startedAt ?? ticket.since }));
+}
+
 export async function snapshot(repo: Repo): Promise<Snapshot> {
   const ledger = await new Records(repo).readLedger();
   const status = await collect(repo, ledger);
   const branches = graphBranches(repo.config);
   const graph = await commitGraph(repo.root, branches);
   const graphTotal = await commitCount(repo.root, branches);
-  const state: LiveState = { sessions: await listSessions(repo), claims: await listClaims(repo), locks: await listLocks(repo) };
+  const state: LiveState = { sessions: await listSessions(repo), claims: await listClaims(repo), locks: await listLocks(repo), queue: await landings(repo) };
   return { status, graph, graphTotal, state, takenAt: new Date().toISOString() };
 }
 

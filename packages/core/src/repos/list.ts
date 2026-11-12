@@ -7,6 +7,7 @@ import { StateFile } from "../state/file.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { listSessions } from "../state/sessions.ts";
 import { CONFIG_FILE, RECORDS_DIR, openRepo } from "../store/records.ts";
+import { checkFilters } from "./filters.ts";
 import { gitIn, realFolder, rootOfWorktree } from "./find.ts";
 import { STATE_DIR, listPath, ownerPath, stateDirOf } from "./home.ts";
 import { REPO_NAME, nameFromFolder } from "./name.ts";
@@ -122,6 +123,7 @@ export async function addRepo(home: string, input: AddInput, now = new Date(), s
     await start(root);
   }
   await openRepo(root);
+  await checkFilters(root);
   const entry: RepoEntry = { name, root, addedAt: now.toISOString() };
   return listFile(home).update(async (list) => {
     await free(home, list, root, name);

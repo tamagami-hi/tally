@@ -28,6 +28,9 @@ function Changes({ track }: { track: TrackRow }) {
 function Track({ track, state, paint }: { track: TrackRow; state: LiveState | undefined; paint: CSSProperties }) {
   const sessions = state?.sessions.filter((s) => s.track === track.track) ?? [];
   const locks = state?.locks.filter((l) => l.track === track.track) ?? [];
+  const queue = state?.queue ?? [];
+  const place = queue.findIndex((ticket) => ticket.track === track.track);
+  const landing = place === -1 ? null : queue[place]?.state === "turn" ? <span className="chip chip-active">landing: checks running</span> : <span className="chip chip-line">in the landing queue, {place} ahead</span>;
   const condition = track.dirty === 0 ? <span className="chip chip-done">clean</span> : <span className="chip chip-active">{track.dirty} uncommitted</span>;
   return (
     <li className={`track ${track.isMain ? "main" : ""}`} style={paint}>
@@ -36,8 +39,9 @@ function Track({ track, state, paint }: { track: TrackRow; state: LiveState | un
         {condition}
       </div>
       <div className="path">{track.isMain ? "the operator's checkout" : track.path}</div>
-      {sessions.length + locks.length > 0 ? (
+      {sessions.length + locks.length > 0 || landing !== null ? (
         <div className="chips">
+          {landing}
           {sessions.map((s) => <span key={s.id} className="chip chip-accent">{s.agent} working</span>)}
           {locks.map((l) => <span key={l.name} className="chip chip-active" title={l.note}>holds {l.name}</span>)}
         </div>

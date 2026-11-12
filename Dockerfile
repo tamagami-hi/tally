@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM node:24-trixie-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
@@ -10,7 +10,7 @@ RUN npm ci --no-audit --no-fund
 COPY packages packages
 RUN npm run build
 
-FROM node:24-bookworm-slim
+FROM node:24-trixie-slim
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git git-lfs ca-certificates \
   && rm -rf /var/lib/apt/lists/* \

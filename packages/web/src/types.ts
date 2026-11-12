@@ -119,10 +119,19 @@ export interface LiveLock {
   since: string;
 }
 
+export interface LiveTicket {
+  ticket: string;
+  track: string;
+  agent: string;
+  state: "queued" | "turn";
+  since: string;
+}
+
 export interface LiveState {
   sessions: LiveSession[];
   claims: LiveClaim[];
   locks: LiveLock[];
+  queue?: LiveTicket[];
 }
 
 export interface EvidenceRecord {

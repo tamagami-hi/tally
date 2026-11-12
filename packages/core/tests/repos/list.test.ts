@@ -163,6 +163,28 @@ describe("adding a repository", () => {
     await expect(addRepo(home, { root, name: "alpha" })).rejects.toThrow("does not fit its schema");
   });
 
+  test("refuses a repository whose git filter names a program that is not here", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root } = await makeTracked();
+    await writeFile(join(root, ".gitattributes"), "*.bin filter=special\n");
+    await sh(root, ["add", ".gitattributes"]);
+    await sh(root, ["commit", "-q", "-m", "chore: a filter"]);
+    await sh(root, ["config", "filter.special.clean", "no-such-tool-anywhere --clean"]);
+
+    await expect(addRepo(home, { root, name: "alpha" })).rejects.toThrow(`${root} uses the git filter 'special', whose program no-such-tool-anywhere is not available here; install it, or the files it filters would be committed wrongly`);
+  });
+
+  test("accepts a repository whose git filter's program is here", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root } = await makeTracked();
+    await writeFile(join(root, ".gitattributes"), "*.txt filter=plain\n");
+    await sh(root, ["add", ".gitattributes"]);
+    await sh(root, ["commit", "-q", "-m", "chore: a filter"]);
+    await sh(root, ["config", "filter.plain.clean", "cat"]);
+
+    await expect(addRepo(home, { root, name: "alpha" })).resolves.toMatchObject({ name: "alpha" });
+  });
+
   test.each(["Alpha", "my repo", "-alpha", "a/b", ""])("refuses the name '%s'", async (name) => {
     const home = await tmpDir("tally-home-");
     const { root } = await makeTracked();
