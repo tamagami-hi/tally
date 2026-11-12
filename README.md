@@ -16,6 +16,26 @@ node packages/cli/dist/main.js --help
 
 A tracked repository gets `docs/records/config.json` and `docs/records/ledger.json` from `tally init`; every other command finds them above the current folder or through `--repo`.
 
+## Run as a service
+
+**Phase 5 is being built** (2026-11-12, [DESIGN.md](DESIGN.md) §14): one Docker service for every repository. What is built: the list of repositories, one MCP endpoint and one board for all of them, the sidebar that adds and removes repositories, the runner, and the landing queue. Not built yet: the CLI as a client of the service (§14.9), so a `tally` command on the host still works on the files itself.
+
+```bash
+cp .env.example .env        # your uid and gid, the workspace folder, your git config
+docker compose up -d --build
+```
+
+- **The board** is `http://127.0.0.1:47560/`. The sidebar lists the repositories. "Add repository" opens a folder picker over the workspace. A git repository with no records gets a default config and an empty ledger, committed as `records: start tracking`.
+- **Agents** connect to one URL, registered once: `http://127.0.0.1:47560/mcp` (streamable HTTP). For Claude Code: `claude mcp add --transport http --scope user tally http://127.0.0.1:47560/mcp`.
+- **A session** begins with `session_open({worktree, agent})`. The folder is enough: tally finds the repository and the track. The answer names `runner`, a script in the worktree.
+- **A check** is run by the agent, in its own shell, where the toolchain is: `.temp/tally/run green --task "M1:the task" -- npm test`. The script keeps the log, and the service takes the result in as a run record within two seconds.
+- **A landing** is `land_start({sessionId, files, message, milestone?, task?})`, which answers a ticket. When its state is `turn`, run the command in `run`, then call `land_wait`. Tally commits the named files, rebases in a clean checkout, and fast-forwards `main` once every commit's checks have passed. A failure changes nothing on `main`.
+- **Each repository is separate.** A session reads and writes only its own repository's records, state and logs.
+
+The service listens on the host's loopback only and refuses a request from another host or another site's page. The container has git and Node and no other toolchain: it never runs a repository's commands.
+
+Without Docker, `tally serve` with no `--repo` serves the same list from `TALLY_HOME` (by default `~/.local/state/tally`), and `tally repo add PATH [--name NAME] | remove NAME | default NAME | list` manages it.
+
 **Phase 4 is built** (2026-11-04): the records. `docs/records/` now holds, beside the ledger and the config, `decisions.json` and `questions.json` (imported from the Markdown tables; `tally question add|answer`, `tally decision add|replace --operator`, `decision setStatus`), `checks.json` (the code-check record, imported from `code-checks.md` and replaced whole with `tally checks set`, refused unless its fingerprint is main's; `checks fingerprint` says whether it stands), `buildlog.json` (every group's build log as dated sections, imported, appended to and rendered back), `evidence/<milestone>.json` (run records, with `tally import evidence` indexing a track's existing `*.json` + `*.log` pairs, the logs hashed in place), `plans.json` and `reports/<date>/<name>.json` manifests that cite records by id and hash a bundle. Every import refuses a file that does not render back byte for byte. `tally views claude` writes CLAUDE.md's standing block between `tally:standing` markers. The MCP server has 35 tools, and the board's Evidence page lists each milestone's run records with their logs opened in place.
 
 **Phase 3 is built:** the MCP server. `tally mcp` serves 25 tools on stdio and `tally serve` the same at `/mcp`: sessions bound to a worktree and a track (`session_open`), the board and the ledger verbs with scope (`board_get`, `task_plan|claim|release|wait|land|other`, `milestone_add`, `ledger_check`), the landing (`land_run`), evidence (`evidence_run|record|list`), hand-offs, named locks, the documents (`docs_list|read|search`) and `context_pack` at the project, track, milestone or task level. [GUIDE.md](GUIDE.md) says how to connect Claude Code or Kiro and how a session works; [RULES.md](RULES.md) is what the harness enforces. The board shows who is working, what they hold and which locks are taken.
