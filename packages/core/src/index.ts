@@ -76,6 +76,8 @@ export type { Project, ProjectInput } from "./context/project.ts";
 export { appliesTo, findEntries, isInForce, keepEntries } from "./context/find.ts";
 export type { EntryFilter, Found } from "./context/find.ts";
 export { applies, overlaps } from "./context/match.ts";
+export { missingFrom, sessionBrief, unlandedTasks } from "./context/brief.ts";
+export type { Brief, BriefTask, Working } from "./context/brief.ts";
 export { listDocs, readDoc, searchDocs } from "./docs/files.ts";
 export type { Hit } from "./docs/files.ts";
 export { landingEnvironment } from "./land/run.ts";

@@ -23,6 +23,28 @@ describe("context packs", () => {
     expect(pack.parts["claims"]).toHaveLength(1);
   });
 
+  test("the project pack of a repository that keeps its context in Markdown reads exactly as it did", async () => {
+    const { repo, root } = await makeTracked();
+    await writeFile(join(root, "CLAUDE.md"), "# Standing\n\nRead the rules.\n");
+
+    const pack = await contextPack(repo, { level: "project" });
+
+    expect(pack.text).toBe([
+      "# Test: project context",
+      "",
+      "Tracks: data (.temp/worktrees/data, track/data); engine (.temp/worktrees/engine, track/engine).",
+      "Milestones: B2 1/4.",
+      "Open questions: none; next row unknown.",
+      "Sessions: none. Locks held: none.",
+      "",
+      "## RULES.md\n\n# Rules\n\n1. Keep it simple.\n",
+      "",
+      "## CLAUDE.md\n\n# Standing\n\nRead the rules.\n",
+    ].join("\n"));
+    expect(Object.keys(pack.parts)).toEqual(["name", "mainBranch", "tracks", "stages", "locks", "milestones", "openQuestions", "nextQuestionRow", "sessions", "claims", "heldLocks", "rules", "claude"]);
+    expect(pack.parts).toMatchObject({ rules: "# Rules\n\n1. Keep it simple.\n", claude: "# Standing\n\nRead the rules.\n", openQuestions: [], nextQuestionRow: null, sessions: [], claims: [], heldLocks: [] });
+  });
+
   test("the project and milestone packs name the same owners as the board", async () => {
     const { repo } = await makeTracked();
     const records = new Records(repo);
