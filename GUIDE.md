@@ -190,7 +190,60 @@ A landing refuses a commit that changes `docs/records/`: records change only thr
 
   Each item is delivered once. `inbox_get({ sessionId, since })` reads the inbox again from a time.
 
-### 10.5 The `tally` command
+### 10.5 Open a track for a helper
+
+A track is a branch and a worktree. The config names the standing ones, and an agent opens the rest.
+
+- **`track_open({ sessionId, name, purpose, parent?, paths? })`** makes the branch `track/<name>` at `main`'s tip and a worktree for it under the repository's `.temp/worktrees/` (or the config's `worktreeRoot`), and writes the runner there. The answer carries the absolute `worktree`: start the helper in that folder and have it call `session_open` with it.
+  - An operator session opens any track. A track's session opens only a child of its own track, and may then write that child's tasks, evidence and hand-offs.
+  - `paths` limits what the track may land.
+- **Every track lands on `main`** through `land_start`, child or not. Nothing lands into a parent's branch.
+- **`track_close({ sessionId, name })`** removes the track's landing checkout, worktree and branch, and marks its record closed. It is refused, with nothing removed, while the track has an open session, a claimed task, uncommitted work, commits not on `main`, or ignored files tally didn't write. The refusal names them.
+- **`track_list`** lists every track: its branch, worktree, parent and purpose, where it comes from, and whether a session is open on it.
+
+A session that makes no call and records no run for four hours is closed, and its claims and locks are released. `sessions.idleMinutes` in the config changes the time.
+
+### 10.6 Checks chosen by path
+
+With `commands.checks` in the config, a landing runs only the checks its changed files call for:
+
+```json
+"commands": {
+  "checks": [
+    { "name": "core", "command": ["cargo", "test", "-p", "core"], "paths": ["crates/core"] },
+    { "name": "web", "command": ["npm", "test"], "paths": ["ui/**"] }
+  ]
+}
+```
+
+- A path with no `*` is a folder or a file: `crates/core` matches everything under it.
+- A path with `*` is matched against the whole file path. `ui/*` matches `ui/a.ts` and not `ui/src/a.ts`; `ui/**` matches both.
+- The turn's script runs each chosen check for each commit, in the list's order, and stops at the first failure. The log marks where each check starts.
+- A landing that changes a file no check covers is refused, so nothing lands unchecked.
+- With a `checks` list, the queue runs neither `commands.test` nor a track's own `test`. Without one, it runs those as before.
+
+### 10.7 A ledger that shows its gaps
+
+- **What a milestone owes.** `milestone_add` takes `delivers: [{ id, what, paths? }]`, and `milestone_deliver` adds to a milestone that exists. Both are the operator's.
+- **What a task covers.** In `task_plan`, a task is its name or `{ id, brief?, paths?, covers? }`: what to do, the files it expects to touch, and the deliverables it covers.
+- **A wait on a task.** `task_wait` with `on: "MILESTONE:TASK"` waits on that task. The wait clears itself when the task lands, and the track that waited is told in its inbox.
+- **Landed in part.** `land_start` and `task_land` take `deferred: [{ what, to? }]`: the parts that didn't land, and the task that will finish each. The board shows the task as landed in part until those tasks land.
+- **The check.** `ledger_check` answers two lists. `scope: "mine"` keeps only your track's.
+  - `missing`: the commits on `main` no record names.
+  - `gaps`, each a sentence: a deliverable no task covers, a wait on a task that isn't in the ledger, or a deferred part with no task to finish it.
+
+A writing tool's answer carries `done: true` and `records`: the records commit, or `"waiting"` when the change is on disk and goes in with the next records commit.
+
+The list tools take filters, so an answer stays small:
+
+| tool | filters |
+| --- | --- |
+| `question_list`, `decision_list` | `ids`, `group`, `limit` |
+| `evidence_list` | `kind`, `since`, `limit`, `fields` |
+| `board_get` | `scope`, `fields` |
+| `note_list` | `state`, `since`, `limit`, `everyTrack` |
+
+### 10.8 The `tally` command
 
 With `TALLY_URL` set (`export TALLY_URL=http://127.0.0.1:47560`), every `tally` command is carried out by the service, so there is one writer. `tally land` joins the same queue as the agents' landings, runs the turn's script in your shell, and waits for the result. Without `TALLY_URL` the command works on the files itself, which is right only for a repository the service doesn't serve.
 
