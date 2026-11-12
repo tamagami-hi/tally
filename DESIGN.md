@@ -580,6 +580,35 @@ RULES.md is amended as each phase is built:
 | 10 | tally creates a track's branch and worktree, and may remove a worktree it created once nothing in it can be lost; it cleans its own landing checkouts |
 | 11 | the service is published on the host's loopback only |
 
+### 17.4 As built (2026-11-12)
+
+Phases 5, 6 and 7 are built on the branch `phase5-service`, tests first, with 54 MCP tools. The first tracked repository's cut-over (§17.2) has not been made. Where the build differs from the sections above:
+
+**Kept until the cut-over, as §18's decision 10 says:**
+- `evidence_run`, `land_run` and the three `docs_*` tools are still there. A server of one repository, started with `--repo` on the host, needs them.
+- A records commit is still made at once for a repository whose config doesn't say `records.batch`. While a landing has its turn it waits, and goes in when that landing finishes (decision 9 is met for landings, not yet for every write).
+
+**Built differently:**
+- **The CLI** is a client of the service only when `TALLY_URL` is set (§14.9).
+- **Overlaps** are worked out when a tool answers, not at each tick of the watcher.
+- **A wait that cleared** reaches the waiting track as a note the landing leaves, so it is also a record.
+- **`task_claim`** answers the entries about the task's own `paths`, and not the entries that apply everywhere.
+- **The inbox** reads the last 30 seconds again on each call and skips what it has delivered, so an item written late isn't lost.
+- **The activity log's events** carry no `result`: an event is written only for a write that succeeded.
+- **`startRecords`** sets `context: "records"` and makes no `context/` folder. A missing file reads as empty.
+- **`worktreeRoot`** must be a folder inside the repository.
+- **A child track** takes its parent's `paths` when it names none, and can't go wider.
+- **A landing that changes a file no check covers** is refused when the config has `commands.checks`.
+- **`/api/cli`**, the endpoint the `tally` command calls, refuses a repository outside the workspace.
+
+**Not built:**
+- The board doesn't show a child track under its parent, the context or the activity log.
+- Leftover stashes aren't listed among the board's problems (§15.6).
+- `tally ledger check` on the command line doesn't print the gaps. `ledger_check` over MCP does.
+- There are no command-line verbs for tracks, notes or context.
+- A session goes quiet and is closed only where a watcher ticks: in `tally serve`, not in `tally mcp` on stdio.
+- Notes and the activity log are never pruned.
+
 ## 18. What only the operator could decide (settled 2026-11-12, as recommended)
 
 The morning's five answers stand (the first repository's cut-over at a quiet moment, the CLI's `--repo`, a repository's name, calls that name no repository, the old URLs' end), except that decision 11 changed one. The operator settled these eleven on 2026-11-12, each as recommended:

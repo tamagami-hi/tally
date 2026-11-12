@@ -18,7 +18,7 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 
 ## Run as a service
 
-**Phase 5 is being built** (2026-11-12, [DESIGN.md](DESIGN.md) §14): one Docker service for every repository. What is built: the list of repositories, one MCP endpoint and one board for all of them, the sidebar that adds and removes repositories, the runner, the landing queue, and the CLI as a client of the service.
+**Phases 5, 6 and 7 are built** (2026-11-12, [DESIGN.md](DESIGN.md) §14 to §16): one Docker service for every repository, the tools agents need to work in parallel, and context kept as JSON records. The MCP server has 54 tools. [GUIDE.md](GUIDE.md), section 10, is how an agent works through it.
 
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config
@@ -30,6 +30,8 @@ docker compose up -d --build
 - **A session** begins with `session_open({worktree, agent})`. The folder is enough: tally finds the repository and the track. The answer names `runner`, a script in the worktree.
 - **A check** is run by the agent, in its own shell, where the toolchain is: `.temp/tally/run green --task "M1:the task" -- npm test`. The script keeps the log, and the service takes the result in as a run record within two seconds.
 - **A landing** is `land_start({sessionId, files, message, milestone?, task?})`, which answers a ticket. When its state is `turn`, run the command in `run`, then call `land_wait`. Tally commits the named files, rebases in a clean checkout, and fast-forwards `main` once every commit's checks have passed. A failure changes nothing on `main`.
+- **Parallel work.** Agents open and close tracks themselves (`track_open`, `track_close`), are told when another track has changed the same file, leave each other notes, and get what is new for them in every tool answer under `inbox`.
+- **Context** is JSON records under `docs/records/context/`, read with `context_get` and written with `context_put`. A session's brief arrives with `session_open`.
 - **Each repository is separate.** A session reads and writes only its own repository's records, state and logs.
 
 The service listens on the host's loopback only and refuses a request from another host or another site's page. The container has git and Node and no other toolchain: it never runs a repository's commands.

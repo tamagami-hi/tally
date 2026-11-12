@@ -142,6 +142,7 @@ Sections 1 to 9 describe one server for one repository, started with `--repo`. T
 - `id`: the session id every writing tool takes.
 - `repo` and `track`: where the session is bound.
 - `runner`: the path of a script in your worktree (10.2).
+- `brief`, in a repository that keeps its context as records (10.8): the project, every rule, your track's unlanded tasks and its hand-off, the context entries that apply to your track's paths, who else is working, how many questions are open, and what the repository's context still lacks.
 
 `repo_list` lists the repositories the service tracks. A reading tool called with neither a `sessionId` nor a `repo` goes to the default repository: the first one added, unless the operator picked another.
 
@@ -182,11 +183,12 @@ A landing refuses a commit that changes `docs/records/`: records change only thr
 - **Overlaps.** The answers of `session_open`, `task_claim` and `land_start` carry `overlaps` when another track has changed a file yours also changes: the file, the track and who is on it.
 - **Notes.** `note_post({ sessionId, to, kind, text, paths?, task? })` leaves a note of at most 600 characters for `"all"` or for the tracks named. The kinds are `heads-up`, `request`, `answer` and `finding`. `note_reply` answers one, `note_done` closes it, and `note_list` lists them.
 - **The inbox.** Every tool answer carries, under `inbox`, what is new for your session since its last call:
-  - notes and replies
+  - notes and replies, among them the note a landing leaves when it clears a wait of yours
   - the operator's answers
   - commits on `main` that changed a file your track changed
   - your landing ticket's changes
   - runs taken in or set aside
+  - a context entry another track added or retired for the files you work on
 
   Each item is delivered once. `inbox_get({ sessionId, since })` reads the inbox again from a time.
 
@@ -196,7 +198,7 @@ A track is a branch and a worktree. The config names the standing ones, and an a
 
 - **`track_open({ sessionId, name, purpose, parent?, paths? })`** makes the branch `track/<name>` at `main`'s tip and a worktree for it under the repository's `.temp/worktrees/` (or the config's `worktreeRoot`), and writes the runner there. The answer carries the absolute `worktree`: start the helper in that folder and have it call `session_open` with it.
   - An operator session opens any track. A track's session opens only a child of its own track, and may then write that child's tasks, evidence and hand-offs.
-  - `paths` limits what the track may land.
+  - `paths` limits what the track may land. A child takes its parent's `paths` when it names none, and can't go wider.
 - **Every track lands on `main`** through `land_start`, child or not. Nothing lands into a parent's branch.
 - **`track_close({ sessionId, name })`** removes the track's landing checkout, worktree and branch, and marks its record closed. It is refused, with nothing removed, while the track has an open session, a claimed task, uncommitted work, commits not on `main`, or ignored files tally didn't write. The refusal names them.
 - **`track_list`** lists every track: its branch, worktree, parent and purpose, where it comes from, and whether a session is open on it.
@@ -243,7 +245,24 @@ The list tools take filters, so an answer stays small:
 | `board_get` | `scope`, `fields` |
 | `note_list` | `state`, `since`, `limit`, `everyTrack` |
 
-### 10.8 The `tally` command
+### 10.8 Context as records
+
+A repository whose config says `context: "records"` keeps everything a session needs to know as JSON records under `docs/records/context/`, served through the tools. No Markdown file is context there. A repository added in the sidebar starts that way.
+
+- **Reading.**
+  - `context_get({ ids?, kind?, paths?, tags?, query?, since?, limit?, fields? })` answers entries. `paths` asks for what applies to those files; a folder ending in `/` or a glob asks for everything under it. `since` asks only for what was added or retired after a time, so a session that resumes reads the difference.
+  - `task_claim` answers the entries about the task's own `paths`.
+  - `context_pack` is built from records alone.
+- **Writing.**
+  - `context_put({ sessionId, kind, title, text, paths?, tags?, refs?, replaces? })` adds an entry. The kinds are `rule`, `convention`, `area`, `interface`, `howto` and `finding`. A title is at most 120 characters and a text at most 2,000; a longer subject is several entries.
+  - An entry is never edited. To change one, add its successor with `replaces`, or end it with `context_retire({ sessionId, id, why })`.
+  - Any session writes a convention, an area, an interface, a how-to or a finding. Rules, `project_set` (the project's purpose, stack, layout and glossary) and `repo_configure` (the config) are for an operator session. A track that wants a rule asks with `question_add`.
+- **The activity log.** Each write a tool makes is one event under `docs/records/log/`: when, the session, its track and agent, the tool and its target. `activity_get({ since?, track?, limit? })` tells a session what happened while it was away.
+- **The build log** takes fields: `buildlog_append` with `built`, `verified`, `decided`, `corrected` and `open`, with or without Markdown.
+
+**A new repository's first session.** A repository added in the sidebar has a default config and an empty context. The first operator session's brief lists what is `missing`. That session reads the code, sets the checks with `repo_configure`, and writes the project, its areas, its how-tos and its conventions. Until a check is set, the default one fails by design, so nothing lands unchecked.
+
+### 10.9 The `tally` command
 
 With `TALLY_URL` set (`export TALLY_URL=http://127.0.0.1:47560`), every `tally` command is carried out by the service, so there is one writer. `tally land` joins the same queue as the agents' landings, runs the turn's script in your shell, and waits for the result. Without `TALLY_URL` the command works on the files itself, which is right only for a repository the service doesn't serve.
 
