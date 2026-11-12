@@ -1,7 +1,9 @@
 import { TallyError } from "../errors.ts";
-import type { Deliverable, Ledger, Task } from "../schema/ledger.ts";
+import type { Deferred, Deliverable, Ledger, Task } from "../schema/ledger.ts";
 import { distinctDeliverables, hasDetails, withDetails, type PlannedTask } from "./details.ts";
 import { addTask, findMilestone, findTask, keepCloseLast, replaceMilestone } from "./items.ts";
+import { refOf } from "./refs.ts";
+import { stopWaitingOn, waitingOn, waitsOf, withDeferred, withoutWaits } from "./waits.ts";
 
 export type ResolveCommit = (commit: string) => Promise<string>;
 
@@ -22,15 +24,17 @@ export interface LandInput {
   commit: string;
   track?: string;
   also?: readonly string[];
+  deferred?: readonly Deferred[] | undefined;
 }
 
 export interface WaitInput {
   milestone: string;
   task: string;
   what: string;
+  on?: string | undefined;
 }
 
-export type UnwaitInput = Omit<WaitInput, "what">;
+export type UnwaitInput = Pick<WaitInput, "milestone" | "task">;
 
 export interface OtherInput {
   commit: string;
@@ -113,11 +117,6 @@ export function plan(ledger: Ledger, input: PlanInput): Changed & { added: strin
   };
 }
 
-function withoutWait(task: Task): Task {
-  const { waits: _waits, ...rest } = task;
-  return rest;
-}
-
 export async function land(ledger: Ledger, input: LandInput, resolve: ResolveCommit): Promise<Changed> {
   const milestone = findMilestone(ledger, input.milestone);
   const commit = await resolve(input.commit);
@@ -133,23 +132,28 @@ export async function land(ledger: Ledger, input: LandInput, resolve: ResolveCom
   const landed = tasks.map((task): Task => {
     if (task.id !== input.task) return task;
     const merged = [...new Set([...task.also, ...also])].sort();
-    return { ...withoutWait(task), status: "landed", commit, also: merged };
+    return withDeferred({ ...withoutWaits(task), status: "landed", commit, also: merged }, input.deferred);
   });
+  const parts = landed.find((task) => task.id === input.task)?.deferred?.length ?? 0;
+  const stopped = stopWaitingOn(replaceMilestone(ledger, { ...milestone, tasks: landed }), refOf(input.milestone, input.task));
+  const inPart = parts === 0 ? "" : `, in part: ${parts} deferred`;
+  const freed = stopped.freed.length === 0 ? "" : `; no longer waiting on it: ${stopped.freed.join(", ")}`;
   return {
-    ledger: replaceMilestone(ledger, { ...milestone, tasks: landed }),
-    message: `${input.milestone} '${input.task}': landed at ${commit}`,
+    ledger: stopped.ledger,
+    message: `${input.milestone} '${input.task}': landed at ${commit}${inPart}${freed}`,
   };
 }
 
 export function wait(ledger: Ledger, input: WaitInput): Changed {
   const milestone = findMilestone(ledger, input.milestone);
-  if (findTask(milestone, input.task) === undefined) {
-    throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
-  }
-  const tasks = milestone.tasks.map((task) => (task.id === input.task ? { ...task, waits: input.what } : task));
+  const found = findTask(milestone, input.task);
+  if (found === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
+  const { on, what } = input;
+  const waiting = on === undefined ? { ...found, waits: what } : waitingOn(ledger, input.milestone, found, on, what);
+  const tasks = milestone.tasks.map((task) => (task === found ? waiting : task));
   return {
     ledger: replaceMilestone(ledger, { ...milestone, tasks }),
-    message: `${input.milestone} '${input.task}': waits for ${input.what}`,
+    message: `${input.milestone} '${input.task}': ${on === undefined ? `waits for ${what}` : `waits on ${on} for ${what}`}`,
   };
 }
 
@@ -157,11 +161,12 @@ export function unwait(ledger: Ledger, input: UnwaitInput): Changed {
   const milestone = findMilestone(ledger, input.milestone);
   const found = findTask(milestone, input.task);
   if (found === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
-  if (found.waits === undefined) throw new TallyError(`'${input.task}' in ${input.milestone} waits for nothing`);
-  const tasks = milestone.tasks.map((task) => (task === found ? withoutWait(task) : task));
+  const waited = waitsOf(found);
+  if (waited.length === 0) throw new TallyError(`'${input.task}' in ${input.milestone} waits for nothing`);
+  const tasks = milestone.tasks.map((task) => (task === found ? withoutWaits(task) : task));
   return {
     ledger: replaceMilestone(ledger, { ...milestone, tasks }),
-    message: `${input.milestone} '${input.task}': no longer waits for ${found.waits}`,
+    message: `${input.milestone} '${input.task}': no longer waits for ${waited.join(", ")}`,
   };
 }
 
