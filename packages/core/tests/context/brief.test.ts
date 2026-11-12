@@ -39,7 +39,7 @@ describe("a session's brief", () => {
     expect(brief.openQuestions).toBe(1);
   });
 
-  test("lists the id, kind and title of what applies to the track's paths and of what applies everywhere, the rules apart", async () => {
+  test("lists the id, kind and title of what applies to the track's paths and of what applies everywhere, the rules apart; a track with no paths works anywhere, so all of it applies", async () => {
     const tracked = await makeTracked();
     const repo = withPaths(tracked.repo, "data", ["packages/core"]);
     const data = await openSession(repo, { worktree: tracked.trees["data"]!, agent: "claude" });
@@ -56,7 +56,7 @@ describe("a session's brief", () => {
     const theirs = await sessionBrief(repo, engine);
 
     expect(mine.entries).toEqual([{ id: "convention-1", kind: "convention", title: "errors are TallyError" }, { id: "area-1", kind: "area", title: "the landing" }, { id: "howto-1", kind: "howto", title: "run the tests" }]);
-    expect(theirs.entries).toEqual([{ id: "convention-1", kind: "convention", title: "errors are TallyError" }]);
+    expect(theirs.entries.map((entry) => entry.id)).toEqual(["convention-1", "area-1", "area-2", "howto-1"]);
     expect(mine.track.handoff).toBeNull();
   });
 

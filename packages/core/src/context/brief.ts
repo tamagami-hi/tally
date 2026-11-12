@@ -81,8 +81,9 @@ export function missingFrom(repo: Repo, project: Project, inForce: readonly Entr
 }
 
 function applying(repo: Repo, track: string, inForce: readonly Entry[]): Entry[] {
-  const area = repo.config.tracks.find((t) => t.name === track)?.paths ?? [];
-  return inForce.filter((entry) => entry.kind !== RULE && (entry.paths.length === 0 || entry.paths.some((path) => area.some((within) => overlaps(path, within)))));
+  const area = repo.config.tracks.find((t) => t.name === track)?.paths;
+  const isWithin = (entry: Entry): boolean => area === undefined || entry.paths.length === 0 || entry.paths.some((path) => area.some((within) => overlaps(path, within)));
+  return inForce.filter((entry) => entry.kind !== RULE && isWithin(entry));
 }
 
 export async function sessionBrief(repo: Repo, session: Session): Promise<Brief> {
