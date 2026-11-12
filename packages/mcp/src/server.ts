@@ -4,6 +4,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import type { Repo } from "@tally/core";
 import { registerCheckTools } from "./tools/checks.ts";
 import { registerDocTools } from "./tools/docs.ts";
+import { registerLandTools } from "./tools/land.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerRecordTools } from "./tools/records.ts";
 import { registerSessionTools } from "./tools/session.ts";
@@ -18,6 +19,7 @@ export function createTallyServer(from: Repo | RepoSource): McpServer {
   registerSessionTools(server, source);
   registerLedgerTools(server, source);
   registerRecordTools(server, source);
+  registerLandTools(server, source);
   registerDocTools(server, source);
   registerCheckTools(server, source);
   return server;

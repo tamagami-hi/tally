@@ -1,6 +1,7 @@
 import { TallyError } from "../errors.ts";
 import { asIdentity, git, gitMust, type GitResult } from "../git/run.ts";
 import { statePath } from "../land/paths.ts";
+import { turnInProgress } from "../land/queue.ts";
 import { LANDING_RETRIES, LockBusy, withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 
@@ -17,6 +18,7 @@ async function untilIndexFree(root: string, args: readonly string[]): Promise<Gi
 async function commitStaged(repo: Repo, message: (files: number, head: string) => string): Promise<string | null> {
   const { config, root } = repo;
   return withLock(statePath(repo, "locks", "landing.lock"), async () => {
+    if (await turnInProgress(repo)) return null;
     const added = await untilIndexFree(root, ["add", "--", config.records.dir]);
     if (added.code !== 0) throw new TallyError(`git add -- ${config.records.dir} failed in ${root}:\n${added.stderr.trim()}`);
     const staged = await git(root, ["diff", "--cached", "--name-only", "--", config.records.dir]);

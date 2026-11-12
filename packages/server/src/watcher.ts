@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, collect, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
+import { Records, advance, collect, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitCount, commitGraph, graphBranches, type LaidCommit } from "./graph.ts";
 
 export interface LiveState {
@@ -37,7 +37,7 @@ export async function fingerprint(repo: Repo): Promise<string> {
   }
   parts.push(await stamp(join(repo.recordsDir, "ledger.json")));
   for (const path of await evidenceFiles(repo)) parts.push(path, await stamp(path));
-  for (const name of ["sessions.json", "claims.json", "locks.json"]) parts.push(await stamp(statePath(repo, name)));
+  for (const name of ["sessions.json", "claims.json", "locks.json", "queue.json"]) parts.push(await stamp(statePath(repo, name)));
   return createHash("sha256").update(parts.join("\u0000")).digest("hex");
 }
 
@@ -110,6 +110,7 @@ export class Watcher {
       try {
         const repo = await this.source();
         await takeResults(repo);
+        await advance(repo);
         const now = await fingerprint(repo);
         if (now !== this.last) {
           const fresh = await snapshot(repo);
