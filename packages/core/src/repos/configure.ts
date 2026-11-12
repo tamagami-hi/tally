@@ -27,7 +27,7 @@ function dropped(given: unknown, kept: unknown, at = ""): string[] {
   if (!isKeyed(given) || !isKeyed(kept)) return [];
   return Object.entries(given).flatMap(([key, value]) => {
     const path = at === "" ? key : `${at}.${key}`;
-    return key in kept ? dropped(value, kept[key], path) : [path];
+    return Object.hasOwn(kept, key) ? dropped(value, kept[key], path) : [path];
   });
 }
 

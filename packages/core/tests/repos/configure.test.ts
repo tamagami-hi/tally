@@ -38,7 +38,10 @@ describe("changing a repository's config through a tool", () => {
 
     await expect(configureRepo(repo, OPERATOR, { colour: "green" })).rejects.toThrow(/^the config has no place for 'colour'; nothing was written\. Its keys: schema, name, mainBranch, /);
     await expect(configureRepo(repo, OPERATOR, { commands: { shout: ["echo"] }, fingerprint: { paths: ["."], exlude: [] }, tracks: [{ name: "data", worktree: "w", branch: "b", colour: "red" }] })).rejects.toThrow("the config has no place for 'commands.shout', 'fingerprint.exlude', 'tracks[0].colour'; nothing was written");
+    await expect(configureRepo(repo, OPERATOR, { toString: "x", commands: { constructor: {} } })).rejects.toThrow("the config has no place for 'toString', 'commands.constructor'; nothing was written");
+    await expect(configureRepo(repo, OPERATOR, JSON.parse('{"__proto__": {"colour": "green"}}') as Record<string, unknown>)).rejects.toThrow("the config has no place for '__proto__'; nothing was written");
     expect(await onDisk(root)).toBe(before);
+    expect(({} as Record<string, unknown>)["colour"]).toBeUndefined();
   });
 
   test("refuses a config that would not fit its schema, saying where, and a call that gives nothing", async () => {
