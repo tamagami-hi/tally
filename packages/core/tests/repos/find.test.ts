@@ -78,6 +78,15 @@ describe("finding a listed repository", () => {
     expect((await findRepo(home, second.trees["engine"] ?? "")).name).toBe("beta");
   });
 
+  test("quotes a path with spaces in the command it suggests", async () => {
+    const home = await tmpDir("tally-home-");
+    const root = join(await tmpDir("tally-spaced-"), "my repo");
+    await mkdir(root, { recursive: true });
+    await sh(root, ["init", "-q", "-b", "main"]);
+
+    await expect(findRepo(home, root)).rejects.toThrow(`tally repo add '${root}'`);
+  });
+
   test("refuses a repository that is not listed, and says how to list it", async () => {
     const home = await tmpDir("tally-home-");
     const { root, trees } = await makeTracked();

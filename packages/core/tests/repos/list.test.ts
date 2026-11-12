@@ -1,5 +1,6 @@
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { listPath, stateDirOf, tallyHome } from "../../src/repos/home.ts";
 import { addRepo, readRepoList, removeRepo, setDefaultRepo } from "../../src/repos/list.ts";
@@ -8,7 +9,7 @@ import { openSession } from "../../src/state/sessions.ts";
 import { openRepo } from "../../src/store/records.ts";
 import { makeRepo, sh } from "../support/repo.ts";
 import { tmpDir } from "../support/tmp.ts";
-import { makeTracked } from "../support/tracked.ts";
+import { makeTracked, trackedConfig } from "../support/tracked.ts";
 
 const NOW = new Date("2026-11-12T10:00:00.000Z");
 
@@ -19,6 +20,14 @@ describe("the home folder", () => {
 
   test("falls back to the user's state folder", () => {
     expect(tallyHome({ HOME: "/home/someone" })).toBe("/home/someone/.local/state/tally");
+  });
+
+  test("is made absolute, so every process agrees on it", () => {
+    expect(tallyHome({ TALLY_HOME: "data" })).toBe(join(process.cwd(), "data"));
+  });
+
+  test("ignores an empty HOME", () => {
+    expect(tallyHome({ HOME: "" })).toBe(join(homedir(), ".local/state/tally"));
   });
 
   test("keeps the list and each repository's state under it", () => {
@@ -51,11 +60,22 @@ describe("adding a repository", () => {
 
   test("names it after its folder when no name is given", async () => {
     const home = await tmpDir("tally-home-");
-    const { root } = await makeTracked();
+    const root = join(await tmpDir("tally-named-"), "My Project");
+    await mkdir(join(root, "docs/records"), { recursive: true });
+    await sh(root, ["init", "-q", "-b", "main"]);
+    await writeFile(join(root, "docs/records/config.json"), JSON.stringify({ ...trackedConfig, tracks: [] }));
 
     const entry = await addRepo(home, { root }, NOW);
 
-    expect(entry.name).toBe(basename(root).toLowerCase().replaceAll(/[^a-z0-9_-]+/g, "-"));
+    expect(entry.name).toBe("my-project");
+  });
+
+  test("says what git said when git cannot read the folder", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root } = await makeTracked();
+    await writeFile(join(root, ".git/config"), "this is not a git config\n");
+
+    await expect(addRepo(home, { root, name: "alpha" })).rejects.toThrow(/git could not read .*bad config/s);
   });
 
   test("keeps the first default when a second repository is added", async () => {
@@ -208,6 +228,41 @@ describe("removing a repository", () => {
     const home = await tmpDir("tally-home-");
 
     await expect(removeRepo(home, "ghost")).rejects.toThrow("no repository 'ghost'");
+  });
+});
+
+describe("a name that is used again", () => {
+  test("gets its state back when the same repository returns", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root } = await makeTracked();
+    await addRepo(home, { root, name: "alpha" });
+    await removeRepo(home, "alpha");
+
+    await expect(addRepo(home, { root, name: "alpha" })).resolves.toMatchObject({ name: "alpha", root });
+  });
+
+  test("is refused for another repository while the first one's state is there", async () => {
+    const home = await tmpDir("tally-home-");
+    const first = await makeTracked();
+    const second = await makeTracked();
+    await addRepo(home, { root: first.root, name: "alpha" });
+    await removeRepo(home, "alpha");
+
+    await expect(addRepo(home, { root: second.root, name: "alpha" })).rejects.toThrow(`the name alpha still holds the state of ${first.root}; pick another name`);
+    expect((await readRepoList(home)).repos).toHaveLength(0);
+  });
+});
+
+describe("a list written by hand", () => {
+  test.each([
+    ["two entries with one name", { schema: 1, repos: [{ name: "a", root: "/x", addedAt: "t" }, { name: "a", root: "/y", addedAt: "t" }] }, "the name a is listed twice"],
+    ["two entries with one root", { schema: 1, repos: [{ name: "a", root: "/x", addedAt: "t" }, { name: "b", root: "/x", addedAt: "t" }] }, "/x is listed twice"],
+    ["a default that is not listed", { schema: 1, default: "ghost", repos: [] }, "the default ghost is not listed"],
+  ])("is refused with %s", async (_, list, message) => {
+    const home = await tmpDir("tally-home-");
+    await writeFile(listPath(home), JSON.stringify(list));
+
+    await expect(readRepoList(home)).rejects.toThrow(message);
   });
 });
 

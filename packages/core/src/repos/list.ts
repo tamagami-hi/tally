@@ -4,10 +4,11 @@ import { z } from "zod";
 import { TallyError } from "../errors.ts";
 import { gitOut } from "../git/run.ts";
 import { StateFile } from "../state/file.ts";
+import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { listSessions } from "../state/sessions.ts";
 import { CONFIG_FILE, RECORDS_DIR, openRepo } from "../store/records.ts";
-import { realFolder, rootOfWorktree } from "./find.ts";
-import { listPath, stateDirOf } from "./home.ts";
+import { gitIn, realFolder, rootOfWorktree } from "./find.ts";
+import { listPath, ownerPath, stateDirOf } from "./home.ts";
 import { REPO_NAME, nameFromFolder } from "./name.ts";
 
 export const repoEntrySchema = z.object({
@@ -16,11 +17,25 @@ export const repoEntrySchema = z.object({
   addedAt: z.string(),
 });
 
-export const repoListSchema = z.object({
-  schema: z.literal(1),
-  default: z.string().regex(REPO_NAME).optional(),
-  repos: z.array(repoEntrySchema),
-});
+export const repoListSchema = z
+  .object({
+    schema: z.literal(1),
+    default: z.string().regex(REPO_NAME).optional(),
+    repos: z.array(repoEntrySchema),
+  })
+  .superRefine((list, context) => {
+    const names = new Set<string>();
+    const roots = new Set<string>();
+    for (const repo of list.repos) {
+      if (names.has(repo.name)) context.addIssue({ code: "custom", message: `the name ${repo.name} is listed twice` });
+      if (roots.has(repo.root)) context.addIssue({ code: "custom", message: `${repo.root} is listed twice` });
+      names.add(repo.name);
+      roots.add(repo.root);
+    }
+    if (list.default !== undefined && !names.has(list.default)) context.addIssue({ code: "custom", message: `the default ${list.default} is not listed` });
+  });
+
+const ownerSchema = z.object({ schema: z.literal(1), root: z.string().min(1) });
 
 export type RepoEntry = z.infer<typeof repoEntrySchema>;
 export type RepoList = z.infer<typeof repoListSchema>;
@@ -53,12 +68,21 @@ async function hasConfig(root: string): Promise<boolean> {
 
 async function ownCheckout(path: string): Promise<string> {
   const folder = await realFolder(path);
-  if ((await gitOut(folder, ["rev-parse", "--git-dir"])) === null) throw new TallyError(`${folder} is not a git repository`);
+  if ((await gitIn(folder, ["rev-parse", "--git-dir"])) === null) throw new TallyError(`${folder} is not a git repository`);
   const root = await rootOfWorktree(folder);
   const top = await gitOut(folder, ["rev-parse", "--show-toplevel"]);
   if (top !== null && top !== folder) throw new TallyError(`${folder} is inside the repository ${top}; add that folder`);
   if (root !== folder) throw new TallyError(`${folder} is a linked worktree of ${root}; add that repository`);
   return folder;
+}
+
+async function stateOwner(home: string, name: string): Promise<string | undefined> {
+  try {
+    await access(ownerPath(home, name));
+  } catch {
+    return undefined;
+  }
+  return (await readJson(ownerPath(home, name), ownerSchema)).root;
 }
 
 function checkedName(name: string): string {
@@ -76,11 +100,14 @@ export async function addRepo(home: string, input: AddInput, now = new Date()): 
   if (!(await hasConfig(root))) throw new TallyError(`${root} has no ${RECORDS_DIR}/${CONFIG_FILE}`);
   await openRepo(root);
   const entry: RepoEntry = { name, root, addedAt: now.toISOString() };
-  return listFile(home).update((list) => {
+  return listFile(home).update(async (list) => {
     const sameRoot = list.repos.find((repo) => repo.root === root);
     if (sameRoot !== undefined) throw new TallyError(`${root} is already listed as ${sameRoot.name}`);
     const sameName = list.repos.find((repo) => repo.name === name);
     if (sameName !== undefined) throw new TallyError(`the name ${name} is taken by ${sameName.root}`);
+    const owner = await stateOwner(home, name);
+    if (owner !== undefined && owner !== root) throw new TallyError(`the name ${name} still holds the state of ${owner}; pick another name`);
+    await writeJsonAtomic(ownerPath(home, name), { schema: 1, root });
     return { value: withDefault([...list.repos, entry], list.default), result: entry };
   });
 }

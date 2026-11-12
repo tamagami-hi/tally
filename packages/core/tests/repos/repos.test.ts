@@ -1,8 +1,8 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { stateDirOf } from "../../src/repos/home.ts";
-import { addRepo, removeRepo } from "../../src/repos/list.ts";
+import { listPath, stateDirOf } from "../../src/repos/home.ts";
+import { addRepo, removeRepo, setDefaultRepo } from "../../src/repos/list.ts";
 import { Repos } from "../../src/repos/repos.ts";
 import { statePath } from "../../src/land/paths.ts";
 import { assertMayWrite, getSession, listSessions, openSession } from "../../src/state/sessions.ts";
@@ -102,6 +102,16 @@ describe("two repositories at once", () => {
     expect(() => assertMayWrite(alpha, session, "engine")).toThrow("may not write track engine's records");
   });
 
+  test("a session is found though another repository's sessions file is broken", async () => {
+    const { home, repos, tracked } = await listed(["alpha", "beta"]);
+    const beta = await repos.get("beta");
+    const session = await openSession(beta, { worktree: tracked[1]?.trees["data"] ?? "", track: "data", agent: "claude" });
+    await mkdir(stateDirOf(home, "alpha"), { recursive: true });
+    await writeFile(join(stateDirOf(home, "alpha"), "sessions.json"), "{ not json");
+
+    expect((await repos.ofSession(session.id)).repo.name).toBe("beta");
+  });
+
   test("a session id nobody opened is refused", async () => {
     const { repos } = await listed(["alpha"]);
 
@@ -134,6 +144,25 @@ describe("the list as it changes", () => {
     await removeRepo(home, "beta");
 
     await expect(repos.get("beta")).rejects.toThrow("no repository 'beta'; listed: alpha");
+  });
+
+  test("a list that breaks keeps the last good one, and its error is shown", async () => {
+    const { home, repos } = await listed(["alpha"]);
+    await repos.entries();
+
+    await writeFile(listPath(home), "{ not json");
+
+    expect((await repos.entries()).map((entry) => entry.name)).toEqual(["alpha"]);
+    expect(repos.listProblem()).toContain("is not valid JSON");
+  });
+
+  test("a default changed to a name of the same length is seen", async () => {
+    const { home, repos } = await listed(["app", "api"]);
+    expect(await repos.defaultName()).toBe("app");
+
+    await setDefaultRepo(home, "api");
+
+    expect(await repos.defaultName()).toBe("api");
   });
 
   test("the default repository is the first one added", async () => {
@@ -191,10 +220,31 @@ describe("a config as it changes", () => {
     expect(repos.problem("alpha")).toBeUndefined();
   });
 
-  test("a config that is broken from the start is refused", async () => {
+  test("a config that is broken from the start is refused, and its error is shown", async () => {
     const { repos, tracked } = await listed(["alpha"]);
     await writeFile(configPath(first(tracked).root), "{ not json");
 
     await expect(repos.get("alpha")).rejects.toThrow("is not valid JSON");
+    expect(repos.problem("alpha")).toContain("is not valid JSON");
+  });
+
+  test("a repository whose folder is gone says so", async () => {
+    const { repos, tracked } = await listed(["alpha"]);
+    const { root } = first(tracked);
+    await rename(root, `${root}-moved`);
+
+    await expect(repos.get("alpha")).rejects.toThrow(`${root}, listed as alpha, is gone; put it back, or remove alpha from the list`);
+    expect(repos.problem("alpha")).toContain("is gone");
+    await rename(`${root}-moved`, root);
+  });
+
+  test("a config edited to the same size is seen", async () => {
+    const { repos, tracked } = await listed(["alpha"]);
+    const { root } = first(tracked);
+    expect((await repos.get("alpha")).config.name).toBe("Test");
+
+    await rewriteConfig(root, (config) => ({ ...config, name: "Tset" }));
+
+    expect((await repos.get("alpha")).config.name).toBe("Tset");
   });
 });
