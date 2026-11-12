@@ -1,6 +1,6 @@
 # Tally: the tracking harness, design
 
-**Status: proposed and approved 2026-11-03 (every recommendation of §12 as written); Phase 1 is built and the first tracked repository was cut over the same day.** This copy names no project: that repository keeps its own copy of the design with its names, paths and locks beside its tracking notes. `tally` is a working name; change it anywhere.
+**Status: proposed and approved 2026-11-03 (every recommendation of §12 as written); Phase 1 is built and the first tracked repository was cut over the same day.** This copy names no project: that repository keeps its own copy of the design with its names, paths and locks beside its tracking notes. `tally` is a working name; change it anywhere. **The multi-repo upgrade (§14) was approved on 2026-11-12, with every recommendation of §14.9 as written. It isn't built yet.**
 
 Tally is one service, written in TypeScript, that holds everything `docs/` is responsible for as records agents read and write through an MCP server and a CLI, shows the whole build live in the browser, and hands each agent session exactly the context its level needs. The code lives outside the repository it tracks (`.temp/tally/` now, its own repository later); the records live inside the tracked repository, under `docs/records/`, as JSON files git keeps.
 
@@ -39,7 +39,7 @@ Tracking today is spread over five places, each with its own format, and each fa
                             │  HTTP + SSE                              │  MCP (streamable HTTP; stdio shim)
                             └──────────────────┬───────────────────────┘
                                                │
-                                     tally serve  (one process per tracked repository, loopback)
+                                     tally serve  (one process per tracked repository, loopback; one for every listed repository from §14)
                                      ┌─────────┴──────────┐
                                      │ store   records     │  reads/writes docs/records/*.json, atomic, one writer
                                      │ git     watcher     │  refs, worktrees, dirty files, graph; polled every 2 s
@@ -49,7 +49,7 @@ Tracking today is spread over five places, each with its own format, and each fa
                                      │ views   renderers   │  status, CLAUDE block, build log md, report index
                                      └────────────────────┘
                                                │
-                        <repo>/docs/records/*.json (git)      <repo>/.temp/tally/state/  (runtime, not git)
+                        <repo>/docs/records/*.json (git)      <repo>/.temp/tally/state/  (runtime, not git; a state folder outside the repository from §14.4)
                         <repo>/.temp/worktrees/<track>/.temp/<track>/… (logs, as today)
 ```
 
@@ -83,7 +83,7 @@ Every file carries `"schema": 1`. A reader refuses another major version; a fiel
 
 (Built in Phase 4, 2026-11-04, with these shapes: `decisions.json` keeps each imported row's `status` text with a derived `state`, and `by` and `on` on a row entered or changed through tally; `questions.json` keeps `open`, `answered` and `nextRow`; `buildlog.json` holds `{group, milestone, title, date, markdown}` sections with each group's preamble, so a group renders back byte for byte, and `commits[]` is optional; `checks.json` keeps the fingerprint rows and the command, the checks, the suites, and each module's file table with its prose as `body`, from which `tests`, `entryPoints` and `gaps` are indexed; an evidence record carries `agent` and a stable id, and `tally import evidence` indexes a track's existing `*.json` + `*.log` pairs with the kind read from the file name; `plans.json` rows are `{path, group, status, title, statusLine}`; a report manifest is `{date, name, group, narrative, fingerprint?, cites{evidence, decisions, questions}, bundled[{path, sha256, bytes}]}`. Reviews stay in the tracks' `.temp/` for now. The CLAUDE block sits between `<!-- tally:standing -->` and `<!-- /tally:standing -->` and is a function of the records alone.)
 
-Runtime state that is not history lives outside git in `.temp/tally/state/`: open sessions, who holds which lock, the last git snapshot, the SSE replay buffer.
+Runtime state that is not history lives outside git in `.temp/tally/state/`: open sessions, who holds which lock, the last git snapshot, the SSE replay buffer. (Under §14.4, each repository's state moves to its own folder outside the repository.)
 
 ## 5. Hierarchy and scope
 
@@ -190,7 +190,7 @@ The tracks are mid-task. The cut-over is one quiet moment between landings, and 
 3. **Phase 2, the server and the board.** `tally serve`, SSE, the Board, Tracks, Graph and Evidence pages. `status.py --html --watch` is retired when the board shows the same.
 4. **Phase 3, MCP, scope, context.** Sessions, claims, locks, `context.pack`, `docs.*`, the stdio shim, the MCP entries for Claude Code and Kiro. The guide and the harness's rules are written here, and the tracks' next prompts point at them.
 5. **Phase 4, the records.** `tally import decisions|questions|checks|buildlog` from the Markdown tables (verified by rendering back and diffing to the original); `plans.json`; the generated CLAUDE.md block; the existing run records indexed from `.temp/` (they share one shape already); the 195-file bundle re-expressed as one manifest citing records (the copied logs stay where they are, per the operator's instruction that nothing under `.temp/` or a report is deleted). RULES.md and parallel-build are amended by the operator for what §12 lists.
-6. **Phase 5, its own repository.** `git init` is done on day one in `.temp/tally/`; this phase adds the remote, `tally init` for a second repository, and a release.
+6. **Phase 5, many repositories (§14).** This replaces the earlier Phase 5 (its own repository, `tally init` for a second repository, a release), which the operator closed on 2026-11-04 and replaced with §14 on 2026-11-12. The remote already exists. There is no release.
 
 Each phase ends with its tests green and a short entry in the harness's own ledger (it tracks itself).
 
@@ -212,3 +212,112 @@ These change what a record means, where it is stored for good, or a rule of the 
 ## 13. Not in scope
 
 A chat between agents; an order path or anything that reaches a broker, the archive or the VPS; a database; authentication beyond the worktree binding; replacing git as the history; editing the plans' prose from the web.
+
+## 14. Many repositories, one harness (Phase 5, approved 2026-11-12)
+
+**Status: approved 2026-11-12, with every recommendation of §14.9 as written. Nothing is built.** The operator's eight answers of 2026-11-12 shape this section. It replaces the old Phase 5 (its own repository, `tally init` for a second repository, a release): no release or npm package comes with it. §14.9 lists what else the operator settled on the same day.
+
+### 14.1 What changes, and what stays
+
+**What stays:**
+- Each repository keeps its config and its records in its own `docs/records/` on its main branch, with the schemas of §4 unchanged. A release before this one still reads them.
+- The records commits, the landing protocol, the CLI's verbs and their output.
+- `session_open({worktree, track, agent})` and its checks, and the rules of §9.
+
+**What changes:**
+- Tally keeps a list of the repositories it serves.
+- One `tally serve` and one `tally mcp` serve every repository on the list. Each is registered once, with no `--repo`.
+- Runtime state moves to a folder outside each repository.
+- A change to the list or to a repository's `config.json` takes effect without a restart.
+- The board gets an overview page and a board for each repository.
+
+### 14.2 The list of repositories
+
+`$XDG_CONFIG_HOME/tally/repos.json` (by default `~/.config/tally/repos.json`) holds `{schema: 1, repos: [{name, root}]}`. `TALLY_HOME`, when set, holds both this file and the state of §14.4, so tests and a second install never touch the operator's.
+
+A repository's `name` is its short handle in URLs, tool arguments and the state folder. It uses lowercase letters, digits, `-` and `_`, and is unique on the list. `root` is the absolute path of the repository's own checkout, never a linked worktree.
+
+- **`tally repo add <path> [--name N]`** adds a repository. `--name` defaults to the folder's name (§14.9). The command checks that `docs/records/config.json` opens and validates, that the path is the top of a non-bare git repository and not a linked worktree, and that neither the name nor the root is on the list already.
+- **`tally repo remove <name>`** takes a repository off the list. It's refused while sessions are open in it, and it leaves the records and the state folder alone.
+- **`tally repo list`** prints each name, root, config name and the open sessions.
+- **`tally init`** adds the new repository too.
+- **Writes.** The list is written atomically, under its own lock, like a record.
+
+### 14.3 Finding the repository
+
+- **The CLI.** It works on one repository per call, found as today: `--repo`, then `TALLY_REPO`, then the search upward for `docs/records/config.json`. That repository must be on the list, since its state folder is named from it. An unlisted one is refused with the `tally repo add` line that would list it. `init` and `repo add` are the exceptions.
+- **`session_open`.** In the given worktree, `git rev-parse --path-format=absolute --git-common-dir` names the shared `.git`, and its parent is the repository's root. Tally compares that root, with symlinks resolved, against the list.
+  - An unlisted root is refused with the `tally repo add` line.
+  - Otherwise today's checks follow: the path is the track's worktree, on the track's branch, and the repository's own checkout on its main branch gives operator scope.
+- **The tools that carry a session.** A session id is a UUID. Tally looks it up in the sessions file of each listed repository, and the session's repository is the one every write goes to. A track session in one repository can't write another repository's records, because it is bound to one worktree (rule 4).
+- **The 14 read tools with no session** (`context_pack`, `docs_list|read|search`, `ledger_check`, `decision_list`, `question_list`, `checks_get|fingerprint`, `buildlog_render`, `evidence_list`, `handoff_read`, `lock_list`, `session_list`) gain two optional arguments, `sessionId` and `repo`. If both are given they must name the same repository. If neither is given and the list holds one repository, that one is used (§14.9). If neither is given and the list holds more, the call is refused, naming the listed repositories. `board_get`'s optional `sessionId` gets the same `repo` beside it.
+- **`repo_list`.** A new tool that answers each repository's name, root, config name and open sessions.
+- **The server's instructions** stop naming one repository. They say that tally serves the repositories in its list, and that a session starts with `session_open` on the worktree it works in.
+
+### 14.4 Runtime state
+
+Each repository's state is in `$XDG_STATE_HOME/tally/<name>/` (by default `~/.local/state/tally/<name>/`): `sessions.json`, `claims.json`, `locks.json` and `locks/landing.lock`.
+
+`Repo` gains `name` and `stateDir`. `statePath(repo, …)` joins under `stateDir` instead of `<root>/.temp/tally/state`, so the callers don't change.
+
+The landing lock and the records commit's lock move with the state. Every process that lands or commits for a repository has to agree on that path. So an old build and a new build must never serve the same repository at once, and the cut-over (§14.7) is one quiet moment.
+
+RULES.md rule 5 ("under `.temp/tally/state/`") and the README's landing-lock path are amended to say "the repository's state folder". Rule 10 doesn't change: the harness still deletes nothing under a repository's `.temp/`.
+
+### 14.5 Reloading the list and the configs
+
+One `Repos` object holds the list and an open `Repo` for each entry. Every MCP call, HTTP request and watcher tick asks it for a repository. It compares the modification time and size of `repos.json` and of each `config.json` with what it loaded, and re-reads whichever changed. This closes open item 5 of the 2026-11-04 review: a new track or a new repository works without restarting the server or the MCP process.
+
+- **A config that no longer parses** doesn't take effect. The last good one stays in force, and the error is shown on that repository's board and in each tool's answer for it. The other repositories go on as before.
+- **A track removed while a session is bound to it.** The session stays until it is closed, and its writes are refused with the usual "no track" error.
+- **A repository removed from the list.** Its watcher stops, and its tools answer that it isn't listed.
+
+### 14.6 The server and the board
+
+`tally serve` is one process on one port (47560 by default, loopback only, rule 11), for every listed repository.
+
+| path | serves |
+| --- | --- |
+| `/` | the overview: each repository's name, its stage bars, open sessions, held locks and the count of `ledger_check` problems, live over `/events` |
+| `/r/<name>/` | that repository's board, with today's pages |
+| `/api/r/<name>/…` | today's API for that repository: `snapshot`, `status`, `graph`, `ledger`, `config`, `evidence…`, `docs…`, and its `events` |
+| `/mcp` | the one MCP endpoint for every repository; HTTP callers keep calling it there |
+| `/api/…`, `/events` (no name) | answer for the one listed repository while the list holds one (§14.9); refused, naming the repositories, once it holds more |
+
+- **Watchers.** There is one watcher (§3's 2 s fingerprint poll) for each listed repository, started and stopped as the list changes. The overview is computed from the watchers' latest snapshots.
+- **The web build.** Vite's `base` becomes `./`, and every fetch and `EventSource` is relative to the board's base, so one build serves every `/r/<name>/`. The header links back to the overview.
+- **`tally serve --repo X` and `tally mcp --repo X`** keep today's single-repository behaviour, so an existing registration works unchanged until it is switched. X must still be listed (§14.3).
+
+### 14.7 The cut-over of the first tracked repository
+
+The new build is written and tested with `TALLY_HOME` set, beside the running one, and nothing the tracks call changes until the cut-over. The cut-over itself is one quiet moment, chosen by the operator:
+
+1. Stop the board (`tally serve`). Wait until `session_list` shows no session and no landing is running. Run `tally records commit` if records are waiting.
+2. Build the new release. `tally repo add <root> --name <name>`.
+3. Change the MCP registration to drop `--repo`, and start `tally serve` without it. HTTP callers of `/mcp` keep working. The board moves to `/r/<name>/`, and while only one repository is listed the old paths still answer.
+4. The repository's old state folder (or its link to the old state) is no longer read. It's removed in a session of that repository, never by the harness.
+5. `tally ledger check` against the repository must report nothing missing, and a session opened on a track worktree must bind as before.
+
+**Going back:** restore the registration with `--repo` and run the previous build. The records were never changed, so nothing in git is undone. Only the live state, which was empty at the quiet moment, starts fresh.
+
+### 14.8 Building it (tests first)
+
+`core` gains `repos/`: the list, finding a repository from a worktree, and the reloading `Repos`. Each file stays under 400 lines. The tests come first, in this order:
+
+1. **The list:** `repo add|remove|list` and each refusal (no config, linked worktree, a name or root already listed, open sessions), and atomic writes under `TALLY_HOME`.
+2. **Finding the repository:** two temp repositories with tracks. A worktree resolves to its repository through a symlinked path. An unlisted repository is refused. A session in each repository is open at once, and a track session in one can't write the other.
+3. **The read tools:** by `sessionId`, by `repo`, the one-repository default, a disagreeing pair, and the refusal once two are listed.
+4. **The state:** each repository's files and landing lock are under its own state folder. Two repositories land at once without waiting on each other.
+5. **Reloading:** a track added to `config.json` binds without a restart. A broken config keeps the last good one and shows its error. A repository added to the list appears on the overview.
+6. **The server:** the overview and two boards, each repository's API and events, `/mcp` across both, and the old paths with one repository and with two.
+7. **What stays:** `--repo` for `serve` and `mcp`, and the CLI commands the first tracked repository uses (`ledger check`, `task …`, `decision add|replace --operator`, `question add|answer`, `checks set|fingerprint`, `buildlog append|render`, `views claude`, `records commit`, `land`), checked against today's output.
+
+### 14.9 What only the operator could decide (settled 2026-11-12, as recommended)
+
+| # | decision | recommended |
+| --- | --- | --- |
+| 1 | **When the first tracked repository cuts over** | at a quiet moment the operator picks, once the build has landed with its tests green (§14.7) |
+| 2 | **The CLI keeps `--repo`, `TALLY_REPO` and the upward search** | yes: the CLI works on one repository per call, and the tracked repository's scripts and wrappers don't change |
+| 3 | **A repository's name** | a short name given to `repo add --name`, defaulting to the folder's name, rather than `config.name` (which may have capitals and spaces) |
+| 4 | **A read tool or an old URL with no session and no repository** | the one listed repository while the list holds one, so today's agent prompts and callers keep working through the cut-over; refused once a second repository is listed, and the prompts name `repo` from then on |
+| 5 | **The old URLs' end** (`/api/…`, `/events` with no name) | removed in the release after the second repository is listed |
