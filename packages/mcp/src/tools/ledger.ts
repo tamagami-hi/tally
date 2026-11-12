@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  COVERED, Records, TallyError, addMilestone, assertMayWrite, claimTask, collect, commitRecords, findMilestone, findTask, getSession, isOperator,
+  COVERED, Records, TallyError, addMilestone, assertMayWrite, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, findMilestone, findTask, getSession, isOperator,
   listClaims, listLocks, logLines, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unrecorded, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { ok } from "../respond.ts";
@@ -21,6 +21,13 @@ function scopedTrack(repo: Repo, session: Session, given: string | undefined): s
   assertMayWrite(repo, session, track);
   return track;
 }
+
+const plannedTask = z.object({
+  id: z.string().min(1),
+  brief: z.string().optional().describe("what to do"),
+  paths: z.array(z.string().min(1)).optional().describe("the files it expects to touch"),
+  covers: z.array(z.string().min(1)).optional().describe("ids of the milestone's deliverables it covers"),
+});
 
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
@@ -47,18 +54,27 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "milestone_add",
-    { description: "Add an empty milestone to a stage (operator scope).", inputSchema: { sessionId: z.string(), id: z.string(), stage: z.string(), name: z.string(), track: z.string(), weight: z.number().int().positive(), waits: z.string().optional(), group: z.string().optional() } },
-    ({ sessionId, waits, group, ...input }) => inSession(source, sessionId, async (repo, session) => {
+    { description: "Add an empty milestone to a stage (operator scope). `delivers` lists what it owes, each with an id; ledger_check reports a deliverable no task covers.", inputSchema: { sessionId: z.string(), id: z.string(), stage: z.string(), name: z.string(), track: z.string(), weight: z.number().int().positive(), waits: z.string().optional(), group: z.string().optional(), delivers: z.array(deliverableSchema).optional() } },
+    ({ sessionId, waits, group, delivers, ...input }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       if (!isOperator(repo, session)) throw new TallyError("only an operator session adds milestones");
-      const milestone = { ...input, ...(waits === undefined ? {} : { waits }), ...(group === undefined ? {} : { group }) };
+      const milestone = { ...input, delivers, ...(waits === undefined ? {} : { waits }), ...(group === undefined ? {} : { group }) };
       const message = await records.update((ledger) => addMilestone(ledger, milestone, repo.config.stages.map((s) => s.id)));
       return ok(await recorded(repo, message));
     }),
   );
   server.registerTool(
+    "milestone_deliver",
+    { description: "Add deliverables to a milestone that exists (operator scope): what it owes, each with an id that tasks name in `covers`. An id the milestone already has is refused.", inputSchema: { sessionId: z.string(), milestone: z.string(), delivers: z.array(deliverableSchema).min(1) } },
+    ({ sessionId, milestone, delivers }) => inSession(source, sessionId, async (repo, session) => {
+      if (!isOperator(repo, session)) throw new TallyError("only an operator session adds deliverables to a milestone");
+      const message = await new Records(repo).update((ledger) => deliver(ledger, { milestone, delivers }));
+      return ok(await recorded(repo, message));
+    }),
+  );
+  server.registerTool(
     "task_plan",
-    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: z.array(z.string()).min(1) } },
+    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's. A task is its name, or {id, brief?, paths?, covers?}: what to do, the files it expects to touch, and the ids of the milestone's deliverables it covers. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: z.array(z.union([z.string(), plannedTask])).min(1) } },
     ({ sessionId, milestone, track, tasks }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       const scoped = scopedTrack(repo, session, track);
@@ -78,17 +94,17 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_wait",
-    { description: "Mark a task as waiting on something (another track's task, a question row).", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), what: z.string() } },
-    ({ sessionId, milestone, task, what }) => inSession(source, sessionId, async (repo, session) => {
+    { description: "Mark a task as waiting on something (another track's task, a question row). With `on`, it waits on that task, and the wait clears itself when the task lands; a task not planned yet is accepted, and ledger_check reports it.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), what: z.string(), on: z.string().optional().describe("the task it waits on, as MILESTONE:TASK") } },
+    ({ sessionId, milestone, task, what, on }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       assertMayWriteTask(repo, session, await records.readLedger(), milestone, task);
-      const message = await records.update((current) => wait(current, { milestone, task, what }));
+      const message = await records.update((current) => wait(current, { milestone, task, what, on }));
       return ok(await recorded(repo, message));
     }),
   );
   server.registerTool(
     "task_unwait",
-    { description: "Clear a task's wait, so the board shows it as ready again.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string() } },
+    { description: "Clear a task's waits, the free-text one and every task it waits on, so the board shows it as ready again.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string() } },
     ({ sessionId, milestone, task }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       assertMayWriteTask(repo, session, await records.readLedger(), milestone, task);
@@ -98,9 +114,9 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_land",
-    { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional() } },
-    ({ sessionId, milestone, task, commit, also, track }) => inSession(source, sessionId, async (repo, session) => {
-      const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
+    { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be. `deferred` lists the parts that did not land, each {what, to?} with `to` the MILESTONE:TASK that will finish it: the board shows the task as landed in part until those tasks land. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredSchema).optional() } },
+    ({ sessionId, milestone, task, commit, also, track, deferred }) => inSession(source, sessionId, async (repo, session) => {
+      const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, deferred, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
       return ok({ ...(await recorded(repo, message)), ...outcome });
     }),
   );

@@ -1,7 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { z } from "zod";
-import { TallyError, advance, cancelTicket, joinQueue, landingTarget, ticketStates, ticketView, waitForTicket } from "@tally/core";
+import { TallyError, advance, cancelTicket, deferredSchema, joinQueue, landingTarget, ticketStates, ticketView, waitForTicket } from "@tally/core";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -22,13 +22,13 @@ export function registerLandTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "land_start",
     {
-      description: "Join the landing queue with the session's track. It never blocks: the answer is a ticket with its state, its position and who is ahead. When the state is `turn`, tally has committed the named files, rebased the track onto main in a clean checkout and written a script: run the `run` command in your own shell (in the background if it is long), then call land_wait. With milestone and task, the landing records that task. Without files and a message it lands the commits the track already has.",
-      inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), message: z.string().optional().describe("the commit message"), messageFile: z.string().optional().describe("a file in the worktree that holds the commit message"), milestone: z.string().optional(), task: z.string().optional() },
+      description: "Join the landing queue with the session's track. It never blocks: the answer is a ticket with its state, its position and who is ahead. When the state is `turn`, tally has committed the named files, rebased the track onto main in a clean checkout and written a script: run the `run` command in your own shell (in the background if it is long), then call land_wait. With milestone and task, the landing records that task; `deferred` then lists the parts that did not land, each {what, to?} with `to` the MILESTONE:TASK that will finish it, and they are recorded on the task. Without files and a message it lands the commits the track already has.",
+      inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), message: z.string().optional().describe("the commit message"), messageFile: z.string().optional().describe("a file in the worktree that holds the commit message"), milestone: z.string().optional(), task: z.string().optional(), deferred: z.array(deferredSchema).optional().describe("the parts this landing leaves undone") },
     },
-    ({ sessionId, files, message, messageFile, milestone, task }) => inSession(source, sessionId, async (repo, session) => {
+    ({ sessionId, files, message, messageFile, milestone, task, deferred }) => inSession(source, sessionId, async (repo, session) => {
       const target = landingTarget(milestone, task);
       const text = await messageOfLanding(session.worktree, message, messageFile);
-      const ticket = await joinQueue(repo, session, { files, ...(text === undefined ? {} : { message: text }), ...(target === undefined ? {} : { target }) });
+      const ticket = await joinQueue(repo, session, { files, deferred, ...(text === undefined ? {} : { message: text }), ...(target === undefined ? {} : { target }) });
       await advance(repo);
       return ok(await ticketView(repo, ticket.id));
     }),
