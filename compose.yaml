@@ -5,6 +5,15 @@ services:
     container_name: tally
     restart: unless-stopped
     user: "${TALLY_UID}:${TALLY_GID}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Keep the 127.0.0.1: prefix. The service has no login: it relies on being
+    # reachable from this machine only.
     ports:
       - "127.0.0.1:${TALLY_PORT:-47560}:47560"
     environment:

@@ -1,8 +1,6 @@
-import { access } from "node:fs/promises";
-import { join } from "node:path";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { CONFIG_FILE, RECORDS_DIR, TallyError, addDecision, addRepo, answerQuestion, endSession, removeRepo, setDefaultRepo, startRecords, type StartDefaults } from "@tally/core";
+import { TallyError, addDecision, addRepo, answerQuestion, endSession, removeRepo, setDefaultRepo, startRecords, type StartDefaults } from "@tally/core";
 import { insideWorkspace } from "./folders.ts";
 import { operatorOnly } from "./guard.ts";
 import type { Hub } from "./hub.ts";
@@ -24,15 +22,6 @@ async function body<T>(c: Context, schema: z.ZodType<T>): Promise<T> {
   return parsed.data;
 }
 
-async function hasRecords(root: string): Promise<boolean> {
-  try {
-    await access(join(root, RECORDS_DIR, CONFIG_FILE));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function operatorRoutes({ hub, workspace, defaults }: OperatorOptions): Hono {
   const api = new Hono();
   const home = hub.repos.home;
@@ -40,11 +29,13 @@ export function operatorRoutes({ hub, workspace, defaults }: OperatorOptions): H
     operatorOnly(c);
     const { root, name } = await body(c, addSchema);
     const folder = await insideWorkspace(workspace, root);
-    const started = !(await hasRecords(folder));
-    if (started) await startRecords(folder, defaults);
-    const entry = await addRepo(home, { root: folder, ...(name === undefined ? {} : { name }) });
+    const started: string[] = [];
+    const entry = await addRepo(home, { root: folder, ...(name === undefined ? {} : { name }) }, new Date(), async (checked) => {
+      await startRecords(checked, defaults);
+      started.push(checked);
+    });
     await hub.sync();
-    return c.json({ ...entry, started });
+    return c.json({ ...entry, started: started.length > 0 });
   });
   api.delete("/repos/:name", async (c) => {
     operatorOnly(c);

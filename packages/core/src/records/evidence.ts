@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { z } from "zod";
 import { TallyError, messageOf } from "../errors.ts";
@@ -78,6 +78,9 @@ async function hashLog(repo: Repo, session: Session, logPath: string): Promise<{
   } catch {
     throw new TallyError(`the log does not exist: ${absolute}`);
   }
+  const real = await realpath(absolute);
+  const allowed = await Promise.all([session.worktree, join(repo.root, LOGS)].map((folder) => realpath(folder).catch(() => folder)));
+  if (!allowed.some((folder) => within(folder, real))) throw new TallyError(`the log must be inside the session's worktree: ${logPath}`);
   const log = { path: absolute, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: (await stat(absolute)).size };
   return { log, text: bytes.toString("utf8") };
 }

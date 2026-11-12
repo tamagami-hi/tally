@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { TallyError } from "../errors.ts";
 
+const SAFE: readonly string[] = ["-c", "core.fsmonitor=false"];
+
 export const OWN_COMMIT: readonly string[] = ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false"];
 
 export const asIdentity = (identity: { name: string; email: string }): string[] => [...OWN_COMMIT, "-c", `user.name=${identity.name}`, "-c", `user.email=${identity.email}`];
@@ -13,7 +15,7 @@ export interface GitResult {
 
 export function git(cwd: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<GitResult> {
   return new Promise((done) => {
-    execFile("git", [...args], { cwd, env: { GIT_OPTIONAL_LOCKS: "0", ...(env ?? process.env) }, maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile("git", [...SAFE, ...args], { cwd, env: { GIT_OPTIONAL_LOCKS: "0", ...(env ?? process.env) }, maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
       const code = error === null ? 0 : typeof (error as NodeJS.ErrnoException & { code?: unknown }).code === "number" ? (error as { code: number }).code : 1;
       done({ code, stdout: String(stdout), stderr: String(stderr) });
     });

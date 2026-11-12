@@ -22,7 +22,8 @@ export function createServiceApp({ hub, webDir, workspace, defaults }: ServiceOp
   app.use("*", loopbackOnly());
   app.onError((error, c) => {
     if (error instanceof TallyError) return c.json({ error: messageOf(error) }, statusOf(error));
-    return c.json({ error: `tally failed: ${messageOf(error)}` }, 500);
+    process.stderr.write(`tally failed on ${c.req.method} ${new URL(c.req.url).pathname}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
+    return c.json({ error: "tally failed; the service's log has the detail" }, 500);
   });
   app.get("/api/health", (c) => c.json({ ok: true }));
   app.get("/api/repos", async (c) => {

@@ -141,6 +141,32 @@ describe("who may call the service", () => {
     expect(response.status).toBe(403);
   });
 
+  test("a page served from another port of this machine is refused", async () => {
+    const { app } = await service();
+
+    const response = await app.request("/api/repos", { headers: { host: "127.0.0.1:47560", origin: "http://127.0.0.1:3000" } });
+
+    expect(response.status).toBe(403);
+    expect(await json(response)).toEqual({ error: "a page of http://127.0.0.1:3000 may not call tally" });
+  });
+
+  test("every answer forbids framing and type guessing", async () => {
+    const { app } = await service();
+
+    for (const path of ["/", "/api/health", "/api/r/ghost/snapshot"]) {
+      const { headers } = await app.request(path);
+      expect(headers.get("content-security-policy")).toBe("frame-ancestors 'none'");
+      expect(headers.get("x-frame-options")).toBe("DENY");
+      expect(headers.get("x-content-type-options")).toBe("nosniff");
+    }
+  });
+
+  test("a path that cannot be read is not found, and a failure says nothing of the server's insides", async () => {
+    const { app } = await service();
+
+    expect((await app.request("/%")).status).toBe(404);
+  });
+
   test("a request from the board itself is answered", async () => {
     const { app } = await service();
 

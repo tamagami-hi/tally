@@ -53,7 +53,43 @@ describe("the operator's list of repositories", () => {
     const response = await act(app, "POST", "/api/repos", { root: "/etc", name: "etc" });
 
     expect(response.status).toBe(400);
-    expect(await json(response)).toEqual({ error: `/etc is outside the workspace ${workspace}` });
+    expect(await json(response)).toEqual({ error: `/etc is not a folder inside the workspace ${workspace}` });
+  });
+
+  test("a folder inside a repository is refused, and nothing is written or committed there", async () => {
+    const { app, alpha } = await service();
+    await mkdir(join(alpha.root, "src"), { recursive: true });
+    const before = await sh(alpha.root, ["rev-parse", "HEAD"]);
+    const dirty = await sh(alpha.root, ["status", "--porcelain"]);
+
+    const response = await act(app, "POST", "/api/repos", { root: join(alpha.root, "src"), name: "inner" });
+
+    expect(response.status).toBe(400);
+    expect(await sh(alpha.root, ["rev-parse", "HEAD"])).toBe(before);
+    expect(await sh(alpha.root, ["status", "--porcelain"])).toBe(dirty);
+  });
+
+  test("a name that does not fit is refused before any records are started", async () => {
+    const { app } = await service();
+    const plain = await makeRepo();
+    const before = await plain.head();
+
+    const response = await act(app, "POST", "/api/repos", { root: plain.root, name: "Bad Name" });
+
+    expect(response.status).toBe(400);
+    expect(await plain.head()).toBe(before);
+    expect(await sh(plain.root, ["status", "--porcelain"])).toBe("");
+  });
+
+  test("a name that is taken is refused before any records are started", async () => {
+    const { app } = await service();
+    const plain = await makeRepo();
+    const before = await plain.head();
+
+    const response = await act(app, "POST", "/api/repos", { root: plain.root, name: "alpha" });
+
+    expect(response.status).toBe(400);
+    expect(await plain.head()).toBe(before);
   });
 
   test("a body that is not what the action needs is refused", async () => {
@@ -109,12 +145,15 @@ describe("the folder browser", () => {
     expect(listing.parent).toBe(workspace);
   });
 
-  test("never leaves the workspace", async () => {
+  test("never leaves the workspace, and says the same of a folder that does not exist", async () => {
     const { app, workspace } = await service();
 
-    const response = await app.request(`/api/fs?dir=${encodeURIComponent(join(workspace, ".."))}`);
+    const outside = await app.request(`/api/fs?dir=${encodeURIComponent("/etc")}`);
+    const missing = await app.request(`/api/fs?dir=${encodeURIComponent("/no/such/folder")}`);
 
-    expect(response.status).toBe(400);
+    expect(outside.status).toBe(400);
+    expect(await json(outside)).toEqual({ error: `/etc is not a folder inside the workspace ${workspace}` });
+    expect(await json(missing)).toEqual({ error: `/no/such/folder is not a folder inside the workspace ${workspace}` });
   });
 });
 

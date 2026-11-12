@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
+import { realpath } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
-import { Records, TallyError, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, type Config, type Repo } from "@tally/core";
+import { Records, TallyError, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
 import { GRAPH_LIMIT, commitCount, commitGraph, graphBranches } from "./graph.ts";
 import { fileOrNull } from "./static.ts";
 import type { Watcher } from "./watcher.ts";
@@ -23,6 +24,16 @@ export function redactedConfig(config: Config): Config {
   const { env, landing } = config.commands;
   const hidden = landing?.env === undefined ? {} : { landing: { ...landing, env: redacted(landing.env) } };
   return { ...config, commands: { ...config.commands, env: redacted(env), ...hidden } };
+}
+
+async function insideRepo(repo: Repo, path: string): Promise<boolean> {
+  const real = await realpath(path).catch(() => null);
+  if (real === null) return true;
+  for (const folder of [repo.root, ...repo.config.tracks.map((track) => worktreeOf(repo, track))]) {
+    const base = await realpath(folder).catch(() => folder);
+    if (real === base || real.startsWith(`${base}${sep}`)) return true;
+  }
+  return false;
 }
 
 export function eventStream(c: Context, watcher: Watcher): Response {
@@ -58,6 +69,7 @@ export function repoRoutes(served: Serve): Hono {
   api.get("/evidence/log/:id", async (c) => {
     const found = await findEvidence((await served(c)).repo, c.req.param("id"));
     if (found === null || found.record.log === undefined) return c.json({ error: "no log for that record" }, 404);
+    if (!(await insideRepo((await served(c)).repo, found.record.log.path))) return c.json({ error: "that record's log is not inside the repository" }, 404);
     const body = await fileOrNull(found.record.log.path);
     if (body === null) return c.json({ error: `the log is gone: ${found.record.log.path}` }, 410);
     const hash = createHash("sha256").update(body).digest("hex");

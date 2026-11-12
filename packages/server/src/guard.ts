@@ -4,6 +4,7 @@ import { TallyError } from "@tally/core";
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 const OPERATOR_HEADER = "x-tally-operator";
 const JSON_TYPE = "application/json";
+const SEALED: readonly (readonly [string, string])[] = [["content-security-policy", "frame-ancestors 'none'"], ["x-frame-options", "DENY"], ["x-content-type-options", "nosniff"]];
 
 export class Forbidden extends TallyError {
   constructor(message: string) {
@@ -29,11 +30,9 @@ export function loopbackOnly(): MiddlewareHandler {
     const host = c.req.header("host") ?? new URL(c.req.url).host;
     if (!LOOPBACK.has(hostnameOf(host))) return c.json({ error: `tally answers only on this machine's loopback address, not ${host}` }, 403);
     const origin = c.req.header("origin");
-    if (origin !== undefined) {
-      const from = originHost(origin);
-      if (from === null || !LOOPBACK.has(hostnameOf(from))) return c.json({ error: `a page of ${origin} may not call tally` }, 403);
-    }
+    if (origin !== undefined && originHost(origin) !== host.toLowerCase()) return c.json({ error: `a page of ${origin} may not call tally` }, 403);
     await next();
+    for (const [name, value] of SEALED) c.res.headers.set(name, value);
     return undefined;
   };
 }

@@ -101,22 +101,30 @@ export function readRepoList(home: string): Promise<RepoList> {
   return listFile(home).read();
 }
 
-export async function addRepo(home: string, input: AddInput, now = new Date()): Promise<RepoEntry> {
+async function free(home: string, list: RepoList, root: string, name: string): Promise<void> {
+  const sameRoot = list.repos.find((repo) => repo.root === root);
+  if (sameRoot !== undefined) throw new TallyError(`${root} is already listed as ${sameRoot.name}`);
+  const sameName = list.repos.find((repo) => repo.name === name);
+  if (sameName !== undefined) throw new TallyError(`the name ${name} is taken by ${sameName.root}`);
+  const owner = await stateOwner(home, name);
+  if (owner !== undefined && owner !== root) throw new TallyError(`the name ${name} still holds the state of ${owner}; pick another name`);
+}
+
+export async function addRepo(home: string, input: AddInput, now = new Date(), start?: (root: string) => Promise<unknown>): Promise<RepoEntry> {
   const root = await ownCheckout(input.root);
   const name = checkedName(input.name ?? nameFromFolder(root));
-  if (!(await hasConfig(root))) throw new TallyError(`${root} has no ${RECORDS_DIR}/${CONFIG_FILE}`);
-  await openRepo(root);
   const before = join(root, STATE_DIR);
   const open = (await listSessions({ stateDir: before })).length;
   if (open > 0) throw new TallyError(`${root} has ${open} open session${open === 1 ? "" : "s"} under ${before}; close ${open === 1 ? "it" : "them"} before listing the repository`);
+  await free(home, await readRepoList(home), root, name);
+  if (!(await hasConfig(root))) {
+    if (start === undefined) throw new TallyError(`${root} has no ${RECORDS_DIR}/${CONFIG_FILE}`);
+    await start(root);
+  }
+  await openRepo(root);
   const entry: RepoEntry = { name, root, addedAt: now.toISOString() };
   return listFile(home).update(async (list) => {
-    const sameRoot = list.repos.find((repo) => repo.root === root);
-    if (sameRoot !== undefined) throw new TallyError(`${root} is already listed as ${sameRoot.name}`);
-    const sameName = list.repos.find((repo) => repo.name === name);
-    if (sameName !== undefined) throw new TallyError(`the name ${name} is taken by ${sameName.root}`);
-    const owner = await stateOwner(home, name);
-    if (owner !== undefined && owner !== root) throw new TallyError(`the name ${name} still holds the state of ${owner}; pick another name`);
+    await free(home, list, root, name);
     await writeJsonAtomic(ownerPath(home, name), { schema: 1, root });
     return { value: withDefault([...list.repos, entry], list.default), result: entry };
   });

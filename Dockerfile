@@ -30,6 +30,7 @@ COPY --from=build /app/packages/cli/dist packages/cli/dist
 COPY --from=build /app/packages/mcp/dist packages/mcp/dist
 COPY --from=build /app/packages/server/dist packages/server/dist
 COPY --from=build /app/packages/web/dist packages/web/dist
+USER node
 EXPOSE 47560
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD ["node", "-e", "fetch('http://127.0.0.1:47560/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 CMD ["node", "packages/cli/dist/main.js", "serve", "--host", "0.0.0.0"]

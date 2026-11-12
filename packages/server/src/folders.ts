@@ -1,5 +1,5 @@
 import { access, readdir } from "node:fs/promises";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { CONFIG_FILE, RECORDS_DIR, TallyError, realFolder, type Repos } from "@tally/core";
 
 export interface Folder {
@@ -27,8 +27,8 @@ async function present(path: string): Promise<boolean> {
 
 export async function insideWorkspace(workspace: string, path: string): Promise<string> {
   const root = await realFolder(workspace);
-  const folder = await realFolder(path);
-  if (folder !== root && !folder.startsWith(`${root}${sep}`)) throw new TallyError(`${folder} is outside the workspace ${root}`);
+  const folder = await realFolder(path).catch(() => undefined);
+  if (folder === undefined || (folder !== root && !folder.startsWith(`${root}${sep}`))) throw new TallyError(`${resolve(path)} is not a folder inside the workspace ${root}`);
   return folder;
 }
 

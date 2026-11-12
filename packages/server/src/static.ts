@@ -21,9 +21,20 @@ export async function fileOrNull(path: string): Promise<Uint8Array | null> {
   }
 }
 
+function decodable(path: string): boolean {
+  try {
+    decodeURIComponent(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function staticFiles(webDir: string): (c: Context) => Promise<Response> {
   return async (c) => {
-    const requested = normalize(decodeURIComponent(new URL(c.req.url).pathname));
+    const path = new URL(c.req.url).pathname;
+    if (!decodable(path)) return c.text("not found", 404);
+    const requested = normalize(decodeURIComponent(path));
     const wanted = requested === "/" || !extname(requested) ? "/index.html" : requested;
     const body = await fileOrNull(join(webDir, wanted));
     if (body === null) return c.text("not found", 404);
