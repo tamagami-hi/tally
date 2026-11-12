@@ -1,4 +1,4 @@
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir, stat, symlink } from "node:fs/promises";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -110,6 +110,17 @@ describe("session_open on a server for every repository", () => {
     expect(structured["worktree"]).toBe(tree(alpha, "engine"));
   });
 
+  test("finds them through a link to the worktree", async () => {
+    const { call, beta } = await serving();
+    const link = join(await tmpDir("tally-link-"), "linked");
+    await symlink(tree(beta, "data"), link);
+
+    const { structured } = await call("session_open", { worktree: link, agent: "claude" });
+
+    expect(structured["repo"]).toBe("beta");
+    expect(structured["worktree"]).toBe(tree(beta, "data"));
+  });
+
   test("gives operator scope at the repository's own checkout", async () => {
     const { call, alpha } = await serving();
 
@@ -149,6 +160,29 @@ describe("a tool that carries a session", () => {
     const tasksOf = async (name: string): Promise<string[]> => (await new Records(await repos.get(name)).readLedger()).milestones.flatMap((m) => m.tasks.map((t) => t.id));
     expect(await tasksOf("beta")).toContain("6 only in beta");
     expect(await tasksOf("alpha")).not.toContain("6 only in beta");
+  });
+
+  test("holds a lock in its own repository only", async () => {
+    const { call, alpha, beta } = await serving();
+    const inBeta = await opened(call, tree(beta, "data"));
+    await opened(call, tree(alpha, "data"));
+
+    await call("lock_acquire", { sessionId: inBeta, name: "evidence", note: "a run" });
+
+    const held = async (repo: string): Promise<unknown[]> => (await call("lock_list", { repo })).structured["locks"] as unknown[];
+    expect(await held("beta")).toHaveLength(1);
+    expect(await held("alpha")).toHaveLength(0);
+  });
+
+  test("is refused once its session is closed", async () => {
+    const { call, beta } = await serving();
+    const session = await opened(call, tree(beta, "data"));
+    await call("session_close", { sessionId: session });
+
+    const refused = await call("ledger_check", { sessionId: session });
+
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toBe(`no session ${session}; open one with session_open`);
   });
 
   test("is refused for a session nobody opened", async () => {

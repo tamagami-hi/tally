@@ -77,11 +77,12 @@ export class Repos {
   }
 
   async ofSession(sessionId: string): Promise<SessionHome> {
+    const unread: string[] = [];
     for (const entry of await this.entries()) {
-      const session = await this.sessionIn(entry, sessionId);
+      const session = await this.sessionIn(entry, sessionId, unread);
       if (session !== undefined) return { repo: await this.open(entry), session };
     }
-    throw new TallyError(`no session ${sessionId}; open one with session_open`);
+    throw new TallyError(`no session ${sessionId}; open one with session_open${unread.length === 0 ? "" : ` (the sessions of ${unread.join(", ")} could not be read)`}`);
   }
 
   problem(name: string): string | undefined {
@@ -92,12 +93,13 @@ export class Repos {
     return this.listTrouble;
   }
 
-  private async sessionIn(entry: RepoEntry, sessionId: string): Promise<Session | undefined> {
+  private async sessionIn(entry: RepoEntry, sessionId: string, unread: string[]): Promise<Session | undefined> {
     try {
       return (await listSessions({ stateDir: stateDirOf(this.home, entry.name) })).find((session) => session.id === sessionId);
     } catch (error: unknown) {
       if (!(error instanceof TallyError)) throw error;
       this.trouble(entry.name, messageOf(error));
+      unread.push(entry.name);
       return undefined;
     }
   }

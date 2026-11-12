@@ -16,6 +16,7 @@ export async function findRepo(home: string, path: string): Promise<RepoEntry> {
 
 export async function openAt(home: string, root: string): Promise<Repo> {
   const folder = await realFolder(root).catch(() => undefined);
-  const entry = folder === undefined ? undefined : (await readRepoList(home)).repos.find((repo) => repo.root === folder);
+  const owner = folder === undefined ? undefined : await rootOfWorktree(folder).catch(() => folder);
+  const entry = owner === undefined ? undefined : (await readRepoList(home)).repos.find((repo) => repo.root === owner);
   return entry === undefined ? openRepo(root) : openRepo(entry.root, { name: entry.name, stateDir: stateDirOf(home, entry.name) });
 }

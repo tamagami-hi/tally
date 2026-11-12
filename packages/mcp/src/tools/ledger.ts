@@ -100,7 +100,6 @@ export function registerLedgerTools(server: McpServer, source: RepoSource): void
     "task_land",
     { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional() } },
     ({ sessionId, milestone, task, commit, also, track }) => inSession(source, sessionId, async (repo, session) => {
-      const records = new Records(repo);
       const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
       return ok({ ...(await recorded(repo, message)), ...outcome });
     }),
@@ -108,9 +107,8 @@ export function registerLedgerTools(server: McpServer, source: RepoSource): void
   server.registerTool(
     "task_other",
     { description: "Record a commit on main that is no task's (a docs or rules commit).", inputSchema: { sessionId: z.string(), commit: z.string(), note: z.string() } },
-    ({ sessionId, commit, note }) => inSession(source, sessionId, async (repo, session) => {
+    ({ sessionId, commit, note }) => inSession(source, sessionId, async (repo) => {
       const records = new Records(repo);
-      session;
       const message = await records.update((ledger) => other(ledger, { commit, note }, resolveOnMain(repo.root, repo.config.mainBranch)));
       return ok(await recorded(repo, message));
     }),

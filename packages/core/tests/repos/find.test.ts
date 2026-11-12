@@ -114,3 +114,16 @@ describe("opening a repository by its root", () => {
     expect((await openAt(home, root)).stateDir).toBe(join(root, ".temp/tally/state"));
   });
 });
+
+describe("opening a listed repository from one of its worktrees", () => {
+  test("opens the repository itself, with the state the list gives it", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root, trees } = await makeTracked();
+    await addRepo(home, { root, name: "alpha" });
+
+    const repo = await openAt(home, trees["data"] ?? "");
+
+    expect(repo.root).toBe(root);
+    expect(repo.stateDir).toBe(join(home, "state/alpha"));
+  });
+});

@@ -8,7 +8,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { listSessions } from "../state/sessions.ts";
 import { CONFIG_FILE, RECORDS_DIR, openRepo } from "../store/records.ts";
 import { gitIn, realFolder, rootOfWorktree } from "./find.ts";
-import { listPath, ownerPath, stateDirOf } from "./home.ts";
+import { STATE_DIR, listPath, ownerPath, stateDirOf } from "./home.ts";
 import { REPO_NAME, nameFromFolder } from "./name.ts";
 
 export const repoEntrySchema = z.object({
@@ -99,6 +99,9 @@ export async function addRepo(home: string, input: AddInput, now = new Date()): 
   const name = checkedName(input.name ?? nameFromFolder(root));
   if (!(await hasConfig(root))) throw new TallyError(`${root} has no ${RECORDS_DIR}/${CONFIG_FILE}`);
   await openRepo(root);
+  const before = join(root, STATE_DIR);
+  const open = (await listSessions({ stateDir: before })).length;
+  if (open > 0) throw new TallyError(`${root} has ${open} open session${open === 1 ? "" : "s"} under ${before}; close ${open === 1 ? "it" : "them"} before listing the repository`);
   const entry: RepoEntry = { name, root, addedAt: now.toISOString() };
   return listFile(home).update(async (list) => {
     const sameRoot = list.repos.find((repo) => repo.root === root);

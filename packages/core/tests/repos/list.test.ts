@@ -188,6 +188,16 @@ describe("adding a repository", () => {
   });
 });
 
+describe("a repository that was served on its own before", () => {
+  test("is not listed while sessions are open under its old state folder", async () => {
+    const home = await tmpDir("tally-home-");
+    const { repo, root, trees } = await makeTracked();
+    await openSession(repo, { worktree: trees["data"] ?? "", track: "data", agent: "claude" });
+
+    await expect(addRepo(home, { root, name: "alpha" })).rejects.toThrow(`${root} has 1 open session under ${join(root, ".temp/tally/state")}; close it before listing the repository`);
+  });
+});
+
 describe("removing a repository", () => {
   test("takes it off the list and leaves its records alone", async () => {
     const home = await tmpDir("tally-home-");

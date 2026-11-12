@@ -2,8 +2,8 @@ import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
-  Records, acquireLock, evidenceKinds, getSession, landTrack, landingLog, landingTarget, listEvidence, listLocks, loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock,
-  runEvidence, trackOf, writeHandoff, type Repo,
+  Records, acquireLock, evidenceKinds, landTrack, landingLog, landingTarget, listEvidence, listLocks, loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock,
+  runEvidence, trackOf, writeHandoff,
 } from "@tally/core";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";

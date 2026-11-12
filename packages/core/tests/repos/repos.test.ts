@@ -112,6 +112,14 @@ describe("two repositories at once", () => {
     expect((await repos.ofSession(session.id)).repo.name).toBe("beta");
   });
 
+  test("a session that is not found names the repositories whose sessions could not be read", async () => {
+    const { home, repos } = await listed(["alpha", "beta"]);
+    await mkdir(stateDirOf(home, "alpha"), { recursive: true });
+    await writeFile(join(stateDirOf(home, "alpha"), "sessions.json"), "{ not json");
+
+    await expect(repos.ofSession("lost")).rejects.toThrow("no session lost; open one with session_open (the sessions of alpha could not be read)");
+  });
+
   test("a session id nobody opened is refused", async () => {
     const { repos } = await listed(["alpha"]);
 

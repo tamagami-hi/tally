@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { run } from "../src/run.ts";
+import { run, servesTheList } from "../src/run.ts";
 import type { IO } from "../src/io.ts";
 import { readRepoList } from "../../core/src/repos/list.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
@@ -109,6 +109,16 @@ describe("tally repo", () => {
     expect((await readRepoList(home)).repos).toEqual([]);
   });
 
+  test.each([[["repo", "add", "one", "two"], "two"], [["repo", "remove", "alpha", "beta"], "beta"], [["repo", "default", "alpha", "beta"], "beta"], [["repo", "list", "alpha"], "alpha"]])("%j is refused for its extra argument", async (argv, extra) => {
+    const { home, cwd } = await elsewhere();
+    const out = io(cwd, home);
+
+    const exit = await run(argv, out);
+
+    expect(exit).toBe(2);
+    expect(out.errors).toEqual([`tally repo: unexpected argument '${extra}'`]);
+  });
+
   test("an unknown verb is refused with the verbs it has", async () => {
     const { home, cwd } = await elsewhere();
     const out = io(cwd, home);
@@ -142,5 +152,47 @@ describe("a command on a listed repository", () => {
     const { stat } = await import("node:fs/promises");
     await expect(stat(`${home}/state/alpha/locks`)).resolves.toBeDefined();
     await expect(stat(`${root}/.temp/tally/state`)).rejects.toThrow();
+  });
+});
+
+describe("what tally mcp serves", () => {
+  test("is every listed repository when none is named and the list has one", async () => {
+    const { home, cwd } = await elsewhere();
+    const { root } = await makeTracked();
+    await run(["repo", "add", root, "--name", "alpha"], io(cwd, home));
+
+    expect(await servesTheList(undefined, io(cwd, home))).toBe(true);
+  });
+
+  test("is the repository --repo or TALLY_REPO names, though a list exists", async () => {
+    const { home, cwd } = await elsewhere();
+    const { root } = await makeTracked();
+    await run(["repo", "add", root, "--name", "alpha"], io(cwd, home));
+
+    expect(await servesTheList(root, io(cwd, home))).toBe(false);
+    expect(await servesTheList(undefined, { ...io(cwd, home), env: { TALLY_HOME: home, TALLY_REPO: root } })).toBe(false);
+  });
+
+  test("is the repository above the current folder while nothing is listed, as before", async () => {
+    const { home } = await elsewhere();
+    const { root } = await makeTracked();
+
+    expect(await servesTheList(undefined, io(root, home))).toBe(false);
+  });
+});
+
+describe("a command run inside a track's worktree of a listed repository", () => {
+  test("works on the repository, not on the worktree's copy of its records", async () => {
+    const { home, cwd } = await elsewhere();
+    const { root, trees } = await makeTracked();
+    await run(["repo", "add", root, "--name", "alpha"], io(cwd, home));
+    const out = io(trees["data"] ?? "", home);
+
+    const exit = await run(["task", "plan", "B2", "--track", "data", "7 from the worktree"], out);
+
+    expect(exit).toBe(0);
+    const { readFile } = await import("node:fs/promises");
+    expect(await readFile(`${root}/docs/records/ledger.json`, "utf8")).toContain("7 from the worktree");
+    expect(await readFile(`${trees["data"] ?? ""}/docs/records/ledger.json`, "utf8")).not.toContain("7 from the worktree");
   });
 });

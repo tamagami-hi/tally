@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { TallyError, addQuestion, contextPack, getSession, isOperator, listDocs, readDecisions, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView, type Repo } from "@tally/core";
+import { TallyError, addQuestion, contextPack, isOperator, listDocs, readDecisions, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView } from "@tally/core";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 
