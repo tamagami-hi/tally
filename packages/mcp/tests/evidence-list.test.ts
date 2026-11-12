@@ -1,3 +1,5 @@
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { connect, opened } from "./support/connect.ts";
@@ -30,6 +32,20 @@ describe("listing run records", () => {
     const call = await recorded(23);
 
     expect((await call("evidence_list", { milestone: "B2", limit: 23 })).structured["records"]).toHaveLength(23);
+  });
+
+  test("still lists the runs kept for a milestone the ledger no longer has", async () => {
+    const { repo, trees } = await makeTracked();
+    const { call } = await connect(repo);
+    const data = await opened(call, trees["data"]!, "claude");
+    await call("evidence_record", { sessionId: data, milestone: "B2", task: "4 manifest", kind: "green", command: ["cargo", "test"], cwd: trees["data"], started: "2026-11-04T09:00:00.000Z", seconds: 1, exit: 0, summary: { passed: 1 } });
+    const kept = JSON.parse(await readFile(join(repo.recordsDir, "evidence", "B2.json"), "utf8")) as { milestone: string; records: { milestone: string }[] };
+    await writeFile(join(repo.recordsDir, "evidence", "OLD1.json"), JSON.stringify({ ...kept, milestone: "OLD1", records: kept.records.map((record) => ({ ...record, milestone: "OLD1" })) }));
+
+    const listed = await call("evidence_list", { milestone: "OLD1" });
+
+    expect(listed.isError).toBe(false);
+    expect(listed.structured["matched"]).toBe(1);
   });
 
   test("refuses a milestone the ledger does not have, and names the ones it has", async () => {

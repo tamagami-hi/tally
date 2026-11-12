@@ -45,8 +45,9 @@ export function registerRecordTools(server: ToolHost, source: RepoSource): void 
     "evidence_list",
     { description: "The run records of a milestone, or of one task in it: the 20 started last unless `limit` says otherwise, with `matched` saying how many there are. `kind` and `since` (an ISO time: the runs started at or after it) narrow them, and `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(evidenceKinds).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS.describe("the keys of each record to keep"), ...WHERE } },
     ({ milestone, task, kind, since, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
-      findMilestone(await new Records(repo).readLedger(), milestone);
-      const ofKind = (await listEvidence(repo, milestone, task)).filter((record) => kind === undefined || record.kind === kind);
+      const kept = await listEvidence(repo, milestone, task);
+      if (kept.length === 0) findMilestone(await new Records(repo).readLedger(), milestone);
+      const ofKind = kept.filter((record) => kind === undefined || record.kind === kind);
       const found = startedSince(ofKind, since);
       return ok({ records: lastStarted(found, limit ?? DEFAULT_RECORDS).map((record) => pick(record, fields)), matched: found.length });
     }),

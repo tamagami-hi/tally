@@ -70,6 +70,55 @@ describe("an answer too large to read", () => {
     expect(texts.at(-1)).toContain("Nothing narrows this tool: the whole of it is in the repository's docs/records.");
   });
 
+  test("keeps the answer's text readable JSON when another part was added beside it, and leaves that part whole", async () => {
+    const { repo } = await makeTracked();
+    const answer = { decisions: rows(200) };
+    const inbox = "inbox:\n- a note from engine";
+    const withInbox = { content: [{ type: "text" as const, text: jsonText(answer) }, { type: "text" as const, text: inbox }], structuredContent: { ...answer, inbox: [{ kind: "note", text: "a note from engine" }] } };
+
+    const result = await sized({ tool: "decision_list", args: {}, params: ["group", "limit"], result: withInbox, source: oneRepo(repo) });
+    const texts = result.content.map((part) => (part.type === "text" ? part.text : ""));
+    const read = JSON.parse(texts[0] ?? "") as { decisions: unknown[]; truncated: unknown; inbox?: unknown };
+
+    expect(read.decisions).toEqual((result.structuredContent as { decisions: unknown[] }).decisions);
+    expect(read.truncated).toEqual((result.structuredContent as { truncated: unknown }).truncated);
+    expect(read.inbox).toBeUndefined();
+    expect((result.structuredContent as { inbox: unknown[] }).inbox).toHaveLength(1);
+    expect(texts[1]).toBe(inbox);
+    expect(texts.join("").length).toBeLessThanOrEqual(ANSWER_LIMIT);
+  });
+
+  test("counts the parts beside the answer, so the whole of it fits", async () => {
+    const { repo } = await makeTracked();
+    const answer = { decisions: rows(55) };
+    const beside = "inbox:\n" + "- a long note\n".repeat(200);
+    const result = await sized({ tool: "decision_list", args: {}, params: ["limit"], result: { content: [{ type: "text", text: jsonText(answer) }, { type: "text", text: beside }], structuredContent: answer }, source: oneRepo(repo) });
+    const texts = result.content.map((part) => (part.type === "text" ? part.text : ""));
+
+    expect(jsonText(answer).length).toBeLessThan(ANSWER_LIMIT);
+    expect(texts.join("").length).toBeLessThanOrEqual(ANSWER_LIMIT);
+    expect((result.structuredContent as { decisions: unknown[] }).decisions.length).toBeLessThan(55);
+    expect(texts.at(-1)).toContain("decisions shows the last");
+  });
+
+  test.each([
+    ["hundreds of middling texts", Object.fromEntries(Array.from({ length: 300 }, (_, n) => [`key${n}`, "y".repeat(1_500)]))],
+    ["numbers alone", Object.fromEntries(Array.from({ length: 6_000 }, (_, n) => [`key${n}`, n]))],
+  ])("says so, and answers little, when nothing in it can be shortened: %s", async (_name, value) => {
+    const { structured, texts } = await cut("board_get", ["scope", "fields"], value);
+    const size = jsonText(value).length;
+
+    expect(structured).toEqual({ truncated: [{ path: "", shown: 0, of: size }] });
+    expect(texts).toEqual([`This answer is ${size} characters, and nothing in it could be cut to fit ${ANSWER_LIMIT}. Narrow it with scope or fields.`]);
+  });
+
+  test("keeps a field of the tool's own that is called truncated", async () => {
+    const { structured } = await cut("decision_list", ["limit"], { decisions: rows(200), truncated: "the tool's own word" });
+
+    expect(structured["truncated"]).toBe("the tool's own word");
+    expect(structured["cut"]).toEqual([{ path: "decisions", shown: (structured["decisions"] as unknown[]).length, of: 200 }]);
+  });
+
   test("leaves a refusal alone", async () => {
     const { repo } = await makeTracked();
     const refusal = { isError: true, content: [{ type: "text" as const, text: "x".repeat(ANSWER_LIMIT * 2) }] };

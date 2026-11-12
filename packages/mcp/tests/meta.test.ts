@@ -50,11 +50,11 @@ describe("the hints", () => {
     expect(readOnly).toEqual(["activity_get", "board_get", "buildlog_render", "checks_fingerprint", "checks_get", "context_get", "context_pack", "decision_list", "docs_list", "docs_read", "docs_search", "evidence_list", "handoff_read", "inbox_get", "ledger_check", "lock_list", "note_list", "question_list", "repo_list", "session_list", "track_list"]);
   });
 
-  test("mark as destructive only what removes or overwrites", async () => {
+  test("mark as destructive only what removes or overwrites, and the tool that runs any command it is given", async () => {
     const tools = await listed();
     const destructive = tools.filter((tool) => tool.annotations?.["destructiveHint"] === true).map((tool) => tool.name).sort();
 
-    expect(destructive).toEqual(["checks_set", "handoff_write", "project_set", "repo_configure", "track_close", "views_claude"]);
+    expect(destructive).toEqual(["checks_set", "evidence_run", "handoff_write", "project_set", "repo_configure", "track_close", "views_claude"]);
   });
 
   test("say that only the two tools that run a command reach outside the repository", async () => {

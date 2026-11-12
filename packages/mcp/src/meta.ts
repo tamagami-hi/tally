@@ -36,7 +36,7 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   land_start: add("Join the landing queue"),
   land_wait: { title: "Wait for a landing ticket", effect: "wait" },
   land_cancel: add("Leave the landing queue"),
-  evidence_run: runs("Run a command and record it"),
+  evidence_run: { title: "Run a command and record it", effect: "remove", outside: true },
   evidence_record: add("Record a run that already happened"),
   evidence_list: read("List run records"),
   handoff_read: read("Read a track's hand-off"),
