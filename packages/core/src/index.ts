@@ -18,6 +18,7 @@ export { REPO_NAME, nameFromFolder } from "./repos/name.ts";
 export { NotListed, addRepo, readRepoList, removeRepo, repoEntrySchema, repoListSchema, setDefaultRepo, unknownRepo } from "./repos/list.ts";
 export { NO_CHECK, START_MESSAGE, startRecords } from "./repos/start.ts";
 export type { StartDefaults } from "./repos/start.ts";
+export { configureRepo } from "./repos/configure.ts";
 export { endSession } from "./state/end.ts";
 export type { Ended } from "./state/end.ts";
 export type { AddInput, RepoEntry, RepoList } from "./repos/list.ts";
