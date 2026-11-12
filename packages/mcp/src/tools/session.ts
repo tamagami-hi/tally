@@ -1,21 +1,26 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { closeSession, flushWhenFree, listSessions, openSession, releaseClaimsOf, releaseLocksOf, type Repo } from "@tally/core";
+import { closeSession, flushWhenFree, listSessions, openSession, releaseClaimsOf, releaseLocksOf } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
+import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 
-export function registerSessionTools(server: McpServer, repo: Repo): void {
+export function registerSessionTools(server: McpServer, source: RepoSource): void {
   server.registerTool(
     "session_open",
     {
-      description: "Bind this agent session to one worktree and one track. The worktree must be that track's worktree, on its branch; the repository's own checkout on its main branch gives operator scope. Returns the session id every writing tool needs.",
-      inputSchema: { worktree: z.string().describe("absolute path of the worktree"), track: z.string().describe("the track name from config.json, or the main branch for the operator"), agent: z.string().describe("who is working: a model or person name") },
+      description: "Bind this agent session to one worktree and its track. Give the folder you work in: the repository and the track are found from it. A track's worktree must be on that track's branch; the repository's own checkout on its main branch gives operator scope. Returns the session id every writing tool needs, and the repository's name.",
+      inputSchema: { worktree: z.string().describe("absolute path of the folder you work in"), track: z.string().optional().describe("the track's name; found from the worktree when left out, and checked against it when given"), agent: z.string().describe("who is working: a model or person name") },
     },
-    ({ worktree, track, agent }) => attempt(async () => ok(await openSession(repo, { worktree, track, agent }))),
+    ({ worktree, track, agent }) => attempt(async () => {
+      const opened = await source.forWorktree(worktree);
+      const session = await openSession(opened.repo, { worktree: opened.worktree, agent, ...(track === undefined ? {} : { track }) });
+      return ok({ ...session, repo: opened.repo.name });
+    }),
   );
   server.registerTool(
     "session_close",
     { description: "Close a session: its claims and locks are released. In batch mode the last session to close commits every record waiting on disk as one commit; recordsCommit is null when there was nothing to commit or the landing lock stayed held, and then the records wait for `tally records commit`.", inputSchema: { sessionId: z.string() } },
-    ({ sessionId }) => attempt(async () => {
+    ({ sessionId }) => inSession(source, sessionId, async (repo) => {
       const claims = await releaseClaimsOf(repo, sessionId);
       const locks = await releaseLocksOf(repo, sessionId);
       const session = await closeSession(repo, sessionId);
@@ -25,7 +30,12 @@ export function registerSessionTools(server: McpServer, repo: Repo): void {
   );
   server.registerTool(
     "session_list",
-    { description: "Every open session: who is on which track since when.", inputSchema: {} },
-    () => attempt(async () => ok({ sessions: await listSessions(repo) })),
+    { description: "Every open session of one repository: who is on which track since when.", inputSchema: { ...WHERE } },
+    ({ sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok({ sessions: await listSessions(repo) })),
+  );
+  server.registerTool(
+    "repo_list",
+    { description: "The repositories this server tracks: each one's name, its folder, its project name, how many sessions are open in it, and which is the default for a call that names none.", inputSchema: {} },
+    () => attempt(async () => ok({ repos: await source.listed() })),
   );
 }

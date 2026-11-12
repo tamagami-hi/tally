@@ -26,7 +26,7 @@ export const sessionsFile = (repo: Pick<Repo, "stateDir">): StateFile<{ sessions
 
 export interface OpenInput {
   worktree: string;
-  track: string;
+  track?: string;
   agent: string;
 }
 
@@ -44,15 +44,27 @@ async function expectedBinding(repo: Repo, track: string): Promise<{ worktree: s
   return { worktree: worktreeOf(repo, found), branch: found.branch };
 }
 
+export function trackAt(repo: Repo, worktree: string): string {
+  const given = resolve(worktree);
+  if (given === resolve(repo.root)) return repo.config.mainBranch;
+  const found = repo.config.tracks.find((track) => resolve(worktreeOf(repo, track)) === given);
+  if (found === undefined) {
+    const known = repo.config.tracks.map((track) => `${track.name} (${worktreeOf(repo, track)})`).join(", ");
+    throw new TallyError(`${given} is not the worktree of any track of ${repo.name}; its tracks: ${known === "" ? "none" : known}; its own checkout: ${repo.root}`);
+  }
+  return found.name;
+}
+
 export async function openSession(repo: Repo, input: OpenInput, now = new Date()): Promise<Session> {
-  const expected = await expectedBinding(repo, input.track);
+  const track = input.track ?? trackAt(repo, input.worktree);
+  const expected = await expectedBinding(repo, track);
   const given = resolve(input.worktree);
-  if (given !== resolve(expected.worktree)) throw new TallyError(`${given} is not the worktree of track ${input.track} (${expected.worktree})`);
+  if (given !== resolve(expected.worktree)) throw new TallyError(`${given} is not the worktree of track ${track} (${expected.worktree})`);
   const known = new Set([...(await worktrees(repo.root)).values()].map((p) => resolve(p)));
   if (!known.has(given)) throw new TallyError(`${given} is not a worktree of ${repo.root}`);
   const branch = await currentBranch(given);
   if (branch !== expected.branch) throw new TallyError(`worktree ${given} is not on branch ${expected.branch} (it is on ${branch === "" ? "no branch" : branch})`);
-  const session: Session = { id: randomUUID(), track: input.track, worktree: given, branch, agent: input.agent, openedAt: now.toISOString(), lastSeenAt: now.toISOString() };
+  const session: Session = { id: randomUUID(), track, worktree: given, branch, agent: input.agent, openedAt: now.toISOString(), lastSeenAt: now.toISOString() };
   await sessionsFile(repo).update((state) => ({ value: { sessions: [...state.sessions, session] }, result: undefined }));
   return session;
 }

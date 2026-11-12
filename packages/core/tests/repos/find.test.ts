@@ -2,7 +2,7 @@ import { mkdir, symlink } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { rootOfWorktree } from "../../src/repos/find.ts";
-import { findRepo } from "../../src/repos/lookup.ts";
+import { findRepo, openAt } from "../../src/repos/lookup.ts";
 import { addRepo } from "../../src/repos/list.ts";
 import { sh } from "../support/repo.ts";
 import { tmpDir } from "../support/tmp.ts";
@@ -92,5 +92,25 @@ describe("finding a listed repository", () => {
     const { root, trees } = await makeTracked();
 
     await expect(findRepo(home, trees["data"] ?? "")).rejects.toThrow(`${root} is not a repository tally tracks; add it in the sidebar, or with: tally repo add ${root}`);
+  });
+});
+
+describe("opening a repository by its root", () => {
+  test("gives a listed repository the state the list gives it", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root } = await makeTracked();
+    await addRepo(home, { root, name: "alpha" });
+
+    const repo = await openAt(home, root);
+
+    expect(repo.name).toBe("alpha");
+    expect(repo.stateDir).toBe(join(home, "state/alpha"));
+  });
+
+  test("leaves an unlisted repository's state where it is today", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root } = await makeTracked();
+
+    expect((await openAt(home, root)).stateDir).toBe(join(root, ".temp/tally/state"));
   });
 });

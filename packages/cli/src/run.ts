@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
-import { TallyError, findRepoRoot, messageOf, openRepo } from "@tally/core";
+import { Repos, TallyError, findRepoRoot, messageOf, openAt, tallyHome } from "@tally/core";
+import { manyRepos } from "@tally/mcp";
 import { splitRepo } from "./args.ts";
 import { buildlogCommand } from "./commands/buildlog.ts";
 import { checksCommand } from "./commands/checks.ts";
@@ -11,6 +12,7 @@ import { ledgerCommand } from "./commands/ledger.ts";
 import { mcpCommand } from "./commands/mcp.ts";
 import { plansCommand } from "./commands/plans.ts";
 import { recordsCommand } from "./commands/records.ts";
+import { repoCommand } from "./commands/repo.ts";
 import { questionCommand } from "./commands/question.ts";
 import { reportCommand } from "./commands/report.ts";
 import { serveCommand } from "./commands/serve.ts";
@@ -47,8 +49,9 @@ export const USAGE = `tally: the tracking harness
   tally status [--markdown | --json] [--no-color]
   tally views  claude [--check]                                  write the standing block between CLAUDE.md's tally:standing markers
   tally land   <track> [--message FILE] [--verified-code SHA] [--milestone M --task T] [files...]
+  tally repo   add PATH [--name NAME] | remove NAME | default NAME | list   the repositories this tally serves
   tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR]   the live board, the API and /mcp
-  tally mcp                                                      the MCP server on stdio
+  tally mcp                                                      the MCP server on stdio: every listed repository, or the one --repo names
   tally <command> [<verb>] --help                                that command's lines of this list
 
   --repo PATH names the tracked repository; otherwise the one above the current folder.`;
@@ -59,6 +62,11 @@ function usageOf(command: string): string {
   const lines = USAGE.split("\n").filter((line) => commandsIn(line).includes(command));
   if (lines.length === 0) throw new TallyError(`tally: unknown command '${command}'\n\n${USAGE}`, 2);
   return lines.join("\n");
+}
+
+function namesRepo(repoOption: string | undefined, io: IO): boolean {
+  const fromEnv = io.env["TALLY_REPO"];
+  return repoOption !== undefined || (fromEnv !== undefined && fromEnv !== "");
 }
 
 async function locate(repoOption: string | undefined, io: IO): Promise<string> {
@@ -83,7 +91,10 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
       return 0;
     }
     if (command === "init") return await initCommand(repoOption === undefined ? io.cwd : resolve(io.cwd, repoOption), args, io);
-    const repo = await openRepo(await locate(repoOption, io));
+    if (command === "repo") return await repoCommand(args, io);
+    const home = tallyHome(io.env);
+    if (command === "mcp" && !namesRepo(repoOption, io)) return await mcpCommand(manyRepos(new Repos(home)), "every listed repository", io);
+    const repo = await openAt(home, await locate(repoOption, io));
     switch (command) {
       case "task":
         return await taskCommand(repo, args, io);
@@ -100,7 +111,7 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
       case "serve":
         return await serveCommand(repo, args, io);
       case "mcp":
-        return await mcpCommand(repo, io);
+        return await mcpCommand(repo, repo.config.name, io);
       case "question":
         return await questionCommand(repo, args, io);
       case "checks":
