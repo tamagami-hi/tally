@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Repo } from "@tally/core";
+import { LiveRepo, type Repo } from "@tally/core";
 import { mcpHandler } from "@tally/mcp";
 import { eventStream, repoRoutes } from "./repo-api.ts";
 import { staticFiles } from "./static.ts";
@@ -15,7 +15,8 @@ export interface AppOptions {
 
 export function createApp({ repo, watcher, webDir }: AppOptions): Hono {
   const app = new Hono();
-  app.route("/api", repoRoutes(() => Promise.resolve({ repo, watcher })));
+  const live = new LiveRepo(repo);
+  app.route("/api", repoRoutes(async () => ({ repo: await live.current(), watcher })));
   app.get("/api/*", (c) => c.json({ error: "not found" }, 404));
   const mcp = mcpHandler(repo);
   app.all("/mcp", (c) => mcp(c.req.raw));

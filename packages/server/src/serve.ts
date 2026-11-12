@@ -2,7 +2,7 @@ import type { Server } from "node:http";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import type { Hono } from "hono";
-import { Repos, type Repo, type StartDefaults } from "@tally/core";
+import { LiveRepo, Repos, type Repo, type StartDefaults } from "@tally/core";
 import { createApp } from "./app.ts";
 import type { CliRunner } from "./cli-api.ts";
 import { Hub } from "./hub.ts";
@@ -60,7 +60,8 @@ function listen(app: Hono, options: Listening, started: () => void, stopping: ()
 }
 
 export function startServer(options: ServeOptions): Promise<Running> {
-  const watcher = new Watcher(options.repo, interval(options));
+  const live = new LiveRepo(options.repo);
+  const watcher = new Watcher(() => live.current(), interval(options));
   const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir() });
   return listen(app, options, () => watcher.start(), () => watcher.stop());
 }
