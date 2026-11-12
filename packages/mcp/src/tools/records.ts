@@ -4,7 +4,7 @@ import {
   Records, acquireLock, evidenceKinds, landTrack, landingLog, landingTarget, listEvidence, listLocks, loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock,
   runEvidence, trackOf, writeHandoff,
 } from "@tally/core";
-import { FIELDS, LIMIT, latest, pick, startedSince } from "../filters.ts";
+import { FIELDS, LIMIT, lastStarted, pick, startedSince } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -41,10 +41,10 @@ export function registerRecordTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "evidence_list",
-    { description: "The run records of a milestone, or of one task in it, narrowed by `kind`, by `since` (an ISO time: the runs started at or after it) and by `limit` (the most recent); `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(evidenceKinds).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS.describe("the keys of each record to keep"), ...WHERE } },
+    { description: "The run records of a milestone, or of one task in it, narrowed by `kind`, by `since` (an ISO time: the runs started at or after it) and by `limit` (the ones started last); `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(evidenceKinds).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS.describe("the keys of each record to keep"), ...WHERE } },
     ({ milestone, task, kind, since, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const ofKind = (await listEvidence(repo, milestone, task)).filter((record) => kind === undefined || record.kind === kind);
-      return ok({ records: latest(startedSince(ofKind, since), limit).map((record) => pick(record, fields)) });
+      return ok({ records: lastStarted(startedSince(ofKind, since), limit).map((record) => pick(record, fields)) });
     }),
   );
   server.registerTool(

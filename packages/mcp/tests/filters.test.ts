@@ -73,6 +73,7 @@ describe("evidence_list filters", () => {
     await run("clippy", "2026-11-04T10:00:00.000Z");
     await run("green", "2026-11-04T11:00:00.000Z");
     await run("fmt", "2026-11-05T08:00:00.000Z");
+    await run("sweep", "2026-11-03T08:00:00.000Z");
     return t;
   }
 
@@ -81,7 +82,8 @@ describe("evidence_list filters", () => {
   test("narrows by kind, by the time a run started, and to the most recent", async () => {
     const { call } = await measured();
 
-    expect(await notes(call, {})).toHaveLength(4);
+    expect(await notes(call, {})).toHaveLength(5);
+    expect(await notes(call, { since: "2026-11-05" })).toEqual(["fmt at 2026-11-05T08:00:00.000Z"]);
     expect(await notes(call, { kind: "green" })).toEqual(["green at 2026-11-04T09:00:00.000Z", "green at 2026-11-04T11:00:00.000Z"]);
     expect(await notes(call, { since: "2026-11-04T10:00:00Z" })).toEqual(["clippy at 2026-11-04T10:00:00.000Z", "green at 2026-11-04T11:00:00.000Z", "fmt at 2026-11-05T08:00:00.000Z"]);
     expect(await notes(call, { limit: 2 })).toEqual(["green at 2026-11-04T11:00:00.000Z", "fmt at 2026-11-05T08:00:00.000Z"]);
@@ -97,12 +99,22 @@ describe("evidence_list filters", () => {
     expect(slim.structured["records"]).toStrictEqual([{ kind: "green", exit: 0, started: "2026-11-04T09:00:00.000Z" }, { kind: "green", exit: 0, started: "2026-11-04T11:00:00.000Z" }]);
   });
 
-  test("refuses a since that is not a time", async () => {
+  test("the most recent runs are the ones started last, whenever they were recorded, and keep the order they were recorded in", async () => {
+    const { call } = await measured();
+
+    expect(await notes(call, { limit: 1 })).toEqual(["fmt at 2026-11-05T08:00:00.000Z"]);
+    expect(await notes(call, { limit: 4 })).toEqual(["green at 2026-11-04T09:00:00.000Z", "clippy at 2026-11-04T10:00:00.000Z", "green at 2026-11-04T11:00:00.000Z", "fmt at 2026-11-05T08:00:00.000Z"]);
+    expect(await notes(call, { limit: 9 })).toHaveLength(5);
+  });
+
+  test("refuses a since that is not an ISO time, even one a looser reader would take for a date", async () => {
     const { call } = await measured();
 
     const refused = await call("evidence_list", { milestone: "B2", since: "yesterday" });
+    const loose = await call("evidence_list", { milestone: "B2", since: "5" });
 
     expect(refused.isError).toBe(true);
     expect(refused.text).toBe("since takes an ISO time such as 2026-11-04T09:00:00Z, not 'yesterday'");
+    expect(loose.text).toBe("since takes an ISO time such as 2026-11-04T09:00:00Z, not '5'");
   });
 });
