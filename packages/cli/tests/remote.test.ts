@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { run } from "../src/run.ts";
@@ -80,6 +80,53 @@ describe("the tally command as a client of the service", () => {
 
     expect(exit).toBe(0);
     expect(await readFile(join(root, "docs/records/buildlog.json"), "utf8")).toContain("The store was built.");
+    expect(await readdir(join(root, ".temp/tally/spool"))).toEqual([]);
+  });
+
+  test("refuses to send a file too large to hand over, and leaves nothing behind", async () => {
+    const { root } = await makeTracked();
+    const { url } = await service(root, "alpha");
+    const outside = join(await tmpDir("tally-outside-"), "body.md");
+    await writeFile(outside, Buffer.alloc(8 * 1024 * 1024 + 1, "x"));
+    const out = io(root, { TALLY_URL: url });
+
+    const exit = await run(["buildlog", "append", "--group", "platform", "--milestone", "B2", "--title", "The store", "--date", "2026-11-12", "--file", outside], out);
+
+    expect(exit).toBe(1);
+    expect(out.errors.join("\n")).toContain("is larger than 8 MiB");
+    expect(await readdir(join(root, ".temp/tally/spool")).catch(() => [])).toEqual([]);
+  });
+
+  test("works on the repository TALLY_REPO names, from any folder", async () => {
+    const { root } = await makeTracked();
+    const { url } = await service(root, "alpha");
+    const out = io(await tmpDir("tally-cwd-"), { TALLY_URL: url, TALLY_REPO: root });
+
+    const exit = await run(["task", "plan", "B2", "--track", "data", "8 named by the environment"], out);
+
+    expect(exit).toBe(0);
+    expect(await readFile(join(root, "docs/records/ledger.json"), "utf8")).toContain("8 named by the environment");
+  });
+
+  test("talks only to a service on this machine", async () => {
+    const { root } = await makeTracked();
+    const out = io(root, { TALLY_URL: "http://tally.example:47560" });
+
+    const exit = await run(["status"], out);
+
+    expect(exit).toBe(2);
+    expect(out.errors).toEqual(["TALLY_URL must name this machine's loopback address (127.0.0.1, localhost or [::1]), not tally.example"]);
+  });
+
+  test("prints the service's lines in the order it wrote them", async () => {
+    const answer = await serviceCli(async (_argv, given) => {
+      given.out("first");
+      given.err("second");
+      given.out("third");
+      return 3;
+    }, {})(["status"], "/somewhere");
+
+    expect(answer).toEqual({ exit: 3, lines: [{ to: "out", text: "first" }, { to: "err", text: "second" }, { to: "out", text: "third" }] });
   });
 
   test("says so and writes nothing when the service is not there", async () => {
@@ -129,7 +176,7 @@ describe("what the service will not run for a client", () => {
 
     const response = await fetch(`${url}/api/cli`, { method: "POST", headers: { "content-type": "application/json", "x-tally-cli": "1" }, body: JSON.stringify({ argv: [command], cwd: root }) });
 
-    expect(await response.json()).toEqual({ exit: 2, out: [], err: [`tally ${command} runs on your own machine, not in the service`] });
+    expect(await response.json()).toEqual({ exit: 2, lines: [{ to: "err", text: `tally ${command} runs on your own machine, not in the service` }] });
   });
 
   test("a call without the command's header is refused", async () => {

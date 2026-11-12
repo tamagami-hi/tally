@@ -106,4 +106,33 @@ describe("a session's inbox", () => {
     expect(kinds(await peekInbox(q.repo, q.session, before))).toEqual(["note"]);
     expect(kinds(await collectInbox(q.repo, q.session))).toEqual(["note"]);
   });
+
+  test("can be read again from the session's opening when no time is given", async () => {
+    const q = await ready();
+    await postNote(q.repo, q.engine.session, { to: "all", kind: "finding", text: "worth knowing" });
+    await collectInbox(q.repo, q.session);
+
+    expect(kinds(await peekInbox(q.repo, q.session))).toEqual(["note"]);
+  });
+
+  test("delivers a note that was stamped before the last read and written after it", async () => {
+    const q = await ready();
+    const read = new Date(Date.now() + 60_000);
+    await collectInbox(q.repo, q.session, read);
+
+    await postNote(q.repo, q.engine.session, { to: "all", kind: "finding", text: "stamped early" }, new Date(read.getTime() - 5_000));
+
+    expect(kinds(await collectInbox(q.repo, q.session, new Date(read.getTime() + 1_000)))).toEqual(["note"]);
+    expect(await collectInbox(q.repo, q.session, new Date(read.getTime() + 2_000))).toEqual([]);
+  });
+
+  test("delivers nothing twice inside that window", async () => {
+    const q = await ready();
+    const posted = new Date(Date.now() + 60_000);
+    await postNote(q.repo, q.engine.session, { to: "all", kind: "finding", text: "once only" }, posted);
+
+    expect(kinds(await collectInbox(q.repo, q.session, new Date(posted.getTime() + 1_000)))).toEqual(["note"]);
+    expect(await collectInbox(q.repo, q.session, new Date(posted.getTime() + 2_000))).toEqual([]);
+    expect(await collectInbox(q.repo, q.session, new Date(posted.getTime() + 90_000))).toEqual([]);
+  });
 });

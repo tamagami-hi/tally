@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { changedFiles, overlaps, overlapsOf } from "../../src/status/overlaps.ts";
 import { commitOn, edit } from "../support/landing.ts";
+import { sh } from "../support/repo.ts";
 import { makeTracked } from "../support/tracked.ts";
 
 describe("what a track has changed", () => {
@@ -29,5 +30,16 @@ describe("two tracks that changed the same file", () => {
     expect(await overlaps(repo)).toEqual([{ file: "src/shared.rs", tracks: ["data", "engine"] }]);
     expect(await overlapsOf(repo, "engine")).toEqual([{ file: "src/shared.rs", with: ["data"] }]);
     expect(await overlapsOf(repo, "main")).toEqual([]);
+  });
+
+  test("overlap on a file whose name git would quote, and on a renamed file's new name", async () => {
+    const { repo, trees } = await makeTracked();
+    await commitOn(trees["data"] ?? "", "docs/the plan é.md", "docs: data's plan");
+    await edit(trees["engine"] ?? "", "docs/the plan é.md", "engine's plan\n");
+    await commitOn(trees["data"] ?? "", "src/new name.rs", "feat: data's file");
+    await commitOn(trees["engine"] ?? "", "src/old.rs", "feat: engine's file");
+    await sh(trees["engine"] ?? "", ["mv", "src/old.rs", "src/new name.rs"]);
+
+    expect((await overlaps(repo)).map((overlap) => overlap.file)).toEqual(["docs/the plan é.md", "src/new name.rs"]);
   });
 });

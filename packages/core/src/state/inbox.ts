@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -19,11 +20,17 @@ export interface InboxItem {
   from?: string;
 }
 
-const cursorSchema = z.object({ seenAt: z.string(), main: z.string().optional() });
+const cursorSchema = z.object({ seenAt: z.string(), main: z.string().optional(), recent: z.array(z.string()).optional() });
 type Cursor = z.infer<typeof cursorSchema>;
 
 const SHORT_HASH = 7;
 const SEPARATOR = "\u0001";
+const GRACE_MS = 30_000;
+const KEY_LENGTH = 16;
+
+const keyOf = (item: InboxItem): string => createHash("sha256").update(`${item.kind}\n${item.at}\n${item.text}`).digest("hex").slice(0, KEY_LENGTH);
+
+const before = (time: string | Date, ms: number): string => new Date(new Date(time).getTime() - ms).toISOString();
 
 const cursorFile = (repo: Repo, session: Session): StateFile<Cursor> =>
   new StateFile(statePath(repo, "inbox", `${session.id}.json`), cursorSchema, () => ({ seenAt: session.openedAt }));
@@ -94,17 +101,17 @@ async function fromRuns(session: Session, since: string): Promise<InboxItem[]> {
 
 async function gathered(repo: Repo, session: Session, cursor: Cursor, now: Date): Promise<InboxItem[]> {
   const { seenAt } = cursor;
-  const items = [
-    ...(await fromNotes(repo, session, seenAt)),
-    ...(await fromAnswers(repo, session, seenAt)),
-    ...(await fromMain(repo, session, cursor.main, now)),
-    ...(await fromQueue(repo, session, seenAt)),
-    ...(await fromRuns(session, seenAt)),
-  ];
-  return items.sort((a, b) => a.at.localeCompare(b.at));
+  const found = await Promise.all([
+    fromNotes(repo, session, seenAt),
+    fromAnswers(repo, session, seenAt),
+    fromMain(repo, session, cursor.main, now),
+    fromQueue(repo, session, seenAt),
+    fromRuns(session, seenAt),
+  ]);
+  return found.flat().sort((a, b) => a.at.localeCompare(b.at));
 }
 
-export async function peekInbox(repo: Repo, session: Session, since: string, now = new Date()): Promise<InboxItem[]> {
+export async function peekInbox(repo: Repo, session: Session, since: string = session.openedAt, now = new Date()): Promise<InboxItem[]> {
   const cursor = await cursorFile(repo, session).read();
   return gathered(repo, session, { ...cursor, seenAt: since }, now);
 }
@@ -112,7 +119,11 @@ export async function peekInbox(repo: Repo, session: Session, since: string, now
 export async function collectInbox(repo: Repo, session: Session, now = new Date()): Promise<InboxItem[]> {
   const main = (await gitOut(repo.root, ["rev-parse", repo.config.mainBranch])) ?? undefined;
   return cursorFile(repo, session).update(async (cursor) => {
-    const items = await gathered(repo, session, cursor, now);
-    return { value: { seenAt: now.toISOString(), ...(main === undefined ? {} : { main }) }, result: items };
+    const delivered = new Set(cursor.recent ?? []);
+    const inWindow = await gathered(repo, session, { ...cursor, seenAt: before(cursor.seenAt, GRACE_MS) }, now);
+    const items = inWindow.filter((item) => !delivered.has(keyOf(item)));
+    const kept = before(now, GRACE_MS);
+    const recent = inWindow.filter((item) => item.at > kept).map(keyOf);
+    return { value: { seenAt: now.toISOString(), ...(main === undefined ? {} : { main }), ...(recent.length === 0 ? {} : { recent }) }, result: items };
   });
 }

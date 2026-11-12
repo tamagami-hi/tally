@@ -1,5 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { createTallyServer } from "../src/server.ts";
 import { commitOn, edit } from "../../core/tests/support/landing.ts";
@@ -76,6 +78,30 @@ describe("notes between agents", () => {
     const again = await s.call("inbox_get", { sessionId: s.data, since: before });
 
     expect((again.structured["items"] as { kind: string }[]).map((item) => item.kind)).toEqual(["note"]);
+  });
+});
+
+describe("an answer when what is shared cannot be read", () => {
+  test("is still the tool's own answer", async () => {
+    const s = await two();
+    await s.call("note_post", { sessionId: s.engine, to: ["data"], kind: "finding", text: "The index is rebuilt on open." });
+    await writeFile(join(s.root, "docs/records/context/notes.json"), "{ not json");
+
+    const listed = await s.call("session_list", { sessionId: s.data });
+
+    expect(listed.isError).toBe(false);
+    expect((listed.structured["sessions"] as unknown[]).length).toBe(2);
+    expect(listed.structured["inbox"]).toBeUndefined();
+  });
+
+  test("inbox_get reads from the session's opening when no time is given", async () => {
+    const s = await two();
+    await s.call("note_post", { sessionId: s.engine, to: ["data"], kind: "finding", text: "The index is rebuilt on open." });
+    await s.call("session_list", { sessionId: s.data });
+
+    const again = await s.call("inbox_get", { sessionId: s.data });
+
+    expect(again.structured["items"]).toEqual([expect.objectContaining({ kind: "note", from: "engine" })]);
   });
 });
 

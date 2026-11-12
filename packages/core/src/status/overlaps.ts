@@ -12,25 +12,36 @@ export interface OverlapWith {
   with: string[];
 }
 
-const pathOf = (line: string): string => {
-  const path = line.slice(3);
-  return path.includes(" -> ") ? (path.split(" -> ", 2)[1] ?? path) : path;
-};
+const RENAMED = /[RC]/;
 
-const lines = (text: string | null): string[] => (text === null ? [] : text.split("\n").filter((line) => line !== ""));
+const entries = (text: string | null): string[] => (text === null ? [] : text.split("\0").filter((entry) => entry !== ""));
+
+function openPaths(status: string | null): string[] {
+  const parts = entries(status);
+  const paths: string[] = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    const entry = parts[index] ?? "";
+    paths.push(entry.slice(3));
+    if (RENAMED.test(entry.slice(0, 2))) index += 1;
+  }
+  return paths;
+}
 
 export async function changedFiles(repo: Repo, name: string): Promise<string[]> {
   const track = repo.config.tracks.find((one) => one.name === name);
   if (track === undefined) return [];
-  const ahead = lines(await gitOut(repo.root, ["diff", "--name-only", `${repo.config.mainBranch}...${track.branch}`]));
-  const open = lines(await gitOut(worktreeOf(repo, track), ["status", "--porcelain=v1", "--untracked-files=all"])).map(pathOf);
-  return [...new Set([...ahead, ...open])].sort();
+  const [ahead, open] = await Promise.all([
+    gitOut(repo.root, ["diff", "--name-only", "-z", `${repo.config.mainBranch}...${track.branch}`]),
+    gitOut(worktreeOf(repo, track), ["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
+  ]);
+  return [...new Set([...entries(ahead), ...openPaths(open)])].sort();
 }
 
 export async function overlaps(repo: Repo): Promise<Overlap[]> {
+  const changed = await Promise.all(repo.config.tracks.map(async (track) => ({ track: track.name, files: await changedFiles(repo, track.name) })));
   const holders = new Map<string, string[]>();
-  for (const track of repo.config.tracks) {
-    for (const file of await changedFiles(repo, track.name)) holders.set(file, [...(holders.get(file) ?? []), track.name]);
+  for (const { track, files } of changed) {
+    for (const file of files) holders.set(file, [...(holders.get(file) ?? []), track]);
   }
   return [...holders].filter(([, tracks]) => tracks.length > 1).map(([file, tracks]) => ({ file, tracks: [...tracks].sort() })).sort((a, b) => a.file.localeCompare(b.file));
 }

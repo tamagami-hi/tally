@@ -36,7 +36,7 @@ export function createServiceApp({ hub, webDir, workspace, defaults, cli }: Serv
   app.get("/api/fs", async (c) => c.json(await listFolders(workspace, hub.repos, c.req.query("dir"))));
   app.route("/api/r/:name", repoRoutes((c) => hub.get(c.req.param("name") ?? "")));
   app.route("/api", operatorRoutes({ hub, workspace, ...(defaults === undefined ? {} : { defaults }) }));
-  app.route("/api", cliRoutes(hub, cli));
+  app.route("/api", cliRoutes(hub, cli, workspace));
   app.route("/api", repoRoutes(() => hub.default()));
   app.all("/api/*", (c) => c.json({ error: "not found" }, 404));
   const mcp = mcpHandler(manyRepos(hub.repos));

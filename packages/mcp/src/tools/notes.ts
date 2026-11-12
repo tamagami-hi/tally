@@ -34,7 +34,7 @@ export function registerNoteTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "inbox_get",
-    { description: "Read the session's inbox again from a time, without taking anything: notes and replies, the operator's answers, commits on main that changed a file this track changed, the landing queue, and runs taken in or set aside. Every other tool's answer already carries what is new, once, under `inbox`.", inputSchema: { sessionId: z.string(), since: z.string().describe("an ISO time") } },
+    { description: "Read the session's inbox again, without taking anything: notes and replies, the operator's answers, commits on main that changed a file this track changed, the landing queue, and runs taken in or set aside. Every other tool's answer already carries what is new, once, under `inbox`; call this when an answer may not have reached you.", inputSchema: { sessionId: z.string(), since: z.string().optional().describe("an ISO time; the session's opening when left out") } },
     ({ sessionId, since }) => inSession(source, sessionId, async (repo, session) => ok({ items: await peekInbox(repo, session, since) })),
   );
 }
