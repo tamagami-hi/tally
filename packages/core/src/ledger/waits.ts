@@ -27,6 +27,15 @@ export function waitingOn(ledger: Ledger, milestone: string, task: Task, on: str
 
 const waitsOnIt = (task: Task, ref: string): boolean => (task.waitsOn ?? []).some((wait) => wait.task === ref);
 
+export interface Waiter {
+  label: string;
+  track: string;
+}
+
+export function waitersOn(ledger: Ledger, ref: string): Waiter[] {
+  return ledger.milestones.flatMap((milestone) => milestone.tasks.filter((task) => waitsOnIt(task, ref)).map((task) => ({ label: `${milestone.id} '${task.id}'`, track: task.track })));
+}
+
 function freedFrom(task: Task, ref: string): Task {
   const { waitsOn = [], ...rest } = task;
   const kept = waitsOn.filter((wait) => wait.task !== ref);
@@ -34,7 +43,7 @@ function freedFrom(task: Task, ref: string): Task {
 }
 
 export function stopWaitingOn(ledger: Ledger, ref: string): { ledger: Ledger; freed: string[] } {
-  const freed = ledger.milestones.flatMap((milestone) => milestone.tasks.filter((task) => waitsOnIt(task, ref)).map((task) => `${milestone.id} '${task.id}'`));
+  const freed = waitersOn(ledger, ref).map((waiter) => waiter.label);
   if (freed.length === 0) return { ledger, freed };
   const milestones = ledger.milestones.map((milestone) => ({ ...milestone, tasks: milestone.tasks.map((task) => (waitsOnIt(task, ref) ? freedFrom(task, ref) : task)) }));
   return { ledger: { ...ledger, milestones }, freed };

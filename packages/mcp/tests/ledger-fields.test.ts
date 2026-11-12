@@ -102,6 +102,29 @@ describe("waiting on a task, through the tools", () => {
     expect((await rowOf(call, "B2")).notes).toContain("engine next: T9 store");
   });
 
+  test("the track that waited is told in its next answer, and the track that landed is not", async () => {
+    const { call, root, data, engine } = await tracked();
+    await call("task_unwait", { sessionId: engine, milestone: "B2", task: "T9 store" });
+    await call("task_wait", { sessionId: engine, milestone: "B2", task: "T9 store", what: "the manifest's format", on: "B2:4 manifest" });
+    const sha = await commitOnMain(root, "manifest.rs");
+
+    await call("task_land", { sessionId: data, milestone: "B2", task: "4 manifest", commit: sha });
+    const told = await call("session_list", { sessionId: engine });
+    const own = await call("session_list", { sessionId: data });
+
+    expect(told.structured["inbox"]).toEqual([expect.objectContaining({ kind: "note", from: "data", text: expect.stringContaining(`B2:4 manifest landed at ${sha}; B2 'T9 store' no longer waits on it`) })]);
+    expect(own.structured["inbox"]).toBeUndefined();
+  });
+
+  test("a landing nobody waited on leaves no note", async () => {
+    const { call, root, data } = await tracked();
+    const sha = await commitOnMain(root, "manifest.rs");
+
+    await call("task_land", { sessionId: data, milestone: "B2", task: "4 manifest", commit: sha });
+
+    expect((await call("note_list", { sessionId: data, everyTrack: true, state: "all" })).structured["notes"]).toEqual([]);
+  });
+
   test("task_wait accepts a task that is not planned yet, and task_unwait clears that wait too", async () => {
     const { call, engine } = await tracked();
 

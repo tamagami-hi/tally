@@ -91,13 +91,17 @@ function found(file: NotesFile, id: string): Note {
 
 const replaced = (file: NotesFile, next: Note): NotesFile => ({ ...file, notes: file.notes.map((note) => (note.id === next.id ? next : note)) });
 
-export async function postNote(repo: Repo, session: Session, input: NoteInput, now = new Date()): Promise<Note> {
+export async function noteFrom(repo: Repo, from: Note["from"], input: NoteInput, now = new Date()): Promise<Note> {
   const text = checkedText(input.text);
   const to = checkedReaders(repo, input.to);
   return change(repo, (note) => `${note.id} from ${note.from.track}`, (file) => {
-    const note: Note = { id: `note-${file.nextNumber}`, from: writer(session), to, kind: input.kind, text, ...(input.about === undefined ? {} : { about: input.about }), at: now.toISOString(), replies: [] };
+    const note: Note = { id: `note-${file.nextNumber}`, from, to, kind: input.kind, text, ...(input.about === undefined ? {} : { about: input.about }), at: now.toISOString(), replies: [] };
     return { file: { ...file, nextNumber: file.nextNumber + 1, notes: [...file.notes, note] }, result: note };
   });
+}
+
+export function postNote(repo: Repo, session: Session, input: NoteInput, now = new Date()): Promise<Note> {
+  return noteFrom(repo, writer(session), input, now);
 }
 
 export async function replyNote(repo: Repo, session: Session, id: string, text: string, now = new Date()): Promise<Note> {
