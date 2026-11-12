@@ -1,8 +1,5 @@
 import { z } from "zod";
-import {
-  Records, TallyError, addMilestone, assertMayWrite, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, findMilestone, findTask, getSession, isOperator,
-  listClaims, listLocks, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unwait, wait, type Ledger, type Repo, type Session,
-} from "@tally/core";
+import { Records, TallyError, addMilestone, assertMayWrite, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, findMilestone, findTask, getSession, isOperator, listClaims, listLocks, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unwait, wait, type Ledger, type Repo, type Session, entriesAbout } from "@tally/core";
 import { FIELDS, pickKnown } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -91,8 +88,13 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_claim",
-    { description: "Take a planned task of the session's track; the board shows who holds it.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string() } },
-    ({ sessionId, milestone, task }) => inSession(source, sessionId, async (repo, session) => ok(await claimTask(repo, session, await new Records(repo).readLedger(), milestone, task))),
+    { description: "Take a planned task of the session's track; the board shows who holds it. When the task names paths, the answer carries `entries`: the id, kind and title of each context entry about them (read them with context_get).", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string() } },
+    ({ sessionId, milestone, task }) => inSession(source, sessionId, async (repo, session) => {
+      const ledger = await new Records(repo).readLedger();
+      const claim = await claimTask(repo, session, ledger, milestone, task);
+      const entries = await entriesAbout(repo, ledger.milestones.find((one) => one.id === milestone)?.tasks.find((one) => one.id === task)?.paths ?? []);
+      return ok(entries.length === 0 ? claim : { ...claim, entries });
+    }),
   );
   server.registerTool(
     "task_release",

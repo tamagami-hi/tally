@@ -102,8 +102,8 @@ export { CONTEXT_DIR, ENTRY_KINDS, MAX_LISTED, MAX_NAMED, MAX_TEXT, MAX_TITLE, e
 export type { Author, Entry, EntryInput, EntryKind, KindFile } from "./context/entries.ts";
 export { PROJECT_FILE, projectSchema, readProject, setProject } from "./context/project.ts";
 export type { Project, ProjectInput } from "./context/project.ts";
-export { appliesTo, findEntries, isInForce, keepEntries } from "./context/find.ts";
-export type { EntryFilter, Found } from "./context/find.ts";
+export { appliesTo, entriesAbout, findEntries, isInForce, keepEntries } from "./context/find.ts";
+export type { EntryFilter, EntryTitle, Found } from "./context/find.ts";
 export { applies, overlaps as pathsOverlap } from "./context/match.ts";
 export { missingFrom, sessionBrief, unlandedTasks } from "./context/brief.ts";
 export type { Brief, BriefTask, Working } from "./context/brief.ts";

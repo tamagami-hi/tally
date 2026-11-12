@@ -20,6 +20,22 @@ async function serving(): Promise<Serving> {
 const idsOf = (answer: { structured: Record<string, unknown> }): string[] => (answer.structured["entries"] as { id: string }[]).map((entry) => entry.id);
 
 describe("the context tools", () => {
+  test("task_claim answers with the entries about the task's own paths, and with none when the task names no path", async () => {
+    const { call, data } = await serving();
+    await call("context_put", { sessionId: data, kind: "area", title: "the index", text: "built on open", paths: ["src/index"] });
+    await call("context_put", { sessionId: data, kind: "finding", title: "the web build is slow", text: "a minute", paths: ["web"] });
+    await call("context_put", { sessionId: data, kind: "convention", title: "errors name the file", text: "always" });
+    await call("task_plan", { sessionId: data, milestone: "B2", tasks: [{ id: "7 index", paths: ["src/index/build.rs"] }, "8 plain"] });
+
+    const told = await call("task_claim", { sessionId: data, milestone: "B2", task: "7 index" });
+    await call("task_release", { sessionId: data, milestone: "B2", task: "7 index" });
+    const plain = await call("task_claim", { sessionId: data, milestone: "B2", task: "8 plain" });
+
+    expect(told.structured["entries"]).toEqual([{ id: "area-1", kind: "area", title: "the index" }]);
+    expect(plain.isError).toBe(false);
+    expect(plain.structured["entries"]).toBeUndefined();
+  });
+
   test("context_put writes an entry as the session, and context_get answers it to anyone", async () => {
     const { call, data } = await serving();
 

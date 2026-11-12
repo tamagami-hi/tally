@@ -2,7 +2,7 @@ import { TallyError } from "../errors.ts";
 import { askedLimit, askedSince } from "../records/asked.ts";
 import type { Repo } from "../store/records.ts";
 import { MAX_NAMED, readEntries, type Entry, type EntryKind } from "./entries.ts";
-import { applies } from "./match.ts";
+import { applies, overlaps } from "./match.ts";
 
 export interface EntryFilter {
   ids?: readonly string[];
@@ -60,6 +60,14 @@ export function keepEntries(entries: readonly Entry[], filter: EntryFilter = {})
   const kept = entries.filter((entry) => keeps.every((keep) => keep(entry)));
   const newestFirst = [...kept].reverse().sort((a, b) => changedAt(b) - changedAt(a));
   return { entries: limit === undefined ? newestFirst : newestFirst.slice(0, limit), matched: kept.length };
+}
+
+export type EntryTitle = Pick<Entry, "id" | "kind" | "title">;
+
+export async function entriesAbout(repo: Repo, areas: readonly string[]): Promise<EntryTitle[]> {
+  if (areas.length === 0) return [];
+  const about = (entry: Entry): boolean => isInForce(entry) && entry.paths.some((path) => areas.some((area) => overlaps(path, area)));
+  return (await readEntries(repo)).filter(about).map(({ id, kind, title }) => ({ id, kind, title }));
 }
 
 export async function findEntries(repo: Repo, filter: EntryFilter = {}): Promise<Found> {
