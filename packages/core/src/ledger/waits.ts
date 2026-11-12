@@ -40,11 +40,15 @@ export function stopWaitingOn(ledger: Ledger, ref: string): { ledger: Ledger; fr
   return { ledger: { ...ledger, milestones }, freed };
 }
 
-export function withDeferred(task: Task, deferred: readonly Deferred[] | undefined): Task {
-  if (deferred === undefined) return task;
+export function assertDeferred(deferred: readonly Deferred[]): void {
   for (const part of deferred) {
     if (part.to !== undefined) parseRef(part.to, "a deferred part's to");
   }
+}
+
+export function withDeferred(task: Task, deferred: readonly Deferred[] | undefined): Task {
+  if (deferred === undefined) return task;
+  assertDeferred(deferred);
   const { deferred: _held, ...rest } = task;
   return deferred.length === 0 ? rest : { ...rest, deferred: deferred.map((part) => ({ ...part })) };
 }

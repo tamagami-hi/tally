@@ -215,11 +215,11 @@ async function step(repo: Repo, now: Date): Promise<Ticket | undefined> {
 }
 
 async function recorded(repo: Repo, ticket: Ticket): Promise<void> {
-  const { landed, target } = ticket;
+  const { landed, target, deferred } = ticket;
   if (landed === undefined || landed.commits.length === 0) return;
   if (target !== undefined) {
     const session = (await listSessions(repo)).find((open) => open.id === ticket.sessionId);
-    const recording = await recordLanding(repo, { track: ticket.track, head: landed.head, commits: landed.commits }, target, session);
+    const recording = await recordLanding(repo, { track: ticket.track, head: landed.head, commits: landed.commits }, { ...target, deferred }, session);
     await putTicket(repo, { ...ticket, landed: { ...landed, recording: recording.problem === undefined ? recording.message : `${recording.message}; ${recording.problem}` } });
   }
   await flushWhenFree(repo);

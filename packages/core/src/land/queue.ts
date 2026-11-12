@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
+import { assertDeferred } from "../ledger/waits.ts";
+import { deferredSchema, type Deferred } from "../schema/ledger.ts";
 import { StateFile } from "../state/file.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
@@ -30,6 +32,7 @@ export const ticketSchema = z.object({
   message: z.string().optional(),
   target: z.object({ milestone: z.string().min(1), task: z.string().min(1) }).optional(),
   verified: z.string().optional(),
+  deferred: z.array(deferredSchema).optional(),
   state: z.enum(ticketStates),
   since: z.string(),
   attempts: z.number().int().nonnegative().default(0),
@@ -52,6 +55,7 @@ export interface JoinInput {
   message?: string;
   target?: { milestone: string; task: string };
   verified?: string;
+  deferred?: readonly Deferred[] | undefined;
 }
 
 export interface TicketView {
@@ -107,6 +111,9 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
   }
   checkTrackPaths(track, input.files);
   if (input.verified !== undefined && input.files.some((name) => !isDocumentation(name, repo.config))) throw new TallyError("--verified-code is only for documentation/evidence on already checked code");
+  const deferred = input.deferred ?? [];
+  if (deferred.length > 0 && input.target === undefined) throw new TallyError("deferred parts are recorded on a task: give the landing its milestone and task");
+  assertDeferred(deferred);
   const ticket: Ticket = {
     id: randomUUID().slice(0, TICKET_LENGTH),
     sessionId: session.id,
@@ -117,6 +124,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     ...(input.message === undefined ? {} : { message: input.message }),
     ...(input.target === undefined ? {} : { target: input.target }),
     ...(input.verified === undefined ? {} : { verified: input.verified }),
+    ...(deferred.length === 0 ? {} : { deferred: deferred.map((part) => ({ ...part })) }),
     state: "queued",
     since: now.toISOString(),
     attempts: 0,
