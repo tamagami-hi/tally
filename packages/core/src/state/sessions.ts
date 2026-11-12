@@ -92,5 +92,6 @@ export async function listSessions(repo: Pick<Repo, "stateDir">): Promise<Sessio
 
 export function assertMayWrite(repo: Repo, session: Session, track: string): void {
   if (isOperator(repo, session) || session.track === track) return;
+  if (repo.config.tracks.find((one) => one.name === track)?.parent === session.track) return;
   throw new TallyError(`session ${session.id} is bound to track ${session.track} and may not write track ${track}'s records`);
 }
