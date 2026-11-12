@@ -1,6 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { TallyError, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
+import { LiveRepo, TallyError, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
 import { attempt } from "./respond.ts";
 
 export interface Opened {
@@ -37,13 +37,18 @@ export const WHERE = {
 
 export const isSource = (from: Repo | RepoSource): from is RepoSource => "forSession" in from;
 
-export function oneRepo(repo: Repo): RepoSource {
+export function oneRepo(first: Repo): RepoSource {
+  const live = new LiveRepo(first);
   return {
-    instructions: `tally tracks the build of ${repo.config.name}. Open a session with session_open (your worktree and track) before any writing tool; read context_pack at your level first. Records change only through these tools; main is never pushed from here.`,
-    forSession: () => Promise.resolve(repo),
-    forWorktree: (path) => Promise.resolve({ repo, worktree: path }),
-    forRead: ({ repo: name }) => (name === undefined || name === repo.name ? Promise.resolve(repo) : Promise.reject(new TallyError(`this server serves only ${repo.name}, not ${name}`))),
-    listed: async () => [{ name: repo.name, root: repo.root, project: repo.config.name, sessions: (await listSessions(repo)).length, isDefault: true }],
+    instructions: `tally tracks the build of ${first.config.name}. Open a session with session_open (your worktree and track) before any writing tool; read context_pack at your level first. Records change only through these tools; main is never pushed from here.`,
+    forSession: () => live.current(),
+    forWorktree: async (path) => ({ repo: await live.current(), worktree: path }),
+    forRead: ({ repo: name }) => (name === undefined || name === first.name ? live.current() : Promise.reject(new TallyError(`this server serves only ${first.name}, not ${name}`))),
+    listed: async () => {
+      const repo = await live.current();
+      const problem = live.problem;
+      return [{ name: repo.name, root: repo.root, project: repo.config.name, sessions: (await listSessions(repo)).length, isDefault: true, ...(problem === undefined ? {} : { problem }) }];
+    },
   };
 }
 

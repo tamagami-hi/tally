@@ -9,6 +9,7 @@ import { registerNoteTools } from "./tools/notes.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerRecordTools } from "./tools/records.ts";
 import { registerSessionTools } from "./tools/session.ts";
+import { registerTrackTools } from "./tools/tracks.ts";
 import { DECORATORS, decorating, type Decorator } from "./decorate.ts";
 import { isSource, oneRepo, type RepoSource } from "./source.ts";
 
@@ -26,6 +27,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   registerNoteTools(tools, source);
   registerDocTools(tools, source);
   registerCheckTools(tools, source);
+  registerTrackTools(tools, source);
   return server;
 }
 
@@ -36,8 +38,9 @@ export async function serveStdio(from: Repo | RepoSource): Promise<McpServer> {
 }
 
 export function mcpHandler(from: Repo | RepoSource): (request: Request) => Promise<Response> {
+  const source = isSource(from) ? from : oneRepo(from);
   return async (request) => {
-    const server = createTallyServer(from);
+    const server = createTallyServer(source);
     const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
     await server.connect(transport);
     return transport.handleRequest(request);
