@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   Records, acquireLock, evidenceKinds, landTrack, landingLog, landingTarget, listEvidence, listLocks, loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock,
@@ -7,6 +6,7 @@ import {
 } from "@tally/core";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import type { ToolHost } from "../decorate.ts";
 
 const summaryValue = z.union([z.number(), z.string(), z.boolean()]);
 
@@ -14,7 +14,7 @@ function defined<T extends Record<string, unknown>>(input: T): { [K in keyof T]:
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
 }
 
-export function registerRecordTools(server: McpServer, source: RepoSource): void {
+export function registerRecordTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "land_run",
     { description: "Land the session's track on main: rebase, the configured tests (their output to a log in the worktree), a commit as the operator from --message and explicit files, a fast-forward of main. With commands.landing in the config, the commit comes first and every commit ahead of main is tested in a clean checkout; a failure names the commit and the log, and undoes a commit this landing made, its files left staged. With both milestone and task it records that task at the hash it made and releases its claim; `recording` says how that went, and a landing that could not record is still a landing. Without them, record it with task_land.", inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), messageFile: z.string().optional(), verifiedCode: z.string().optional(), milestone: z.string().optional(), task: z.string().optional() } },

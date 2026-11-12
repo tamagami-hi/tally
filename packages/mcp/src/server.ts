@@ -8,20 +8,22 @@ import { registerLandTools } from "./tools/land.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerRecordTools } from "./tools/records.ts";
 import { registerSessionTools } from "./tools/session.ts";
+import { DECORATORS, decorating, type Decorator } from "./decorate.ts";
 import { isSource, oneRepo, type RepoSource } from "./source.ts";
 
 export const SERVER_NAME = "tally";
 export const SERVER_VERSION = "0.1.0";
 
-export function createTallyServer(from: Repo | RepoSource): McpServer {
+export function createTallyServer(from: Repo | RepoSource, decorators: readonly Decorator[] = DECORATORS): McpServer {
   const source = isSource(from) ? from : oneRepo(from);
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: source.instructions });
-  registerSessionTools(server, source);
-  registerLedgerTools(server, source);
-  registerRecordTools(server, source);
-  registerLandTools(server, source);
-  registerDocTools(server, source);
-  registerCheckTools(server, source);
+  const tools = decorating(server, source, decorators);
+  registerSessionTools(tools, source);
+  registerLedgerTools(tools, source);
+  registerRecordTools(tools, source);
+  registerLandTools(tools, source);
+  registerDocTools(tools, source);
+  registerCheckTools(tools, source);
   return server;
 }
 

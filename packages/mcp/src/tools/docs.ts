@@ -1,10 +1,10 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TallyError, addQuestion, contextPack, isOperator, listDocs, readDecisions, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView } from "@tally/core";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import type { ToolHost } from "../decorate.ts";
 
-export function registerDocTools(server: McpServer, source: RepoSource): void {
+export function registerDocTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "docs_list",
     { description: "The documents a session may read: RULES.md, CLAUDE.md, README.md and docs/**/*.md|json.", inputSchema: { ...WHERE } },

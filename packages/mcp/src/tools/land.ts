@@ -1,11 +1,11 @@
 import { readFile, realpath } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TallyError, advance, cancelTicket, joinQueue, landingTarget, ticketStates, ticketView, type Repo, type TicketView } from "@tally/core";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
+import type { ToolHost } from "../decorate.ts";
 
 const MAX_WAIT_SECONDS = 30;
 const POLL_MS = 400;
@@ -33,7 +33,7 @@ async function waited(repo: Repo, ticket: string, after: string | undefined, sec
   }
 }
 
-export function registerLandTools(server: McpServer, source: RepoSource): void {
+export function registerLandTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "land_start",
     {

@@ -1,10 +1,10 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { TallyError, appendBuildlog, checksFileSchema, checksFingerprint, readBuildlog, readChecks, renderBuildlog, setChecks } from "@tally/core";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import type { ToolHost } from "../decorate.ts";
 
-export function registerCheckTools(server: McpServer, source: RepoSource): void {
+export function registerCheckTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "checks_get",
     { description: "The code-check record: the fingerprint it was verified at, every check's result, the suites and each module's files, tests, entry points and gaps.", inputSchema: { ...WHERE } },

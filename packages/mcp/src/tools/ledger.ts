@@ -1,4 +1,3 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
   COVERED, Records, TallyError, addMilestone, assertMayWrite, claimTask, collect, commitRecords, findMilestone, findTask, getSession, isOperator,
@@ -6,6 +5,7 @@ import {
 } from "@tally/core";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import type { ToolHost } from "../decorate.ts";
 
 async function recorded(repo: Repo, message: string): Promise<{ message: string; commit: string | null }> {
   return { message, commit: await commitRecords(repo, message) };
@@ -22,7 +22,7 @@ function scopedTrack(repo: Repo, session: Session, given: string | undefined): s
   return track;
 }
 
-export function registerLedgerTools(server: McpServer, source: RepoSource): void {
+export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "board_get",
     { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps only the session's track: its rows, their tasks and notes, its branch and its claims.", inputSchema: { scope: z.enum(["all", "mine"]).default("all"), ...WHERE } },

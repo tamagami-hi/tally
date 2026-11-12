@@ -1,10 +1,10 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { endSession, listSessions, openSession, writeRunner } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import type { ToolHost } from "../decorate.ts";
 
-export function registerSessionTools(server: McpServer, source: RepoSource): void {
+export function registerSessionTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "session_open",
     {
