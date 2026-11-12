@@ -1,15 +1,12 @@
 import { readFile, realpath } from "node:fs/promises";
 import { relative, resolve } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
-import { TallyError, advance, cancelTicket, joinQueue, landingTarget, ticketStates, ticketView, type Repo, type TicketView } from "@tally/core";
+import { TallyError, advance, cancelTicket, joinQueue, landingTarget, ticketStates, ticketView, waitForTicket } from "@tally/core";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const MAX_WAIT_SECONDS = 30;
-const POLL_MS = 400;
-const MS_PER_SECOND = 1000;
 
 async function messageOfLanding(worktree: string, message: string | undefined, messageFile: string | undefined): Promise<string | undefined> {
   if (message !== undefined && messageFile !== undefined) throw new TallyError("give the message or a file that holds it, not both");
@@ -19,18 +16,6 @@ async function messageOfLanding(worktree: string, message: string | undefined, m
   if (real === undefined) throw relative(worktree, resolve(worktree, messageFile)).startsWith("..") ? outside : new TallyError(`the message file does not exist: ${messageFile}`);
   if (relative(await realpath(worktree), real).startsWith("..")) throw outside;
   return readFile(real, "utf8");
-}
-
-const settled = (view: TicketView, after: string | undefined): boolean => view.state !== "queued" && view.state !== after;
-
-async function waited(repo: Repo, ticket: string, after: string | undefined, seconds: number): Promise<TicketView> {
-  const until = Date.now() + seconds * MS_PER_SECOND;
-  for (;;) {
-    await advance(repo);
-    const view = await ticketView(repo, ticket);
-    if (settled(view, after) || Date.now() >= until) return view;
-    await delay(POLL_MS);
-  }
 }
 
 export function registerLandTools(server: ToolHost, source: RepoSource): void {
@@ -54,7 +39,7 @@ export function registerLandTools(server: ToolHost, source: RepoSource): void {
       description: "Wait for a landing ticket to change, for up to 30 seconds: the call answers as soon as the ticket leaves the state given in `after`, or when the time is up. `turn` means run the `run` command now; `landed` and `failed` end the ticket, and a failure carries `problem` with the commit, the exit and the log. Call it again while the state is `queued`, or `turn` with the script still running.",
       inputSchema: { sessionId: z.string(), ticket: z.string(), after: z.enum(ticketStates).optional().describe("the state you last saw"), seconds: z.number().int().positive().max(MAX_WAIT_SECONDS).default(MAX_WAIT_SECONDS) },
     },
-    ({ sessionId, ticket, after, seconds }) => inSession(source, sessionId, async (repo) => ok(await waited(repo, ticket, after, seconds))),
+    ({ sessionId, ticket, after, seconds }) => inSession(source, sessionId, async (repo) => ok(await waitForTicket(repo, ticket, after, seconds))),
   );
   server.registerTool(
     "land_cancel",

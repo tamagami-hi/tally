@@ -18,7 +18,7 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 
 ## Run as a service
 
-**Phase 5 is being built** (2026-11-12, [DESIGN.md](DESIGN.md) §14): one Docker service for every repository. What is built: the list of repositories, one MCP endpoint and one board for all of them, the sidebar that adds and removes repositories, the runner, and the landing queue. Not built yet: the CLI as a client of the service (§14.9), so a `tally` command on the host still works on the files itself.
+**Phase 5 is being built** (2026-11-12, [DESIGN.md](DESIGN.md) §14): one Docker service for every repository. What is built: the list of repositories, one MCP endpoint and one board for all of them, the sidebar that adds and removes repositories, the runner, the landing queue, and the CLI as a client of the service.
 
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config
@@ -33,6 +33,8 @@ docker compose up -d --build
 - **Each repository is separate.** A session reads and writes only its own repository's records, state and logs.
 
 The service listens on the host's loopback only and refuses a request from another host or another site's page. The container has git and Node and no other toolchain: it never runs a repository's commands.
+
+- **The `tally` command** is carried out by the service when `TALLY_URL` is set, for example `export TALLY_URL=http://127.0.0.1:47560`. Then the service is the only writer, and a script's `tally land` goes through the same queue as the agents' landings. With `TALLY_URL` unset, `tally` works on the files itself, which is for a repository the service doesn't serve.
 
 Without Docker, `tally serve` with no `--repo` serves the same list from `TALLY_HOME` (by default `~/.local/state/tally`), and `tally repo add PATH [--name NAME] | remove NAME | default NAME | list` manages it.
 

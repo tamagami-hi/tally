@@ -6,7 +6,7 @@ import { StateFile } from "../state/file.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
 import { checkTrackPaths } from "./checks.ts";
-import { statePath, trackOf } from "./paths.ts";
+import { isDocumentation, statePath, trackOf, worktreeOf } from "./paths.ts";
 
 export const ticketStates = ["queued", "turn", "landed", "failed", "cancelled"] as const;
 
@@ -29,6 +29,7 @@ export const ticketSchema = z.object({
   files: z.array(z.string()),
   message: z.string().optional(),
   target: z.object({ milestone: z.string().min(1), task: z.string().min(1) }).optional(),
+  verified: z.string().optional(),
   state: z.enum(ticketStates),
   since: z.string(),
   attempts: z.number().int().nonnegative().default(0),
@@ -50,6 +51,7 @@ export interface JoinInput {
   files: readonly string[];
   message?: string;
   target?: { milestone: string; task: string };
+  verified?: string;
 }
 
 export interface TicketView {
@@ -104,6 +106,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     if (isAbsolute(name) || name.split("/").includes("..")) throw new TallyError(`file must be relative to the worktree: ${name}`);
   }
   checkTrackPaths(track, input.files);
+  if (input.verified !== undefined && input.files.some((name) => !isDocumentation(name, repo.config))) throw new TallyError("--verified-code is only for documentation/evidence on already checked code");
   const ticket: Ticket = {
     id: randomUUID().slice(0, TICKET_LENGTH),
     sessionId: session.id,
@@ -113,6 +116,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     files: [...input.files],
     ...(input.message === undefined ? {} : { message: input.message }),
     ...(input.target === undefined ? {} : { target: input.target }),
+    ...(input.verified === undefined ? {} : { verified: input.verified }),
     state: "queued",
     since: now.toISOString(),
     attempts: 0,
@@ -122,6 +126,12 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     if (held !== undefined) throw new TallyError(`this session already has ticket ${held.id} in the queue`);
     return { value: { tickets: [...queue.tickets, ticket] }, result: ticket };
   });
+}
+
+export function trackSession(repo: Repo, name: string, agent: string, now = new Date()): Session {
+  const track = trackOf(repo.config, name);
+  const stamp = now.toISOString();
+  return { id: `${agent}-${name}`, track: name, worktree: worktreeOf(repo, track), branch: track.branch, agent, openedAt: stamp, lastSeenAt: stamp };
 }
 
 export async function findTicket(repo: Repo, id: string): Promise<{ ticket: Ticket; queue: Queue }> {

@@ -343,6 +343,8 @@ Every `tally` verb becomes one HTTP call to the server at `TALLY_URL` (by defaul
 - A verb that takes a file (`land --message`, `checks set --file`, `buildlog append --file`, the importers) reads it on the host and sends its contents, since the container doesn't see the host's folders outside the workspace. A verb that takes a folder of logs to hash in place (`import evidence`, `report manifest --bundle`) needs that folder to be inside the workspace.
 - If the server isn't reachable, the command says so and exits 1. Nothing is written.
 
+(Built 2026-11-12 with one difference: a command is carried out by the service only when `TALLY_URL` is set. With it unset, `tally` works on the files itself, as before, so a repository that isn't served needs no service. The service runs the same command code and sends back its lines and exit status. `tally land` joins the queue, runs each turn's script on the host and waits. A file named with `--message`, `--file`, `--config` or `--narrative` from outside the repository is copied into the repository's `.temp/tally/spool/`, where the service can read it.)
+
 ## 15. Working in parallel (Phase 6)
 
 Five tracks reviewed tally on 2026-11-04 after a day of parallel work. This section is built from what they asked for. §15.8 maps each of the 15 open items to its answer.

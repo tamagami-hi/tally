@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { NotListed, TallyError, messageOf, type StartDefaults } from "@tally/core";
 import { manyRepos, mcpHandler } from "@tally/mcp";
+import { cliRoutes, type CliRunner } from "./cli-api.ts";
 import { listFolders } from "./folders.ts";
 import { Forbidden, loopbackOnly } from "./guard.ts";
 import type { Hub } from "./hub.ts";
@@ -13,11 +14,12 @@ export interface ServiceOptions {
   webDir: string;
   workspace: string;
   defaults?: StartDefaults;
+  cli?: CliRunner;
 }
 
 const statusOf = (error: TallyError): 400 | 403 | 404 => (error instanceof NotListed ? 404 : error instanceof Forbidden ? 403 : 400);
 
-export function createServiceApp({ hub, webDir, workspace, defaults }: ServiceOptions): Hono {
+export function createServiceApp({ hub, webDir, workspace, defaults, cli }: ServiceOptions): Hono {
   const app = new Hono();
   app.use("*", loopbackOnly());
   app.onError((error, c) => {
@@ -34,6 +36,7 @@ export function createServiceApp({ hub, webDir, workspace, defaults }: ServiceOp
   app.get("/api/fs", async (c) => c.json(await listFolders(workspace, hub.repos, c.req.query("dir"))));
   app.route("/api/r/:name", repoRoutes((c) => hub.get(c.req.param("name") ?? "")));
   app.route("/api", operatorRoutes({ hub, workspace, ...(defaults === undefined ? {} : { defaults }) }));
+  app.route("/api", cliRoutes(hub, cli));
   app.route("/api", repoRoutes(() => hub.default()));
   app.all("/api/*", (c) => c.json({ error: "not found" }, 404));
   const mcp = mcpHandler(manyRepos(hub.repos));

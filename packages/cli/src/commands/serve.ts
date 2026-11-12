@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { TallyError, tallyHome, type Repo, type StartDefaults } from "@tally/core";
-import { startServer, startService, type Running } from "@tally/server";
+import { startServer, startService, type CliRunner, type Running } from "@tally/server";
 import { parse, text, type Parsed } from "../args.ts";
 import type { IO } from "../io.ts";
 
@@ -59,10 +59,10 @@ export async function serveCommand(repo: Repo, argv: readonly string[], io: IO):
   return untilStopped(running, io);
 }
 
-export async function serveListCommand(argv: readonly string[], io: IO): Promise<number> {
+export async function serveListCommand(argv: readonly string[], io: IO, cli: CliRunner): Promise<number> {
   const parsed = parse(argv, OPTIONS);
   const workspace = workspaceOf(text(parsed, "workspace"), io);
-  const running = await startService({ home: tallyHome(io.env), workspace, defaults: serviceDefaults(io.env), ...listening(parsed, io) });
+  const running = await startService({ home: tallyHome(io.env), workspace, defaults: serviceDefaults(io.env), cli, ...listening(parsed, io) });
   io.out(`tally serves every listed repository at ${running.url} (repositories are added from ${workspace})`);
   return untilStopped(running, io);
 }

@@ -4,6 +4,7 @@ import { serve } from "@hono/node-server";
 import type { Hono } from "hono";
 import { Repos, type Repo, type StartDefaults } from "@tally/core";
 import { createApp } from "./app.ts";
+import type { CliRunner } from "./cli-api.ts";
 import { Hub } from "./hub.ts";
 import { createServiceApp } from "./service.ts";
 import { Watcher } from "./watcher.ts";
@@ -25,6 +26,7 @@ export interface ServiceStart extends Listening {
   home: string;
   workspace: string;
   defaults?: StartDefaults;
+  cli?: CliRunner;
 }
 
 export interface Running {
@@ -65,6 +67,6 @@ export function startServer(options: ServeOptions): Promise<Running> {
 
 export function startService(options: ServiceStart): Promise<Running> {
   const hub = new Hub(new Repos(options.home), interval(options));
-  const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, ...(options.defaults === undefined ? {} : { defaults: options.defaults }) });
+  const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, ...(options.defaults === undefined ? {} : { defaults: options.defaults }), ...(options.cli === undefined ? {} : { cli: options.cli }) });
   return listen(app, options, () => undefined, () => hub.stop());
 }

@@ -5,6 +5,8 @@ export type { Commit, LaidCommit, Segment } from "./graph.ts";
 export { Watcher, fingerprint, snapshot } from "./watcher.ts";
 export type { Listener, LiveState, RepoGetter, Snapshot } from "./watcher.ts";
 export { Hub } from "./hub.ts";
+export { cliRoutes } from "./cli-api.ts";
+export type { CliAnswer, CliRunner } from "./cli-api.ts";
 export type { RepoSummary } from "./hub.ts";
 export { createServiceApp } from "./service.ts";
 export type { ServiceOptions } from "./service.ts";

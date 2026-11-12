@@ -21,6 +21,8 @@ import { statusCommand } from "./commands/status.ts";
 import { taskCommand } from "./commands/task.ts";
 import { viewsCommand } from "./commands/views.ts";
 import type { IO } from "./io.ts";
+import { remoteRun } from "./remote.ts";
+import { serviceCli } from "./service-cli.ts";
 
 export const USAGE = `tally: the tracking harness
 
@@ -54,7 +56,10 @@ export const USAGE = `tally: the tracking harness
   tally mcp                                                      the MCP server on stdio: every listed repository, or the one --repo names (or, with nothing listed, the one above the current folder)
   tally <command> [<verb>] --help                                that command's lines of this list
 
-  --repo PATH names the tracked repository; otherwise the one above the current folder.`;
+  --repo PATH names the tracked repository; otherwise the one above the current folder.
+  With TALLY_URL set to the service's address, every command but serve and mcp is carried out by the service.`;
+
+const LOCAL = new Set(["serve", "mcp"]);
 
 const commandsIn = (line: string): string[] => [...line.matchAll(/\btally ([a-z]+)/g)].flatMap(([, word]) => word ?? []);
 
@@ -95,12 +100,14 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
       io.out(usageOf(command));
       return 0;
     }
+    const url = io.env["TALLY_URL"];
+    if (url !== undefined && url !== "" && !LOCAL.has(command)) return await remoteRun(argv, io, url);
     if (command === "init") return await initCommand(repoOption === undefined ? io.cwd : resolve(io.cwd, repoOption), args, io);
     if (command === "repo") return await repoCommand(args, io);
     const home = tallyHome(io.env);
     const everyRepo = (command === "mcp" || command === "serve") && (await servesTheList(repoOption, io));
     if (everyRepo && command === "mcp") return await mcpCommand(manyRepos(new Repos(home)), "every listed repository", io);
-    if (everyRepo) return await serveListCommand(args, io);
+    if (everyRepo) return await serveListCommand(args, io, serviceCli(run, io.env));
     const repo = await openAt(home, await locate(repoOption, io));
     switch (command) {
       case "task":

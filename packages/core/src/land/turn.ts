@@ -11,8 +11,8 @@ import { checkCheckout } from "./checks.ts";
 import { openLandingCheckout } from "./checkout.ts";
 import { undoCommit } from "./clean.ts";
 import { landScript } from "./land-script.ts";
-import { statePath, trackOf } from "./paths.ts";
-import { isActive, putTicket, queueFile, swapTicket, type Ticket } from "./queue.ts";
+import { fingerprint, statePath, trackOf } from "./paths.ts";
+import { isActive, putTicket, queueFile, swapTicket, ticketView, type Ticket, type TicketView } from "./queue.ts";
 import { recordLanding } from "./record.ts";
 import { LOGS } from "./runner.ts";
 
@@ -80,6 +80,20 @@ async function rebased(repo: Repo, checkout: string, track: string, tip: string)
   return gitMust(checkout, ["rev-parse", "HEAD"]);
 }
 
+async function refuseRecordChanges(repo: Repo, checkout: string, base: string, top: string): Promise<void> {
+  const folder = `${repo.config.records.dir}/`;
+  const touched = (await gitMust(checkout, ["diff", "--name-only", `${base}..${top}`])).split("\n").filter((file) => file.startsWith(folder));
+  if (touched.length > 0) throw new TallyError(`a landing may not change ${folder} (${touched.join(", ")}); records change through the tools`);
+}
+
+async function landVerified(repo: Repo, ticket: Ticket, made: Committed, checkout: string, top: string, commits: readonly string[], now: Date): Promise<Ticket> {
+  if ((await fingerprint(repo.root, repo.config)) !== ticket.verified) throw new TallyError("main code differs from the verification; task preserved, recheck changed code");
+  if ((await fingerprint(checkout, repo.config)) !== ticket.verified) throw new TallyError("track code differs from the verification; task preserved");
+  await gitMust(repo.root, ["merge", "--quiet", "--ff-only", top]);
+  const note = (await follow(ticket, made, top)) ?? `landed on the recorded verification of unchanged code ${ticket.verified ?? ""}`;
+  return ended(ticket, "landed", now, { committed: made, landed: { head: short(top), commits: commits.map(short) }, note });
+}
+
 async function prepare(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket> {
   const { config, root } = repo;
   let made = ticket.committed;
@@ -96,6 +110,8 @@ async function prepare(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket> {
     const checkout = await openLandingCheckout(ticket.worktree, track.name);
     const top = await rebased(repo, checkout, track.name, made.tip);
     const commits = (await gitMust(checkout, ["rev-list", "--reverse", `${base}..${top}`])).split("\n").filter((line) => line !== "");
+    await refuseRecordChanges(repo, checkout, base, top);
+    if (ticket.verified !== undefined && commits.length > 0) return await landVerified(repo, ticket, made, checkout, top, commits, now);
     if (commits.length === 0) return ended(ticket, "landed", now, { committed: made, landed: { head: short(base), commits: [] }, note: "nothing new to land" });
     const attempts = ticket.attempts + 1;
     const name = `${ticket.id}-${attempts}`;
@@ -216,5 +232,18 @@ export async function advance(repo: Repo, now = new Date()): Promise<void> {
     }
   } catch (error: unknown) {
     if (!(error instanceof LockBusy)) throw error;
+  }
+}
+
+const POLL_MS = 400;
+const MS_PER_SECOND = 1000;
+
+export async function waitForTicket(repo: Repo, ticket: string, after: string | undefined, seconds: number): Promise<TicketView> {
+  const until = Date.now() + seconds * MS_PER_SECOND;
+  for (;;) {
+    await advance(repo);
+    const view = await ticketView(repo, ticket);
+    if ((view.state !== "queued" && view.state !== after) || Date.now() >= until) return view;
+    await new Promise((done) => setTimeout(done, POLL_MS));
   }
 }
