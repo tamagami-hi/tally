@@ -54,6 +54,8 @@ export { landingLog, loggedTests } from "./land/run-tests.ts";
 export { cancelTicket, findTicket, isActive, joinQueue, queueFile, swapTicket, ticketSchema, ticketStates, ticketView, trackSession, turnInProgress } from "./land/queue.ts";
 export type { JoinInput, Queue, Ticket, TicketView, Turn } from "./land/queue.ts";
 export { LANDING_DIR, advance, waitForTicket } from "./land/turn.ts";
+export { checksFor, matchesPath } from "./land/path-checks.ts";
+export type { TurnCheck } from "./land/path-checks.ts";
 export type { RunTests } from "./land/run-tests.ts";
 export { landingTarget, recordLanding, recordTask } from "./land/record.ts";
 export type { LandingRecord, LandingTarget, RecordedTask } from "./land/record.ts";

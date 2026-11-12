@@ -1,5 +1,6 @@
 import type { Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
+import type { TurnCheck } from "./path-checks.ts";
 import { environmentLines, quoted, variable } from "./runner.ts";
 
 export interface LandScriptInput {
@@ -8,6 +9,7 @@ export interface LandScriptInput {
   tree: string;
   checkout: string;
   commits: readonly string[];
+  checks: readonly TurnCheck[];
   resultDir: string;
   log: string;
   name: string;
@@ -22,9 +24,20 @@ function landingEnvironment({ repo, tree, track }: LandScriptInput): string[] {
   return Object.entries(repo.config.commands.landing?.env ?? {}).map(([name, value]) => `export ${variable(name)}=${quoted(filled(value))}`);
 }
 
+function checkLines({ name, command }: TurnCheck): string[] {
+  return [
+    '  if [ "$one" -eq 0 ]; then',
+    ...(name === undefined ? [] : [`    echo ${quoted(`-- check ${name}`)} | tee -a "$log"`]),
+    '    rm -f "$out/one"',
+    `    { ( cd "$checkout" && ${command.map(quoted).join(" ")} ); echo "$?" > "$out/one"; } 2>&1 | tee -a "$log"`,
+    '    one="$(cat "$out/one" 2>/dev/null || echo 1)"',
+    '    if [ "$(git -C "$checkout" rev-parse HEAD 2>/dev/null)" != "$commit" ]; then echo "tally: the checkout moved while the checks ran, so this run does not count" | tee -a "$log" >&2; one=1; fi',
+    "  fi",
+  ];
+}
+
 export function landScript(input: LandScriptInput): string {
-  const { repo, track, tree, checkout, commits, resultDir, log, name, owner } = input;
-  const command = (track.test ?? repo.config.commands.test).map(quoted).join(" ");
+  const { repo, track, tree, checkout, commits, checks, resultDir, log, name, owner } = input;
   const links = (repo.config.commands.landing?.link ?? []).map((path) => `  [ "$one" -ne 0 ] || link ${quoted(path)} >> "$log" 2>&1 || one=1`);
   return [
     "#!/bin/sh",
@@ -62,11 +75,7 @@ export function landScript(input: LandScriptInput): string {
     "  one=0",
     '  git -C "$checkout" checkout --quiet --detach --force "$commit" >> "$log" 2>&1 && git -C "$checkout" clean --quiet -fd >> "$log" 2>&1 || one=1',
     ...links,
-    '  if [ "$one" -eq 0 ]; then',
-    `    { ( cd "$checkout" && ${command} ); echo "$?" > "$out/one"; } 2>&1 | tee -a "$log"`,
-    '    one="$(cat "$out/one" 2>/dev/null || echo 1)"',
-    '    if [ "$(git -C "$checkout" rev-parse HEAD 2>/dev/null)" != "$commit" ]; then echo "tally: the checkout moved while the checks ran, so this run does not count" | tee -a "$log" >&2; one=1; fi',
-    "  fi",
+    ...checks.flatMap(checkLines),
     '  echo "$commit $one" >> "$out/commits"',
     '  if [ "$one" -ne 0 ]; then code="$one"; break; fi',
     "done",
