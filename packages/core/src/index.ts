@@ -63,6 +63,12 @@ export { evidenceFiles, evidenceKinds, findEvidence, judgeRed, listEvidence, rea
 export type { EvidenceInput, EvidenceKind, Kept, MilestoneEvidence, RunRecord } from "./records/evidence.ts";
 export { runEvidence } from "./records/run.ts";
 export { takeResults } from "./records/results.ts";
+export { MAX_NOTE, doneNote, isFor, listNotes, noteKinds, noteSchema, notesPath, postNote, readNotes, replyNote } from "./records/notes.ts";
+export type { Note, NoteFilter, NoteInput } from "./records/notes.ts";
+export { collectInbox, peekInbox } from "./state/inbox.ts";
+export type { InboxItem } from "./state/inbox.ts";
+export { changedFiles, overlaps, overlapsOf } from "./status/overlaps.ts";
+export type { Overlap, OverlapWith } from "./status/overlaps.ts";
 export type { Taken } from "./records/results.ts";
 export { LOGS, RESULTS, RUNNER, runnerScript, writeRunner } from "./land/runner.ts";
 export { summarize as summarizeRun } from "./records/totals.ts";

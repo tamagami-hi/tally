@@ -5,6 +5,7 @@ import type { Repo } from "@tally/core";
 import { registerCheckTools } from "./tools/checks.ts";
 import { registerDocTools } from "./tools/docs.ts";
 import { registerLandTools } from "./tools/land.ts";
+import { registerNoteTools } from "./tools/notes.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerRecordTools } from "./tools/records.ts";
 import { registerSessionTools } from "./tools/session.ts";
@@ -22,6 +23,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   registerLedgerTools(tools, source);
   registerRecordTools(tools, source);
   registerLandTools(tools, source);
+  registerNoteTools(tools, source);
   registerDocTools(tools, source);
   registerCheckTools(tools, source);
   return server;
