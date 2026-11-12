@@ -600,6 +600,8 @@ Phases 5, 6 and 7 are built, tests first, with 54 MCP tools, and are on `main`. 
 - **A child track** takes its parent's `paths` when it names none, and can't go wider.
 - **A landing that changes a file no check covers** is refused when the config has `commands.checks`.
 - **`/api/cli`**, the endpoint the `tally` command calls, refuses a repository outside the workspace.
+- **An answer** is compact JSON of at most 25,000 characters. A longer one is cut, says what was shortened, and names the arguments that narrow the tool (§15.7 asked for small defaults). `evidence_list` answers the 20 latest runs unless told.
+- **Every tool** carries a title, hints (read-only, destructive, idempotent) and a description of each argument, and refuses an argument it doesn't have.
 
 **Not built:**
 - The board doesn't show a child track under its parent, the context or the activity log.
@@ -608,6 +610,7 @@ Phases 5, 6 and 7 are built, tests first, with 54 MCP tools, and are on `main`. 
 - There are no command-line verbs for tracks, notes or context.
 - A session goes quiet and is closed only where a watcher ticks: in `tally serve`, not in `tally mcp` on stdio.
 - Notes and the activity log are never pruned.
+- The tools declare no output schema, and their names carry no `tally_` prefix; a client tells them apart by the server's name.
 
 ## 18. What only the operator could decide (settled 2026-11-12, as recommended)
 

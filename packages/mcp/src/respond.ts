@@ -1,8 +1,10 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { messageOf } from "@tally/core";
 
+export const jsonText = (value: unknown): string => JSON.stringify(value);
+
 export function ok(value: unknown, text?: string): CallToolResult {
-  const body = text ?? (typeof value === "string" ? value : JSON.stringify(value, null, 2));
+  const body = text ?? (typeof value === "string" ? value : jsonText(value));
   const structured = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : { value };
   return { content: [{ type: "text", text: body }], structuredContent: structured };
 }

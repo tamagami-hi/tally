@@ -21,6 +21,16 @@ describe("the list of tracks", () => {
     ]);
   });
 
+  test("says what a track may land, when it is limited to some paths", async () => {
+    const { repo, operator, fresh } = await opening();
+    await openTrack(repo, operator, { name: "reader", purpose: "the reader", paths: ["src/reader"] });
+
+    const tracks = await listTracks(await fresh());
+
+    expect(tracks.find((track) => track.name === "reader")?.paths).toEqual(["src/reader"]);
+    expect(tracks.find((track) => track.name === "data")).not.toHaveProperty("paths");
+  });
+
   test("leaves a closed track out", async () => {
     const { repo, operator, fresh } = await opening();
     await openTrack(repo, operator, { name: "helper", purpose: "split the reader" });

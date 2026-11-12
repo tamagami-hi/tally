@@ -91,7 +91,7 @@ describe("track_list", () => {
     expect(listed.structured["tracks"]).toEqual([
       { name: "data", branch: "track/data", worktree: join(root, ".temp/worktrees/data"), source: "config", hasSession: true },
       { name: "engine", branch: "track/engine", worktree: join(root, ".temp/worktrees/engine"), source: "config", hasSession: false },
-      { name: "helper", branch: "track/helper", worktree: join(root, ".temp/worktrees/helper"), parent: "data", purpose: "split the reader", source: "opened", hasSession: false },
+      { name: "helper", branch: "track/helper", worktree: join(root, ".temp/worktrees/helper"), parent: "data", purpose: "split the reader", paths: ["src/reader"], source: "opened", hasSession: false },
     ]);
   });
 });

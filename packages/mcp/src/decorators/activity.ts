@@ -1,20 +1,19 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { flushWhenFree, keepsContextAsRecords, listSessions, logActivity, messageOf, sessionSchema, type Repo, type Session } from "@tally/core";
 import type { Called, Decorator } from "../decorate.ts";
+import { writesNothing } from "../meta.ts";
 
 interface Actor {
   repo: Repo;
   session: Pick<Session, "id" | "track" | "agent">;
 }
 
-const READ_ENDINGS = ["_list", "_get", "_read", "_search", "_wait", "_check", "_fingerprint", "_pack", "_render"] as const;
-const WRITES_WITH_A_READ_ENDING: ReadonlySet<string> = new Set(["task_wait"]);
 const NAMING = ["name", "ticket", "id", "kind"] as const;
 const MOST_TARGET = 120;
 
 const worded = (value: unknown): string[] => (typeof value === "string" && value !== "" ? [value] : []);
 
-export const isRead = (tool: string): boolean => !WRITES_WITH_A_READ_ENDING.has(tool) && READ_ENDINGS.some((ending) => tool.endsWith(ending));
+export const isRead = (tool: string): boolean => writesNothing(tool);
 
 export function targetOf(args: Record<string, unknown>): string | undefined {
   const task = [...worded(args["milestone"]), ...worded(args["task"])].join(" / ");

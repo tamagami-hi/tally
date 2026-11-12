@@ -35,7 +35,7 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "track_list",
-    { description: "Every track of one repository: its name, branch, worktree and parent, its purpose when an agent opened it, whether it comes from the config or was opened with track_open (`source`), and whether a session is open on it (`hasSession`).", inputSchema: { ...WHERE } },
+    { description: "Every track of one repository: its name, branch, worktree and parent, its purpose when an agent opened it, the `paths` it may land when it is limited to some, whether it comes from the config or was opened with track_open (`source`), and whether a session is open on it (`hasSession`).", inputSchema: { ...WHERE } },
     ({ sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok({ tracks: await listTracks(repo) })),
   );
 }

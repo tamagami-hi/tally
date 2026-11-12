@@ -44,7 +44,7 @@ describe("what an activity event says a call was aimed at", () => {
     expect(targetOf(args)).toBe(target);
   });
 
-  test("a tool that only reads is told by the end of its name", () => {
+  test("a tool that only reads, or only waits, is told by the table of tools", () => {
     expect(["session_list", "context_get", "docs_read", "docs_search", "land_wait", "ledger_check", "checks_fingerprint", "context_pack", "buildlog_render"].every(isRead)).toBe(true);
     expect(["task_plan", "context_put", "session_close", "land_start", "checks_set", "buildlog_append", "task_wait", "task_unwait"].some(isRead)).toBe(false);
   });

@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { z } from "zod";
 import {
-  Records, acquireLock, evidenceKinds, landTrack, landingLog, landingTarget, listEvidence, listLocks, loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock,
-  runEvidence, trackOf, writeHandoff,
+  Records, acquireLock, evidenceKinds, findMilestone, landingLog, landingTarget, landTrack, listEvidence, listLocks,
+  loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock, runEvidence, trackOf, writeHandoff,
 } from "@tally/core";
 import { FIELDS, LIMIT, lastStarted, pick, startedSince } from "../filters.ts";
 import { ok } from "../respond.ts";
@@ -14,6 +14,8 @@ const summaryValue = z.union([z.number(), z.string(), z.boolean()]);
 function defined<T extends Record<string, unknown>>(input: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
 }
+
+const DEFAULT_RECORDS = 20;
 
 export function registerRecordTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
@@ -41,10 +43,12 @@ export function registerRecordTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "evidence_list",
-    { description: "The run records of a milestone, or of one task in it, narrowed by `kind`, by `since` (an ISO time: the runs started at or after it) and by `limit` (the ones started last); `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(evidenceKinds).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS.describe("the keys of each record to keep"), ...WHERE } },
+    { description: "The run records of a milestone, or of one task in it: the 20 started last unless `limit` says otherwise, with `matched` saying how many there are. `kind` and `since` (an ISO time: the runs started at or after it) narrow them, and `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(evidenceKinds).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS.describe("the keys of each record to keep"), ...WHERE } },
     ({ milestone, task, kind, since, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+      findMilestone(await new Records(repo).readLedger(), milestone);
       const ofKind = (await listEvidence(repo, milestone, task)).filter((record) => kind === undefined || record.kind === kind);
-      return ok({ records: lastStarted(startedSince(ofKind, since), limit).map((record) => pick(record, fields)) });
+      const found = startedSince(ofKind, since);
+      return ok({ records: lastStarted(found, limit ?? DEFAULT_RECORDS).map((record) => pick(record, fields)), matched: found.length });
     }),
   );
   server.registerTool(

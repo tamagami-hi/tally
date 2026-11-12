@@ -9,6 +9,7 @@ export interface ListedTrack {
   worktree: string;
   parent?: string;
   purpose?: string;
+  paths?: string[];
   source: "config" | "opened";
   hasSession: boolean;
 }
@@ -24,6 +25,7 @@ export async function listTracks(repo: Repo): Promise<ListedTrack[]> {
       worktree: worktreeOf(repo, track),
       ...(track.parent === undefined ? {} : { parent: track.parent }),
       ...(record === undefined ? {} : { purpose: record.purpose }),
+      ...(track.paths === undefined ? {} : { paths: [...track.paths] }),
       source: record === undefined ? "config" : "opened",
       hasSession: busy.has(track.name),
     };

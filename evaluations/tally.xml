@@ -1,0 +1,42 @@
+<evaluation>
+  <qa_pair>
+    <question>In the Lumen repository, one milestone of the foundation stage owes a deliverable that no task covers. What is that deliverable's id?</question>
+    <answer>compaction</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>A planned task in the Lumen ledger is waiting on a task that does not exist in the ledger. Give the id of the waiting task, without its milestone.</question>
+    <answer>2 backoff</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>One task of Lumen's record store milestone landed only in part. Give the id, without its milestone, of the task that is named to finish the part that was deferred.</question>
+    <answer>4 checksums</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Find the Lumen task that covers the deliverable with the id "wal". In that task's red run, how many tests failed? Answer with the number only.</question>
+    <answer>3</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which track owns the milestone with the largest weight in Lumen's product stage? Answer with the track's name.</question>
+    <answer>web</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In Lumen's context, a finding about fsync on tmpfs was retired because a newer entry replaced it. What is the title of the entry that replaced it?</question>
+    <answer>fsync on tmpfs is a no-op</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which rule in Lumen's context applies to the file crates/engine/src/queue.rs? Give the rule's title.</question>
+    <answer>Never block the scheduler's thread</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Lumen's operator answered the question about compressing snapshot files. Which compression level did the answer give? Answer with the number only.</question>
+    <answer>3</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the engine group of Lumen's decisions, one decision is decided but not built yet. Give its id.</question>
+    <answer>ENG-2</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>According to the current hand-off of Lumen's data track, in which file does the segment index live? Give the path.</question>
+    <answer>crates/store/src/index.rs</answer>
+  </qa_pair>
+</evaluation>

@@ -69,6 +69,16 @@ tally views claude --check         # CLAUDE.md's standing block; exit 1 when sta
 
 `task` verbs write `ledger.json` under a lock and, when `records.commit` is on, commit `docs/records/` as the configured identity with the prefix `records:`; `ledger check` and `status` pass over those commits by their prefix. `land` is `land.py`'s protocol: the operator checkout on `main` and clean outside `docs/records/`, the worktree on its branch, no unrelated staged files, rebase, the configured test command in the worktree, a commit as the configured identity, a fast-forward of `main`, all under `.temp/tally/state/locks/landing.lock`. With `commands.landing` in the config the tests see only what lands: the commit comes first, and every commit ahead of `main` is tested, oldest first, in a detached checkout at `<worktree>/.temp/<track>/landing`. A failure names the commit and the log, leaves `main` alone and undoes the landing's own commit with `git reset --soft`, its files left staged. [GUIDE.md](GUIDE.md), section 7, has `link` and `env`.
 
+## Evaluating the MCP server
+
+`evaluations/tally.xml` holds ten questions an agent should be able to answer with the read-only tools, each with one checked answer. They are asked about a small repository that `evaluations/fixture.py` builds the same way every time:
+
+```bash
+python3 evaluations/fixture.py /tmp/lumen
+```
+
+Then run an MCP evaluation harness over stdio against `node packages/cli/dist/main.js --repo /tmp/lumen mcp`. The questions follow the format of the evaluation script in Anthropic's `mcp-builder` skill.
+
 ## Layout
 
 | path | holds |

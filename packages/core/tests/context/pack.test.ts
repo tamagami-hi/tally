@@ -70,7 +70,7 @@ describe("context packs", () => {
     expect(task.text).toContain("waits for B2");
     expect(task.text).toContain("(none yet)");
     await expect(contextPack(repo, { level: "task", milestone: "B2" })).rejects.toThrow("needs the milestone and the task");
-    await expect(contextPack(repo, { level: "track", track: "nope" })).rejects.toThrow("no track 'nope'");
+    await expect(contextPack(repo, { level: "track", track: "nope" })).rejects.toThrow("no track 'nope'; known: main, data, engine");
     const milestone = await contextPack(repo, { level: "milestone", milestone: "B2" });
     expect(milestone.text).toContain("evidence records: 0");
   });

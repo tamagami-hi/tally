@@ -1,13 +1,12 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Decorator } from "../decorate.ts";
+import { jsonText } from "../respond.ts";
 
 export const WAITING = "waiting";
 
 type Answer = Record<string, unknown>;
 
-const JSON_INDENT = 2;
-
-const asText = (answer: Answer): string => JSON.stringify(answer, null, JSON_INDENT);
+const asText = (answer: Answer): string => jsonText(answer);
 
 function written(args: Answer, result: CallToolResult): Answer | undefined {
   const answer = result.structuredContent;

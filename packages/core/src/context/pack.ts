@@ -88,7 +88,7 @@ async function project(repo: Repo, ledger: Ledger, live: Live): Promise<Pack> {
 
 async function track(repo: Repo, ledger: Ledger, name: string, claims: Claim[], locks: HeldLock[], sessions: Session[]): Promise<Pack> {
   const config = repo.config.tracks.find((t) => t.name === name);
-  if (config === undefined && name !== repo.config.mainBranch) throw new TallyError(`no track '${name}'`);
+  if (config === undefined && name !== repo.config.mainBranch) throw new TallyError(`no track '${name}'; known: ${[repo.config.mainBranch, ...repo.config.tracks.map((t) => t.name)].join(", ")}`);
   const tasks = tasksOf(ledger, name);
   const handoff: Handoff = await readHandoff(repo, name);
   const parts = { track: name, worktree: config?.worktree ?? ".", branch: config?.branch ?? repo.config.mainBranch, tasks, handoff, claims: claims.filter((c) => c.track === name), locks: locks.filter((l) => l.track === name), sessions: sessions.filter((s) => s.track === name) };

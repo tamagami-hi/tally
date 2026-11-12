@@ -245,6 +245,13 @@ The list tools take filters, so an answer stays small:
 | `board_get` | `scope`, `fields` |
 | `note_list` | `state`, `since`, `limit`, `everyTrack` |
 
+**An answer is never larger than 25,000 characters.**
+- `evidence_list` answers the 20 runs started last unless `limit` says otherwise, and `matched` says how many there are.
+- A longer answer from any tool is cut: its longest list keeps its latest items, `truncated` says which part was shortened and from how many, and a last line names the arguments that narrow that tool.
+- Answers are compact JSON.
+
+**A tool refuses an argument it doesn't have**, by name, so a mistyped argument is never silently ignored. Every tool also carries a title and hints for the client: whether it only reads, whether it removes or overwrites, and whether calling it twice changes anything.
+
 ### 10.8 Context as records
 
 A repository whose config says `context: "records"` keeps everything a session needs to know as JSON records under `docs/records/context/`, served through the tools. No Markdown file is context there. A repository added in the sidebar starts that way.
