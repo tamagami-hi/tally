@@ -4,7 +4,7 @@ import { TallyError, messageOf } from "../errors.ts";
 import { worktreeOf } from "../land/paths.ts";
 import { RESULTS } from "../land/runner.ts";
 import { listClaims } from "../state/claims.ts";
-import { listSessions, type Session } from "../state/sessions.ts";
+import { listSessions, markSeen, type Session } from "../state/sessions.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { evidenceKinds, recordEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
 
@@ -52,9 +52,9 @@ async function field(folder: string, name: string): Promise<string> {
   }
 }
 
-function sessionAt(place: Place, sessions: readonly Session[], now: Date): Session {
-  const open = sessions.filter((session) => session.worktree === place.worktree).at(-1);
-  if (open !== undefined) return open;
+const openAt = (place: Place, sessions: readonly Session[]): Session | undefined => sessions.filter((session) => session.worktree === place.worktree).at(-1);
+
+function runnerAt(place: Place, now: Date): Session {
   const stamp = now.toISOString();
   return { id: RUNNER_AGENT, track: place.track, worktree: place.worktree, branch: place.branch, agent: RUNNER_AGENT, openedAt: stamp, lastSeenAt: stamp };
 }
@@ -139,11 +139,14 @@ export async function takeResults(repo: Repo, now = new Date()): Promise<Taken[]
     await abandoned(join(place.worktree, RESULTS), now);
     const ids = await waiting(join(place.worktree, RESULTS));
     if (ids.length === 0) continue;
-    const session = sessionAt(place, await listSessions(repo), now);
+    const open = openAt(place, await listSessions(repo));
+    const here: Taken[] = [];
     for (const id of ids) {
-      const one = await takeOne(repo, place, session, id);
-      if (one !== undefined) taken.push(one);
+      const one = await takeOne(repo, place, open ?? runnerAt(place, now), id);
+      if (one !== undefined) here.push(one);
     }
+    if (open !== undefined && here.length > 0) await markSeen(repo, open.id, now);
+    taken.push(...here);
   }
   return taken;
 }

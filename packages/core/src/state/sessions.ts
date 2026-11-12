@@ -78,6 +78,15 @@ export async function getSession(repo: Repo, id: string, now = new Date()): Prom
   });
 }
 
+export async function markSeen(repo: Repo, id: string, now = new Date()): Promise<Session | undefined> {
+  return sessionsFile(repo).update((state) => {
+    const found = state.sessions.find((s) => s.id === id);
+    if (found === undefined) return { value: state, result: undefined };
+    const seen = { ...found, lastSeenAt: now.toISOString() };
+    return { value: { sessions: state.sessions.map((s) => (s.id === id ? seen : s)) }, result: seen };
+  });
+}
+
 export async function closeSession(repo: Repo, id: string): Promise<Session> {
   return sessionsFile(repo).update((state) => {
     const found = state.sessions.find((s) => s.id === id);
