@@ -6,6 +6,13 @@ export const trackSchema = z.object({
   branch: z.string().min(1),
   test: z.array(z.string()).min(1).optional(),
   paths: z.array(z.string().min(1)).optional(),
+  parent: z.string().min(1).optional(),
+});
+
+export const checkSchema = z.object({
+  name: z.string().min(1),
+  command: z.array(z.string()).min(1),
+  paths: z.array(z.string().min(1)).min(1),
 });
 
 const staysInWorktree = (path: string): boolean => !path.startsWith("/") && !path.split("/").includes("..");
@@ -27,6 +34,7 @@ export const configSchema = z.object({
   mainBranch: z.string().min(1).default("main"),
   docsDir: z.string().min(1).default("docs"),
   extraDocs: z.array(z.string().min(1)).optional(),
+  worktreeRoot: z.string().min(1).optional(),
   tracks: z.array(trackSchema).superRefine((tracks, context) => {
     const seen = new Set<string>();
     for (const track of tracks) {
@@ -41,6 +49,7 @@ export const configSchema = z.object({
     unset: z.array(z.string()).default([]),
     tmpdir: z.string().optional(),
     landing: landingSchema.optional(),
+    checks: z.array(checkSchema).optional(),
   }),
   fingerprint: z.object({
     paths: z.array(z.string()).min(1),
@@ -56,9 +65,11 @@ export const configSchema = z.object({
     })
     .default({ dir: "docs/records", commitPrefix: "records:", commit: true }),
   locks: z.array(z.string().min(1)).default(["landing"]),
+  sessions: z.object({ idleMinutes: z.number().positive() }).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
 export type Track = z.infer<typeof trackSchema>;
+export type Check = z.infer<typeof checkSchema>;
 export type Landing = z.infer<typeof landingSchema>;
 export type Stage = z.infer<typeof stageSchema>;

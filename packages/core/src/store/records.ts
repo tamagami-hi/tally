@@ -2,10 +2,12 @@ import { access } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { TallyError } from "../errors.ts";
 import type { Changed } from "../ledger/ops.ts";
-import { configSchema, type Config } from "../schema/config.ts";
+import { configSchema, type Config, type Track } from "../schema/config.ts";
 import { ledgerSchema, type Ledger } from "../schema/ledger.ts";
 import { STATE_DIR } from "../repos/home.ts";
 import { nameFromFolder } from "../repos/name.ts";
+import { TRACKS_FILE, type OpenedTrack, type TracksFile } from "../schema/tracks.ts";
+import { isOpen, readTracks } from "../tracks/file.ts";
 import { readJson, writeJsonAtomic } from "./json.ts";
 import { withLock } from "./lock.ts";
 
@@ -45,16 +47,42 @@ export async function findRepoRoot(from: string): Promise<string | undefined> {
   }
 }
 
+const asTrack = ({ name, worktree, branch, parent, paths }: OpenedTrack): Track => ({
+  name,
+  worktree,
+  branch,
+  ...(parent === undefined ? {} : { parent }),
+  ...(paths === undefined ? {} : { paths }),
+});
+
+function withOpenedTracks(config: Config, file: TracksFile): Config {
+  const opened = file.tracks.filter(isOpen);
+  if (opened.length === 0) return config;
+  const listed = new Set(config.tracks.map((track) => track.name));
+  const seen = new Set<string>();
+  for (const { name } of opened) {
+    if (listed.has(name)) throw new TallyError(`track ${name} is in both ${CONFIG_FILE} and ${TRACKS_FILE}; a name lives in one of them, so take it out of ${CONFIG_FILE}`);
+    if (seen.has(name)) throw new TallyError(`track ${name} is open twice in ${TRACKS_FILE}; that record is written by tally alone, so restore it from git`);
+    seen.add(name);
+  }
+  return { ...config, tracks: [...config.tracks, ...opened.map(asTrack)] };
+}
+
 export async function openRepo(root: string, listed?: Listed): Promise<Repo> {
   const absolute = resolve(root);
   const config = await readJson(join(absolute, RECORDS_DIR, CONFIG_FILE), configSchema);
+  const recordsDir = join(absolute, config.records.dir);
   return {
     root: absolute,
     name: listed?.name ?? nameFromFolder(absolute),
-    config,
-    recordsDir: join(absolute, config.records.dir),
+    config: withOpenedTracks(config, await readTracks(recordsDir)),
+    recordsDir,
     stateDir: listed?.stateDir ?? join(absolute, STATE_DIR),
   };
+}
+
+export function reopenRepo(repo: Repo): Promise<Repo> {
+  return openRepo(repo.root, { name: repo.name, stateDir: repo.stateDir });
 }
 
 export async function initRecords(root: string, config: Config, baseline: string): Promise<Repo> {
