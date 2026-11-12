@@ -1,0 +1,23 @@
+services:
+  tally:
+    build: .
+    image: tally:local
+    container_name: tally
+    restart: unless-stopped
+    user: "${TALLY_UID}:${TALLY_GID}"
+    ports:
+      - "127.0.0.1:${TALLY_PORT:-47560}:47560"
+    environment:
+      TALLY_HOME: /data
+      HOME: /data
+      TALLY_WORKSPACE: "${TALLY_WORKSPACE}"
+      TALLY_GIT_NAME: "${TALLY_GIT_NAME:-}"
+      TALLY_GIT_EMAIL: "${TALLY_GIT_EMAIL:-}"
+      GIT_CONFIG_GLOBAL: /etc/tally/gitconfig
+    volumes:
+      - "${TALLY_WORKSPACE}:${TALLY_WORKSPACE}"
+      - "${TALLY_GITCONFIG}:/etc/tally/gitconfig:ro"
+      - tally-data:/data
+
+volumes:
+  tally-data:

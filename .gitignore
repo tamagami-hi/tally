@@ -5,3 +5,4 @@ coverage/
 /state/
 *.tsbuildinfo
 .temp/
+.env

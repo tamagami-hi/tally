@@ -1,0 +1,10 @@
+.git
+.temp
+.tmp
+state
+coverage
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.env
