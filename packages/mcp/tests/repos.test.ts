@@ -99,6 +99,15 @@ describe("session_open on a server for every repository", () => {
     expect(await exists(join(home, "state/alpha/sessions.json"))).toBe(false);
   });
 
+  test("writes the runner into the worktree and names it", async () => {
+    const { call, beta } = await serving();
+
+    const { structured } = await call("session_open", { worktree: tree(beta, "data"), agent: "claude" });
+
+    expect(structured["runner"]).toBe(join(tree(beta, "data"), ".temp/tally/run"));
+    expect(await exists(join(tree(beta, "data"), ".temp/tally/run"))).toBe(true);
+  });
+
   test("finds them from a folder inside the worktree", async () => {
     const { call, alpha } = await serving();
     const inside = join(tree(alpha, "engine"), "src", "deep");

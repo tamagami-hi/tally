@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, collect, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
+import { Records, collect, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitCount, commitGraph, graphBranches, type LaidCommit } from "./graph.ts";
 
 export interface LiveState {
@@ -109,6 +109,7 @@ export class Watcher {
     this.inFlight = (async () => {
       try {
         const repo = await this.source();
+        await takeResults(repo);
         const now = await fingerprint(repo);
         if (now !== this.last) {
           const fresh = await snapshot(repo);

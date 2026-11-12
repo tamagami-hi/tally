@@ -65,9 +65,13 @@ export interface EvidenceInput {
   note?: string;
 }
 
-async function hashLog(session: Session, logPath: string): Promise<{ log: RunRecord["log"]; text: string }> {
+const LOGS = ".temp/tally/logs";
+
+const within = (folder: string, path: string): boolean => !relative(folder, path).startsWith("..");
+
+async function hashLog(repo: Repo, session: Session, logPath: string): Promise<{ log: RunRecord["log"]; text: string }> {
   const absolute = isAbsolute(logPath) ? logPath : resolve(session.worktree, logPath);
-  if (relative(session.worktree, absolute).startsWith("..")) throw new TallyError(`the log must be inside the session's worktree: ${logPath}`);
+  if (!within(session.worktree, absolute) && !within(join(repo.root, LOGS), absolute)) throw new TallyError(`the log must be inside the session's worktree: ${logPath}`);
   let bytes: Buffer;
   try {
     bytes = await readFile(absolute);
@@ -130,7 +134,7 @@ const commitLine = (milestone: string, record: RunRecord): string => `${mileston
 
 export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null; notice?: string }> {
   const track = writableTrack(repo, session, ledger, input);
-  const read = input.logPath === undefined ? undefined : await hashLog(session, input.logPath);
+  const read = input.logPath === undefined ? undefined : await hashLog(repo, session, input.logPath);
   const summary = input.summary ?? (read === undefined ? undefined : summarize(read.text));
   const measured = summary === undefined ? input : { ...input, summary };
   const { notice, ...verdict } = judgeRed(measured);
@@ -161,7 +165,7 @@ export async function keepRun(repo: Repo, session: Session, track: string, input
   const judged = { ...input, ...verdict };
   const told = notice === undefined ? {} : { notice };
   try {
-    const { log } = await hashLog(session, input.logPath);
+    const { log } = await hashLog(repo, session, input.logPath);
     const record = composeRecord(session, track, judged, log);
     await appendRecord(repo, input.milestone, record);
     return { ...(await committed(repo, input.milestone, record)), ...told };
