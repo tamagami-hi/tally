@@ -3,6 +3,7 @@ import {
   Records, TallyError, addMilestone, assertMayWrite, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, findMilestone, findTask, getSession, isOperator,
   listClaims, listLocks, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
+import { FIELDS, pickKnown } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -39,14 +40,14 @@ const plannedTask = z.object({
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "board_get",
-    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps only the session's track: its rows, their tasks and notes, its branch and its claims.", inputSchema: { scope: SCOPE, ...WHERE } },
-    ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps only the session's track: its rows, their tasks and notes, its branch beside main, and its claims. `fields` keeps only those top-level keys.", inputSchema: { scope: SCOPE, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
+    ({ scope, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const status = await collect(repo, await new Records(repo).readLedger());
-      const claims = await listClaims(repo);
-      const locks = await listLocks(repo);
-      if (scope === "all") return ok({ ...status, claims, locks });
+      const board = { ...status, claims: await listClaims(repo), locks: await listLocks(repo) };
+      if (scope === "all") return ok(pickKnown(board, fields, "the board"));
       const session = await own(repo, sessionId);
-      return ok({ ...status, rows: rowsOf(status.rows, session.track), tracks: status.tracks.filter((t) => t.isMain || t.track === session.track), claims: claims.filter((c) => c.track === session.track), locks });
+      const mine = { ...board, rows: rowsOf(board.rows, session.track), tracks: board.tracks.filter((t) => t.isMain || t.branch === session.branch), claims: board.claims.filter((c) => c.track === session.track) };
+      return ok(pickKnown(mine, fields, "the board"));
     }),
   );
   server.registerTool(

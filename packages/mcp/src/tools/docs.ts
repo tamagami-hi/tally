@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TallyError, addQuestion, contextPack, isOperator, listDocs, readDecisions, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView } from "@tally/core";
+import { LIMIT, latest } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -32,18 +33,19 @@ export function registerDocTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "question_list",
-    { description: "The open question rows, the next row number and how many were answered; `answered: true` adds the answered rows.", inputSchema: { answered: z.boolean().default(false), ...WHERE } },
-    ({ answered, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
-      const { answered: rows, ...open } = (await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] };
-      return ok({ ...open, answeredCount: rows.length, ...(answered ? { answered: rows } : {}) });
+    { description: "The open question rows, the next row number and how many were answered; `answered: true` adds the answered rows. `ids` (row numbers), `group` and `limit` (the most recent rows) narrow the rows listed, never the count.", inputSchema: { answered: z.boolean().default(false), ids: z.array(z.number().int().positive()).optional(), group: z.string().optional(), limit: LIMIT, ...WHERE } },
+    ({ answered, ids, group, limit, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+      const { answered: rows, open, ...rest } = (await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] };
+      const keep = <T extends { row: number; group: string }>(all: T[]): T[] => latest(all.filter((q) => (ids === undefined || ids.includes(q.row)) && (group === undefined || q.group === group)), limit);
+      return ok({ ...rest, open: keep(open), answeredCount: rows.length, ...(answered ? { answered: keep(rows) } : {}) });
     }),
   );
   server.registerTool(
     "decision_list",
-    { description: "The decisions in force and the replaced rows, narrowed by group and by a list of ids; decisions are entered only by the operator, with `tally decision add|replace --operator`.", inputSchema: { group: z.string().optional(), ids: z.array(z.string()).optional(), ...WHERE } },
-    ({ group, ids, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    { description: "The decisions in force and the replaced rows, narrowed by group and by a list of ids, and by `limit` to the most recent of each; decisions are entered only by the operator, with `tally decision add|replace --operator`.", inputSchema: { group: z.string().optional(), ids: z.array(z.string()).optional(), limit: LIMIT, ...WHERE } },
+    ({ group, ids, limit, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const file = await readDecisions(repo);
-      const keep = <T extends { group: string; id: string }>(rows: T[]): T[] => rows.filter((r) => (group === undefined || r.group === group) && (ids === undefined || ids.includes(r.id)));
+      const keep = <T extends { group: string; id: string }>(rows: T[]): T[] => latest(rows.filter((r) => (group === undefined || r.group === group) && (ids === undefined || ids.includes(r.id))), limit);
       return ok({ decisions: keep(file.decisions), replaced: keep(file.replaced) });
     }),
   );
