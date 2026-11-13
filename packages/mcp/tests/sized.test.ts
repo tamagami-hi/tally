@@ -59,8 +59,11 @@ describe("an answer too large to read", () => {
   test("cuts the protected list as a last resort, when nothing else is left to cut", async () => {
     const { structured } = await cut("session_open", ["worktree", "agent"], { id: "s1", brief: { rules: rows(200) } });
 
+    const kept = (structured["brief"] as { rules: { id: string }[] }).rules;
+
     expect(jsonText(structured).length).toBeLessThanOrEqual(ANSWER_LIMIT);
-    expect((structured["brief"] as { rules: unknown[] }).rules.length).toBeLessThan(200);
+    expect(kept.length).toBeLessThan(200);
+    expect(kept[0]?.id).toBe("row-0");
   });
 
   test("keeps the first of a list whose newest come first", async () => {

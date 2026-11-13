@@ -74,6 +74,15 @@ describe("a rule's section and source", () => {
     await expect(putEntry(repo, OPERATOR, { ...bare, source: SOURCE })).resolves.toMatchObject({ entry: { section: "once" } });
   });
 
+  test("take the replaced rule's section when the one given is blank", async () => {
+    const { repo } = await makeTracked();
+    await putEntry(repo, OPERATOR, rule({ section: "once" }), NINE);
+
+    const { entry } = await putEntry(repo, OPERATOR, rule({ replaces: "rule-1", section: "  " }), NINE);
+
+    expect(entry).toMatchObject({ id: "rule-2", section: "once" });
+  });
+
   test("are asked of a rule that replaces an older one that has none, since it cannot inherit one", async () => {
     const { repo, root } = await makeTracked();
     await writeLegacyRule(root);

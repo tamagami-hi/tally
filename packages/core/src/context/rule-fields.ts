@@ -27,7 +27,8 @@ const SOURCE_EXAMPLE = '"the operator, 2026-11-14"';
 export const isRuleSection = (value: string): value is RuleSection => (RULE_SECTIONS as readonly string[]).includes(value);
 
 function sectionOf(given: string | undefined, inherited: RuleSection | undefined): RuleSection {
-  const section = given?.trim() === "" ? undefined : given?.trim() ?? inherited;
+  const asked = given?.trim();
+  const section = asked === undefined || asked === "" ? inherited : asked;
   if (section === undefined) throw new TallyError(`a rule needs its section: ${SECTION_HELP}`);
   if (!isRuleSection(section)) throw new TallyError(`'${section}' is not a rule section: ${RULE_SECTIONS.slice(0, -1).join(", ")} or ${RULE_SECTIONS.at(-1)}`);
   return section;
