@@ -13,7 +13,9 @@ const MOST_TARGET = 120;
 
 const worded = (value: unknown): string[] => (typeof value === "string" && value !== "" ? [value] : []);
 
-export const isRead = (tool: string): boolean => writesNothing(tool);
+const COMMITS_THE_RECORDS: ReadonlySet<string> = new Set(["phase_close", "records_commit"]);
+
+export const isUnlogged = (tool: string): boolean => writesNothing(tool) || COMMITS_THE_RECORDS.has(tool);
 
 export function targetOf(args: Record<string, unknown>): string | undefined {
   const task = [...worded(args["milestone"]), ...worded(args["task"])].join(" / ");
@@ -47,7 +49,7 @@ function withProblem(result: CallToolResult, problem: string): CallToolResult {
 export const activity: Decorator = async (called) => {
   const { tool, args, result } = called;
   const sessionId = args["sessionId"];
-  if (typeof sessionId !== "string" || result.isError === true || isRead(tool)) return result;
+  if (typeof sessionId !== "string" || result.isError === true || isUnlogged(tool)) return result;
   const actor = await actorOf(called, sessionId).catch(withoutActor);
   if (actor === undefined) return result;
   const target = targetOf(args);

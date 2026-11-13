@@ -2,10 +2,31 @@ import { TallyError } from "../errors.ts";
 import { asIdentity, git, gitMust, type GitResult } from "../git/run.ts";
 import { statePath } from "../land/paths.ts";
 import { turnInProgress } from "../land/queue.ts";
+import type { Config } from "../schema/config.ts";
 import { LANDING_RETRIES, LockBusy, withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
+import { clearPendingPhase, readPendingPhase } from "./pending-phase.ts";
+
+export type RecordsMode = "never" | "each" | "rest" | "phase";
+
+export interface Staged {
+  commit: string | null;
+  files: number;
+  waits?: true;
+}
+
+export type Subject = (files: number, head: string) => string;
 
 const ATTEMPTS = 5;
+const NOTHING: Staged = { commit: null, files: 0 };
+const WAITS: Staged = { commit: null, files: 0, waits: true };
+
+export function recordsMode(config: Pick<Config, "records">): RecordsMode {
+  const { commit, batch, commitAt } = config.records;
+  if (!commit) return "never";
+  if (batch !== true) return "each";
+  return commitAt === "phase" ? "phase" : "rest";
+}
 
 async function untilIndexFree(root: string, args: readonly string[]): Promise<GitResult> {
   for (let attempt = 1; ; attempt += 1) {
@@ -15,42 +36,56 @@ async function untilIndexFree(root: string, args: readonly string[]): Promise<Gi
   }
 }
 
-async function commitStaged(repo: Repo, message: (files: number, head: string) => string): Promise<string | null> {
+export async function commitStaged(repo: Repo, subject: Subject, body?: string): Promise<Staged> {
   const { config, root } = repo;
   return withLock(statePath(repo, "locks", "landing.lock"), async () => {
-    if (await turnInProgress(repo)) return null;
+    if (await turnInProgress(repo)) return WAITS;
     const added = await untilIndexFree(root, ["add", "--", config.records.dir]);
     if (added.code !== 0) throw new TallyError(`git add -- ${config.records.dir} failed in ${root}:\n${added.stderr.trim()}`);
     const staged = await git(root, ["diff", "--cached", "--name-only", "--", config.records.dir]);
     const files = staged.stdout.split("\n").filter((line) => line !== "").length;
-    if (files === 0) return null;
+    if (files === 0) return NOTHING;
     const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
-    const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", "-m", `${config.records.commitPrefix} ${message(files, head)}`, "--", config.records.dir]);
+    const message = ["-m", `${config.records.commitPrefix} ${subject(files, head)}`, ...(body === undefined ? [] : ["-m", body])];
+    const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", ...message, "--", config.records.dir]);
     if (committed.code !== 0) throw new TallyError(`git commit failed in ${root}:\n${committed.stderr.trim()}`);
-    return gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
+    return { commit: await gitMust(root, ["rev-parse", "--short=7", "HEAD"]), files };
   }, LANDING_RETRIES);
 }
 
-async function leftWhenBusy(committing: Promise<string | null>): Promise<string | null> {
+async function leftWhenBusy(committing: Promise<Staged>): Promise<Staged> {
   try {
     return await committing;
   } catch (error: unknown) {
-    if (error instanceof LockBusy) return null;
+    if (error instanceof LockBusy) return WAITS;
     throw error;
   }
 }
 
+export const commitWhenFree = (repo: Repo, subject: Subject, body?: string): Promise<Staged> => leftWhenBusy(commitStaged(repo, subject, body));
+
 export async function commitRecords(repo: Repo, message: string): Promise<string | null> {
-  const { commit, batch } = repo.config.records;
-  if (!commit || batch === true) return null;
-  return leftWhenBusy(commitStaged(repo, () => message));
+  if (recordsMode(repo.config) !== "each") return null;
+  return (await commitWhenFree(repo, () => message)).commit;
 }
 
 export async function flushRecords(repo: Repo): Promise<string | null> {
-  if (!repo.config.records.commit) return null;
-  return commitStaged(repo, (files, head) => `${files} record file${files === 1 ? "" : "s"} up to ${head}`);
+  if (recordsMode(repo.config) === "never") return null;
+  return (await commitStaged(repo, (files, head) => `${files} record file${files === 1 ? "" : "s"} up to ${head}`)).commit;
+}
+
+export const phaseSubject = (phase: string): Subject => (files) => `phase ${phase} closed, ${files} record file${files === 1 ? "" : "s"}`;
+
+async function flushClosedPhase(repo: Repo): Promise<string | null> {
+  const pending = await readPendingPhase(repo);
+  if (pending === undefined) return null;
+  const done = await commitWhenFree(repo, phaseSubject(pending.phase), pending.summary);
+  if (!done.waits) await clearPendingPhase(repo);
+  return done.commit;
 }
 
 export async function flushWhenFree(repo: Repo): Promise<string | null> {
-  return leftWhenBusy(flushRecords(repo));
+  if (recordsMode(repo.config) === "phase") return flushClosedPhase(repo);
+  if (recordsMode(repo.config) === "never") return null;
+  return (await leftWhenBusy(commitStaged(repo, (files, head) => `${files} record file${files === 1 ? "" : "s"} up to ${head}`))).commit;
 }

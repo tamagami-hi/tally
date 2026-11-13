@@ -1,4 +1,4 @@
-import { Records, commitRecords, other, plan, recordTask, removeTask, resolveOnMain, unwait, wait, type Repo } from "@tally/core";
+import { Records, assertMilestoneOpen, commitRecords, other, plan, recordTask, removeTask, resolveOnMain, unwait, wait, type Repo } from "@tally/core";
 import { list, need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
 import { TallyError } from "@tally/core";
@@ -20,6 +20,7 @@ export async function taskCommand(repo: Repo, argv: readonly string[], io: IO): 
       if (track === undefined) throw new TallyError("plan needs --track", 2);
       const [milestone, ...tasks] = parsed.positionals;
       if (milestone === undefined || tasks.length === 0) throw new TallyError("plan needs a milestone and at least one task", 2);
+      await assertMilestoneOpen(repo, await records.readLedger(), milestone);
       await recorded(repo, io, await records.update((ledger) => plan(ledger, { milestone, track, tasks })));
       return 0;
     }

@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { addPhase } from "../../src/phases/add.ts";
 import { addRepo } from "../../src/repos/list.ts";
 import { LiveRepo } from "../../src/repos/live.ts";
 import { Repos } from "../../src/repos/repos.ts";
@@ -22,6 +23,16 @@ describe("a repository held open by one process", () => {
     expect(await live.current()).toBe(repo);
     expect(await live.current()).toBe(repo);
     expect(live.problem).toBeUndefined();
+  });
+
+  test("is opened again when a phase is added, so a milestone can name its stage at once", async () => {
+    const { repo, operator } = await opening();
+    const live = new LiveRepo(repo);
+    expect((await live.current()).config.stages.map((stage) => stage.id)).toEqual(["B"]);
+
+    await addPhase(repo, operator, { id: "G", name: "exports", goal: "Ship exports.", weight: 3 });
+
+    expect((await live.current()).config.stages.map((stage) => stage.id)).toEqual(["B", "G"]);
   });
 
   test("is opened again when a track is opened or closed", async () => {

@@ -66,6 +66,7 @@ export async function startRecords(root: string, defaults: StartDefaults = {}): 
     fingerprint: { paths: ["."], exclude: [RECORDS_DIR] },
     identity,
     context: CONTEXT_AS_RECORDS,
+    records: { batch: true, commitAt: "phase" },
   });
   await ignoreTemp(root);
   const repo = await initRecords(root, config, baseline);

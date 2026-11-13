@@ -2,6 +2,7 @@ import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { TallyError, messageOf } from "../errors.ts";
 import { CONFIG_FILE, RECORDS_DIR, reopenRepo, type Repo } from "../store/records.ts";
+import { phasesPath } from "../phases/file.ts";
 import { tracksPath } from "../tracks/file.ts";
 
 export async function fileStamp(path: string): Promise<string> {
@@ -14,7 +15,7 @@ export async function fileStamp(path: string): Promise<string> {
 }
 
 export async function recordsStamp(root: string, recordsDir = join(root, RECORDS_DIR)): Promise<string> {
-  return `${await fileStamp(join(root, RECORDS_DIR, CONFIG_FILE))} ${await fileStamp(tracksPath(recordsDir))}`;
+  return `${await fileStamp(join(root, RECORDS_DIR, CONFIG_FILE))} ${await fileStamp(tracksPath(recordsDir))} ${await fileStamp(phasesPath(recordsDir))}`;
 }
 
 export class LiveRepo {

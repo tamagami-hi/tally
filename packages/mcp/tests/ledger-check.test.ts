@@ -39,6 +39,8 @@ async function gapped() {
   return { ...made, call, data, engine, operator, lines: { mine, theirs, shared } };
 }
 
+const answered = (call: { structured: Record<string, unknown> }): Record<string, unknown> => Object.fromEntries(Object.entries(call.structured).filter(([key]) => key !== "recordsWaiting"));
+
 describe("ledger_check and the gaps", () => {
   test("a ledger with none answers as before, with an empty list of gaps", async () => {
     const { repo } = await makeTracked();
@@ -46,7 +48,7 @@ describe("ledger_check and the gaps", () => {
 
     const check = await call("ledger_check");
 
-    expect(check.structured).toStrictEqual({ missing: [], covered: true, gaps: [] });
+    expect(answered(check)).toStrictEqual({ missing: [], covered: true, gaps: [] });
     expect(check.text).toBe(COVERED);
   });
 
@@ -55,7 +57,7 @@ describe("ledger_check and the gaps", () => {
 
     const check = await call("ledger_check");
 
-    expect(check.structured).toStrictEqual({ missing: [lines.shared, lines.theirs, lines.mine], covered: false, gaps: [OWED, ADRIFT, NOWHERE, WAIT] });
+    expect(answered(check)).toStrictEqual({ missing: [lines.shared, lines.theirs, lines.mine], covered: false, gaps: [OWED, ADRIFT, NOWHERE, WAIT] });
     expect(check.text).toBe([lines.shared, lines.theirs, lines.mine, OWED, ADRIFT, NOWHERE, WAIT].join("\n"));
   });
 
@@ -86,7 +88,7 @@ describe("ledger_check with scope mine", () => {
 
     const check = await call("ledger_check", { scope: "mine", sessionId: data });
 
-    expect(check.structured).toStrictEqual({ missing: [lines.mine], covered: false, gaps: [OWED, ADRIFT, NOWHERE] });
+    expect(answered(check)).toStrictEqual({ missing: [lines.mine], covered: false, gaps: [OWED, ADRIFT, NOWHERE] });
     expect(check.text).toBe([lines.mine, OWED, ADRIFT, NOWHERE].join("\n"));
   });
 
@@ -96,7 +98,7 @@ describe("ledger_check with scope mine", () => {
 
     const check = await call("ledger_check", { scope: "mine", sessionId: engine });
 
-    expect(check.structured).toStrictEqual({ missing: [lines.shared, lines.theirs, lines.mine], covered: false, gaps: [OWED, WAIT], note });
+    expect(answered(check)).toStrictEqual({ missing: [lines.shared, lines.theirs, lines.mine], covered: false, gaps: [OWED, WAIT], note });
     expect(check.text.split("\n").at(-1)).toBe(note);
   });
 

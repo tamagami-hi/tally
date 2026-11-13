@@ -8,6 +8,7 @@ import { registerDocTools } from "./tools/docs.ts";
 import { registerLandTools } from "./tools/land.ts";
 import { registerNoteTools } from "./tools/notes.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
+import { registerPhaseTools } from "./tools/phases.ts";
 import { registerRulebookTools } from "./tools/rulebook.ts";
 import { registerRecordTools } from "./tools/records.ts";
 import { registerSessionTools } from "./tools/session.ts";
@@ -32,6 +33,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   registerTrackTools(tools, source);
   registerContextTools(tools, source);
   registerRulebookTools(tools, source);
+  registerPhaseTools(tools, source);
   return server;
 }
 

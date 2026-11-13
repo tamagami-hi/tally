@@ -76,6 +76,10 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   rulebook_get: { title: "Read the rulebook", effect: "read", newestFirst: true },
   rulebook_adopt: addAgain("Bring the rulebook template"),
   rule_tailor: add("Tailor a rule"),
+  phase_add: add("Add a phase"),
+  phase_list: read("List phases"),
+  phase_close: { title: "Close a phase", effect: "remove" },
+  records_commit: addAgain("Commit the waiting records"),
 };
 
 export function annotationsOf(meta: ToolMeta): ToolAnnotations {

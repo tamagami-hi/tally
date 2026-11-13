@@ -1,4 +1,4 @@
-import { flushWhenFree } from "../records/commit.ts";
+import { flushWhenFree, recordsMode } from "../records/commit.ts";
 import type { Repo } from "../store/records.ts";
 import { releaseClaimsOf } from "./claims.ts";
 import { releaseLocksOf } from "./locks.ts";
@@ -18,6 +18,6 @@ export async function endSession(repo: Repo, sessionId: string, now = new Date()
   const releasedClaims = await releaseClaimsOf(repo, sessionId);
   const releasedLocks = await releaseLocksOf(repo, sessionId);
   const session = await closeSession(repo, sessionId);
-  const recordsCommit = repo.config.records.batch === true && (await listSessions(repo)).length === 0 ? await flushWhenFree(repo) : null;
+  const recordsCommit = recordsMode(repo.config) === "rest" && (await listSessions(repo)).length === 0 ? await flushWhenFree(repo) : null;
   return { session, releasedClaims, releasedLocks, recordsCommit };
 }

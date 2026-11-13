@@ -5,14 +5,23 @@ import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import { openQuestions } from "./questions.ts";
 import { summarize, type MilestoneRow, type OnMain } from "./summary.ts";
+import { isClosed, phaseRows } from "../phases/rows.ts";
 import { branches, type TrackRow } from "./tracks.ts";
+
+export interface StageRow {
+  id: string;
+  name: string;
+  goal?: string;
+  state: "open" | "closed";
+  closedAt?: string;
+}
 
 export interface StatusData {
   name: string;
   time: string;
   overall: number;
   stagePct: Record<string, number>;
-  stages: { id: string; name: string }[];
+  stages: StageRow[];
   rows: MilestoneRow[];
   tracks: TrackRow[];
   main: string;
@@ -52,7 +61,7 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
     time: stamp(now),
     overall: summary.overall,
     stagePct: summary.stagePct,
-    stages: config.stages.map((s) => ({ id: s.id, name: s.name })),
+    stages: (await phaseRows(repo)).map((row): StageRow => ({ id: row.id, name: row.name, ...(row.goal === undefined ? {} : { goal: row.goal }), state: isClosed(row) ? "closed" : "open", ...(row.closedAt === undefined ? {} : { closedAt: row.closedAt }) })),
     rows: summary.rows,
     tracks: await branches(root, main, now.getTime() / 1000),
     main: (await gitOut(root, ["log", "-1", "--format=%h %s", main])) ?? "",

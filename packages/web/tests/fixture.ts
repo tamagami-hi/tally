@@ -7,7 +7,7 @@ export const snapshot: Snapshot = {
     time: "2026-11-03 23:30",
     overall: 0.52,
     stagePct: { A: 1, B: 0.385, C: 0 },
-    stages: [{ id: "A", name: "the first slice" }, { id: "B", name: "widening" }, { id: "C", name: "later" }],
+    stages: [{ id: "A", name: "the first slice", state: "open" }, { id: "B", name: "widening", state: "open" }, { id: "C", name: "later", state: "open" }],
     rows: [
       { id: "A0-A7", stage: "A", name: "the first slice", track: "all", weight: 100, built: "aaa..bbb", share: 1, count: null, notes: ["built"], tasks: [] },
       { id: "B4", stage: "B", name: "simulator", track: "alpha+beta", weight: 14, share: 18 / 23, count: [18, 23], notes: ["beta next: T8 candle_close", "T9 store: waits for B2"], tasks: [] },

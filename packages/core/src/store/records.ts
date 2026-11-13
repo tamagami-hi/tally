@@ -8,6 +8,8 @@ import { STATE_DIR } from "../repos/home.ts";
 import { nameFromFolder } from "../repos/name.ts";
 import { TRACKS_FILE, type OpenedTrack, type TracksFile } from "../schema/tracks.ts";
 import { isOpen, readTracks } from "../tracks/file.ts";
+import { readPhases } from "../phases/file.ts";
+import type { PhasesFile } from "../schema/phases.ts";
 import { readJson, writeJsonAtomic } from "./json.ts";
 import { withLock } from "./lock.ts";
 
@@ -68,6 +70,12 @@ function withOpenedTracks(config: Config, file: TracksFile): Config {
   return { ...config, tracks: [...config.tracks, ...opened.map(asTrack)] };
 }
 
+function withAddedPhases(config: Config, file: PhasesFile): Config {
+  const known = new Set(config.stages.map((stage) => stage.id));
+  const added = file.phases.flatMap((phase) => (phase.name === undefined || phase.weight === undefined || known.has(phase.id) ? [] : [{ id: phase.id, name: phase.name, weight: phase.weight }]));
+  return added.length === 0 ? config : { ...config, stages: [...config.stages, ...added] };
+}
+
 export async function openRepo(root: string, listed?: Listed): Promise<Repo> {
   const absolute = resolve(root);
   const config = await readJson(join(absolute, RECORDS_DIR, CONFIG_FILE), configSchema);
@@ -75,7 +83,7 @@ export async function openRepo(root: string, listed?: Listed): Promise<Repo> {
   return {
     root: absolute,
     name: listed?.name ?? nameFromFolder(absolute),
-    config: withOpenedTracks(config, await readTracks(recordsDir)),
+    config: withAddedPhases(withOpenedTracks(config, await readTracks(recordsDir)), await readPhases(recordsDir)),
     recordsDir,
     stateDir: listed?.stateDir ?? join(absolute, STATE_DIR),
   };

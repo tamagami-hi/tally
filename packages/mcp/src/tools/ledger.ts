@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
-  addMilestone, assertMayWrite, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
-  listLocks, other, plan, Records, recordTask, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type Repo, type Session,
+  addMilestone, assertMayWrite, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  listLocks, other, plan, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { FIELDS, pickKnown } from "../filters.ts";
 import { ok } from "../respond.ts";
@@ -56,7 +56,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
     ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const track = scope === "all" ? undefined : (await own(repo, sessionId)).track;
       const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), track);
-      return ok(check, text);
+      return ok({ ...check, recordsWaiting: await recordsWaiting(repo) }, text);
     }),
   );
   server.registerTool(
@@ -65,6 +65,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
     ({ sessionId, waits, group, delivers, ...input }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       if (!isOperator(repo, session)) throw new TallyError("only an operator session adds milestones");
+      await assertStageOpen(repo, input.stage);
       const milestone = { ...input, delivers, ...(waits === undefined ? {} : { waits }), ...(group === undefined ? {} : { group }) };
       const message = await records.update((ledger) => addMilestone(ledger, milestone, repo.config.stages.map((s) => s.id)));
       return ok(await recorded(repo, message));
@@ -85,6 +86,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
     ({ sessionId, milestone, track, tasks }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       const scoped = scopedTrack(repo, session, track);
+      await assertMilestoneOpen(repo, await records.readLedger(), milestone);
       const message = await records.update((ledger) => plan(ledger, { milestone, track: scoped, tasks }));
       return ok(await recorded(repo, message));
     }),

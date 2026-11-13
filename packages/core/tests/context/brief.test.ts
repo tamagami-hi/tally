@@ -104,6 +104,21 @@ describe("a session's brief", () => {
     expect(Object.keys(theirs.tailoring?.[0] ?? {})).toEqual(["id", "title", "tailor"]);
   });
 
+  test("tells an operator session how many record files wait and since when, and no track session", async () => {
+    const tracked = await makeTracked();
+    const repo = keepingContextAsRecords(tracked.repo);
+    const data = await openSession(repo, { worktree: tracked.trees["data"]!, agent: "claude" });
+    const operator = await openSession(repo, { worktree: tracked.root, agent: "operator" });
+    await putEntry(repo, OPERATOR, { kind: "rule", title: "Ours", text: "x", section: "working", source: "the operator, 2026-11-14" });
+
+    const theirs = await sessionBrief(repo, operator);
+    const mine = await sessionBrief(repo, data);
+
+    expect(theirs.recordsWaiting?.files).toBeGreaterThan(0);
+    expect(theirs.recordsWaiting).toHaveProperty("since");
+    expect(mine).not.toHaveProperty("recordsWaiting");
+  });
+
   test("leaves tailoring out of an operator's brief when no rule waits", async () => {
     const tracked = await makeTracked();
     const repo = keepingContextAsRecords(tracked.repo);

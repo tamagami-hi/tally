@@ -44,7 +44,7 @@ export async function fingerprint(repo: Repo): Promise<string> {
   for (const tree of (await worktrees(repo.root)).values()) {
     parts.push(tree, (await gitOut(tree, ["status", "--porcelain=v1", "--untracked-files=all"])) ?? "");
   }
-  parts.push(await stamp(join(repo.recordsDir, "ledger.json")));
+  parts.push(await stamp(join(repo.recordsDir, "ledger.json")), await stamp(join(repo.recordsDir, "phases.json")));
   for (const path of await evidenceFiles(repo)) parts.push(path, await stamp(path));
   for (const name of ["sessions.json", "claims.json", "locks.json", "queue.json"]) parts.push(await stamp(statePath(repo, name)));
   return createHash("sha256").update(parts.join("\u0000")).digest("hex");

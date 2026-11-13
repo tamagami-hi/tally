@@ -39,7 +39,7 @@ export interface StatusData {
   time: string;
   overall: number;
   stagePct: Record<string, number>;
-  stages: { id: string; name: string }[];
+  stages: { id: string; name: string; goal?: string; state: "open" | "closed"; closedAt?: string }[];
   rows: MilestoneRow[];
   tracks: TrackRow[];
   main: string;

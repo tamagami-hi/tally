@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { activity, isRead, targetOf } from "../src/decorators/activity.ts";
+import { activity, isUnlogged, targetOf } from "../src/decorators/activity.ts";
 import { ok } from "../src/respond.ts";
 import { manyRepos, oneRepo } from "../src/source.ts";
 import { logActivity } from "../../core/src/records/activity.ts";
@@ -45,8 +45,8 @@ describe("what an activity event says a call was aimed at", () => {
   });
 
   test("a tool that only reads, or only waits, is told by the table of tools", () => {
-    expect(["session_list", "context_get", "docs_read", "docs_search", "land_wait", "ledger_check", "checks_fingerprint", "context_pack", "buildlog_render"].every(isRead)).toBe(true);
-    expect(["task_plan", "context_put", "session_close", "land_start", "checks_set", "buildlog_append", "task_wait", "task_unwait"].some(isRead)).toBe(false);
+    expect(["session_list", "context_get", "docs_read", "docs_search", "land_wait", "ledger_check", "checks_fingerprint", "context_pack", "buildlog_render"].every(isUnlogged)).toBe(true);
+    expect(["task_plan", "context_put", "session_close", "land_start", "checks_set", "buildlog_append", "task_wait", "task_unwait"].some(isUnlogged)).toBe(false);
   });
 });
 

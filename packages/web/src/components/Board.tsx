@@ -55,6 +55,8 @@ export function Board({ status, claims = [] }: { status: StatusData; claims?: Li
               <h3>Stage {stage.id}<span className="name">{stage.name}</span></h3>
               <span className={`chip mono chip-${tone(share)}`}>{percent(share)}</span>
             </div>
+            {stage.goal === undefined ? null : <p className="small stage-goal">{stage.goal}</p>}
+            {stage.closedAt === undefined ? null : <p className="small stage-closed">closed {stage.closedAt.slice(0, 10)}</p>}
             <ul>{rows.map((row) => <Milestone key={row.id} row={row} claims={claims.filter((c) => c.milestone === row.id)} />)}</ul>
           </div>
         );
