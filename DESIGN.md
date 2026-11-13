@@ -357,14 +357,16 @@ Five tracks reviewed tally on 2026-11-04 after a day of parallel work. This sect
 
 ### 15.2 Tracks that agents open
 
-A track stops being a line an operator adds to the config. `docs/records/tracks.json` holds the tracks agents opened: `{name, branch, worktree, parent?, purpose, paths?, openedBy, openedAt, closedAt?}`. Tracks in `config.json` are still read, so the first tracked repository's tracks work unchanged. A name is in one of the two places only.
+A track stops being a line an operator adds to the config. `docs/records/tracks.json` holds the tracks agents opened: `{name, branch, worktree, parent?, purpose, paths?, openedBy, openedAt, closedAt?, closedBy?, closedWhy?}`. Tracks in `config.json` are still read, so the first tracked repository's tracks work unchanged. A name is in one of the two places only.
 
 - **`track_open({name, purpose, parent?, paths?})`** creates the branch at main's tip and the worktree at `<worktreeRoot>/<name>`, writes the runner into it, and answers its path. `worktreeRoot` is a new optional field of the config, `.temp/worktrees` by default. An operator-scope session may open any track. A track's session may open a child of its own track.
 - **A child track** is how one track runs helpers in parallel. The helper gets its own worktree, branch and session, and the board shows it under its parent. The parent's session may write its children's tasks, evidence and hand-offs. Every track, child or not, lands on main through the same queue.
 - **`track_close({name})`** removes a track's worktree and branch. Tally removes only worktrees it created (§18).
   - It's refused while the track has a session, a claim, uncommitted work, or commits that aren't on main.
-  - `git worktree remove` deletes ignored files without asking. So the close is also refused while the worktree's ignored folders hold anything tally didn't write, and the refusal names those files.
-  - Otherwise tally removes its own landing checkout, then the worktree with `git worktree remove`, then the branch with `git branch -d`. Run logs aren't in the worktree (§14.8), so none is lost.
+  - It's also refused while a child of the track is open.
+  - `git worktree remove` deletes ignored files without asking, and that is what is wanted of build output (`node_modules`, `dist`, caches, logs, a copied `.env`): they are deleted with the worktree and named in the answer (`cleaned`). What an agent kept under the worktree's `.temp/` (its scratch, apart from tally's runner folder and the landing checkout) is moved to `<repo>/.temp/closed/<track>/` first (`kept`); a second track of the same name gets the close time in its folder's name. A changed tracked file, a file git neither tracks nor ignores, and a commit not on main still refuse.
+  - Tally removes its own landing checkout, then keeps the scratch, then removes the worktree with `git worktree remove`, then the branch with `git branch -d`. Run logs aren't in the worktree (§14.8), so none is lost.
+  - **The service closes a landed track that sits idle** (`closeIdleTracks`, on its tick after the sessions expire): tally opened it, its ledger has at least one task of the track and all are landed, its branch is not ahead of main and its worktree is clean, no session, claim, queued landing or open child, and it has rested for `worktrees.idleMinutes` (60 by default) since the later of its last landing and its last session ending. `tracks.json` records `closedBy` (agent `tally`) and `closedWhy`. The parent track, or main, is told once; a landed and idle track whose worktree holds uncommitted files is reported once, naming them. `worktrees.keep: true` turns it off. A session that opens in a closed track's folder is told so.
 - **One task per session** stays. A helper is a child track with a session of its own.
 
 ### 15.3 The landing queue
@@ -616,6 +618,7 @@ Phases 5, 6 and 7 are built, tests first, with 55 MCP tools, and are on `main`. 
 
 **Built later (2026-11-14):**
 - **The rulebook template** (§16.9): `rulebook_get`, `rulebook_adopt` and `rule_tailor`, a section and a source on every rule, and a brief that carries the rules slim. 58 MCP tools.
+- **A landed worktree that sits idle is removed** (§15.2): `track_close` deletes build output and keeps notes, and the service closes a landed, idle track after `worktrees.idleMinutes`.
 - **Scratch under `.temp/`**: `session_open` and `track_open` answer a `scratch` folder, `.temp/<track>/` in the worktree, and `repo_configure` refuses a `worktreeRoot` outside `.temp/`.
 
 **Not built:**

@@ -16,7 +16,7 @@ export async function expireSessions(repo: Repo, now = new Date()): Promise<Sess
     if (still === undefined || !isQuiet(still)) continue;
     const landing = (await queueFile(repo).read()).tickets.some((ticket) => ticket.sessionId === id && isActive(ticket));
     if (landing) continue;
-    closed.push((await endSession(repo, id)).session);
+    closed.push((await endSession(repo, id, now)).session);
   }
   return closed;
 }

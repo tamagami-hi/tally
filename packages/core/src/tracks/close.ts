@@ -1,20 +1,39 @@
-import { dirname, relative } from "node:path";
 import { TallyError, namedList } from "../errors.ts";
 import { gitMust, gitOut } from "../git/run.ts";
 import { landingCheckoutPath } from "../land/checkout.ts";
 import { worktreeOf } from "../land/paths.ts";
 import { isActive, queueFile } from "../land/queue.ts";
-import { RUNNER } from "../land/runner.ts";
 import { commitRecords } from "../records/commit.ts";
+import { SCRATCH_ROOT } from "../state/scratch.ts";
 import type { OpenedTrack, TracksFile } from "../schema/tracks.ts";
 import { listClaims } from "../state/claims.ts";
 import { isOperator, listSessions, type Session } from "../state/sessions.ts";
 import { CONFIG_FILE, type Repo } from "../store/records.ts";
 import { changeTracks, isOpen, isPresent } from "./file.ts";
+import { keepScratch } from "./keep.ts";
+
+export interface Cleaned {
+  names: string[];
+  total: number;
+}
 
 export interface TrackClosed {
   track: OpenedTrack;
   commit: string | null;
+  cleaned: Cleaned;
+  kept?: string;
+}
+
+export interface CloseBy {
+  track: string;
+  agent: string;
+}
+
+export interface CloseOptions {
+  by: CloseBy;
+  now?: Date;
+  why?: string;
+  check?: (track: OpenedTrack) => void;
 }
 
 interface Entry {
@@ -23,13 +42,15 @@ interface Entry {
 }
 
 const IGNORED = "!!";
-const OWN_FOLDER = `${dirname(RUNNER)}/`;
+const MOST_NAMED_CLEANED = 20;
 
 const commits = (count: number): string => `${count} commit${count === 1 ? "" : "s"}`;
 
 const named = (paths: readonly string[]): string => namedList([...paths].sort());
 
 const revCount = async (cwd: string, range: string): Promise<number> => Number(await gitMust(cwd, ["rev-list", "--count", range]));
+
+const isScratch = (path: string): boolean => path === SCRATCH_ROOT || path.startsWith(`${SCRATCH_ROOT}/`);
 
 function entriesOf(status: string): Entry[] {
   const tokens = status.split("\0").filter((token) => token !== "");
@@ -51,32 +72,32 @@ function openTrackNamed(repo: Repo, file: TracksFile, name: string): OpenedTrack
   throw new TallyError(`no open track '${name}'; the tracks tally opened: ${opened === "" ? "none" : opened}`);
 }
 
-function assertMayClose(repo: Repo, session: Session, track: OpenedTrack): void {
+export function assertMayClose(repo: Repo, session: Pick<Session, "track">, track: OpenedTrack): void {
   if (isOperator(repo, session) || (track.parent !== undefined && session.track === track.parent)) return;
   const parent = track.parent === undefined ? "it has none" : track.parent;
   throw new TallyError(`only an operator session or a session of its parent track (${parent}) closes track ${track.name}`);
 }
 
-async function assertIdle(repo: Repo, name: string): Promise<void> {
+async function assertIdle(repo: Repo, file: TracksFile, name: string): Promise<void> {
   const session = (await listSessions(repo)).find((open) => open.track === name);
   if (session !== undefined) throw new TallyError(`track ${name} has an open session (${session.agent}, ${session.id}); close it first`);
   const claim = (await listClaims(repo)).find((held) => held.track === name);
   if (claim !== undefined) throw new TallyError(`track ${name} has a claimed task ('${claim.task}' in ${claim.milestone}, held by ${claim.agent}); release it first`);
   const ticket = (await queueFile(repo).read()).tickets.find((one) => one.track === name && isActive(one));
   if (ticket !== undefined) throw new TallyError(`track ${name} has a landing in the queue (ticket ${ticket.id}); wait for it to end, or cancel it`);
+  const child = file.tracks.find((one) => one.parent === name && isOpen(one));
+  if (child !== undefined) throw new TallyError(`track ${name} has an open child (${child.name}); close it first`);
 }
 
-async function assertNothingToLose(repo: Repo, track: OpenedTrack, tree: string): Promise<void> {
+async function assertNothingToLose(repo: Repo, track: OpenedTrack, tree: string): Promise<Cleaned> {
   const main = repo.config.mainBranch;
-  const checkout = relative(tree, landingCheckoutPath(tree, track.name));
-  const isOwn = (path: string): boolean => path.startsWith(OWN_FOLDER) || path === checkout || path.startsWith(`${checkout}/`);
   const entries = entriesOf(await gitMust(tree, ["status", "--porcelain=v1", "-z", "--ignored", "--untracked-files=all"]));
   const dirty = entries.filter((entry) => entry.code !== IGNORED).map((entry) => entry.path);
   if (dirty.length > 0) throw new TallyError(`track ${track.name} has uncommitted work in ${tree}: ${named(dirty)}; commit it or delete it first`);
   const ahead = await revCount(tree, `${main}..HEAD`);
   if (ahead > 0) throw new TallyError(`the worktree ${tree} is off ${track.branch} and ${commits(ahead)} ahead of ${main}; put its work on a branch of your own, or land it first`);
-  const kept = entries.filter((entry) => entry.code === IGNORED && !isOwn(entry.path)).map((entry) => entry.path);
-  if (kept.length > 0) throw new TallyError(`closing track ${track.name} would delete ignored files tally did not write: ${named(kept)}; move or delete them first`);
+  const cleaned = [...new Set(entries.filter((entry) => !isScratch(entry.path)).map((entry) => entry.path.split("/")[0] ?? entry.path))].sort();
+  return { names: cleaned.slice(0, MOST_NAMED_CLEANED), total: cleaned.length };
 }
 
 async function assertLanded(repo: Repo, branch: string): Promise<void> {
@@ -87,24 +108,31 @@ async function assertLanded(repo: Repo, branch: string): Promise<void> {
   if (unseen > 0) throw new TallyError(`the checkout at ${repo.root} is not on ${main} and lacks ${commits(unseen)} of ${branch}, so git would keep the branch; check out ${main} there first`);
 }
 
-async function removed(repo: Repo, track: OpenedTrack, tree: string): Promise<void> {
+async function removed(repo: Repo, track: OpenedTrack, tree: string, now: Date): Promise<string | undefined> {
   const checkout = landingCheckoutPath(tree, track.name);
   if (await isPresent(checkout)) await gitMust(repo.root, ["worktree", "remove", "--force", checkout]);
+  const kept = (await isPresent(tree)) ? await keepScratch(repo, tree, track.name, now) : undefined;
   if (await isPresent(tree)) await gitMust(repo.root, ["worktree", "remove", tree]);
   if ((await gitOut(repo.root, ["rev-parse", "--verify", "-q", `refs/heads/${track.branch}`])) !== null) await gitMust(repo.root, ["branch", "--quiet", "-d", track.branch]);
+  return kept;
 }
 
-export async function closeTrack(repo: Repo, session: Session, name: string, now = new Date()): Promise<TrackClosed> {
-  const track = await changeTracks(repo.recordsDir, async (file) => {
+export async function closeOpened(repo: Repo, name: string, options: CloseOptions): Promise<TrackClosed> {
+  const now = options.now ?? new Date();
+  const done = await changeTracks(repo.recordsDir, async (file) => {
     const open = openTrackNamed(repo, file, name);
     const tree = worktreeOf(repo, open);
-    assertMayClose(repo, session, open);
-    await assertIdle(repo, name);
+    options.check?.(open);
+    await assertIdle(repo, file, name);
     await assertLanded(repo, open.branch);
-    if (await isPresent(tree)) await assertNothingToLose(repo, open, tree);
-    await removed(repo, open, tree);
-    const closed: OpenedTrack = { ...open, closedAt: now.toISOString() };
-    return { file: { ...file, tracks: file.tracks.map((one) => (one === open ? closed : one)) }, result: closed };
+    const cleaned = (await isPresent(tree)) ? await assertNothingToLose(repo, open, tree) : { names: [], total: 0 };
+    const kept = await removed(repo, open, tree, now);
+    const closed: OpenedTrack = { ...open, closedAt: now.toISOString(), closedBy: options.by, ...(options.why === undefined ? {} : { closedWhy: options.why }) };
+    return { file: { ...file, tracks: file.tracks.map((one) => (one === open ? closed : one)) }, result: { track: closed, cleaned, kept } };
   });
-  return { track, commit: await commitRecords(repo, `track ${name} closed by ${session.agent}`) };
+  const commit = await commitRecords(repo, `track ${name} closed by ${options.by.agent}`);
+  return { track: done.track, commit, cleaned: done.cleaned, ...(done.kept === undefined ? {} : { kept: done.kept }) };
 }
+
+export const closeTrack = (repo: Repo, session: Session, name: string, now = new Date()): Promise<TrackClosed> =>
+  closeOpened(repo, name, { by: { track: session.track, agent: session.agent }, now, check: (track) => assertMayClose(repo, session, track) });

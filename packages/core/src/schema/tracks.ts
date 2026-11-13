@@ -14,6 +14,8 @@ export const openedTrackSchema = z.object({
   openedBy: z.object({ track: z.string().min(1), agent: z.string().min(1) }),
   openedAt: z.string(),
   closedAt: z.string().optional(),
+  closedBy: z.object({ track: z.string().min(1), agent: z.string().min(1) }).optional(),
+  closedWhy: z.string().optional(),
 });
 
 export const tracksFileSchema = z.object({

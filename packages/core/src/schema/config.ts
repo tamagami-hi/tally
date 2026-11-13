@@ -72,6 +72,7 @@ export const configSchema = z.object({
     .default({ dir: "docs/records", commitPrefix: "records:", commit: true }),
   locks: z.array(z.string().min(1)).default(["landing"]),
   sessions: z.object({ idleMinutes: z.number().positive() }).optional(),
+  worktrees: z.object({ idleMinutes: z.number().positive().optional(), keep: z.boolean().optional() }).optional(),
   context: z.literal(CONTEXT_AS_RECORDS).optional(),
 });
 

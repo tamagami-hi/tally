@@ -203,7 +203,8 @@ A track is a branch and a worktree. The config names the standing ones, and an a
   - An operator session opens any track. A track's session opens only a child of its own track, and may then write that child's tasks, evidence and hand-offs.
   - `paths` limits what the track may land. A child takes its parent's `paths` when it names none, and can't go wider.
 - **Every track lands on `main`** through `land_start`, child or not. Nothing lands into a parent's branch.
-- **`track_close({ sessionId, name })`** removes the track's landing checkout, worktree and branch, and marks its record closed. It is refused, with nothing removed, while the track has an open session, a claimed task, uncommitted work, commits not on `main`, or ignored files tally didn't write. The refusal names them.
+- **`track_close({ sessionId, name })`** removes the track's landing checkout, worktree and branch, and marks its record closed. Build output in the worktree (`node_modules`, `dist`, caches, logs) is deleted with it, and the answer names it in `cleaned` (at most twenty names, and `total`). What the agent kept under the worktree's `.temp/` is moved to `<repo>/.temp/closed/<track>/` and the answer says where in `kept`; a second track of the same name gets the close time in its folder's name. It is refused, with nothing removed, while the track has an open session, an open child, a claimed task, a landing in the queue, uncommitted work (a changed tracked file, or a file git neither tracks nor ignores), or commits not on `main`. The refusal names them.
+- **A landed track that sits idle is closed by the service.** When tally opened the track, its ledger has at least one task of it and every one is landed, its branch is not ahead of `main`, its worktree is clean, and it has no session, claim, queued landing or open child, then once it has rested for `worktrees.idleMinutes` (60 unless the config says) it is closed the way `track_close` closes it. The rest is counted from the later of its last landing and its last session ending. The parent track, or `main`, gets one note saying where the notes went. If uncommitted files block it, the same reader is told once, naming them. `worktrees: { keep: true }` in the config turns this off. A track listed in `config.json` is never closed this way. A session that opens in the folder of a closed track is told the track was closed, when, and that new work needs a new track.
 - **`track_list`** lists every track: its branch, worktree, parent and purpose, where it comes from, and whether a session is open on it.
 
 A session that makes no call and records no run for four hours is closed, and its claims and locks are released. `sessions.idleMinutes` in the config changes the time.
@@ -296,6 +297,7 @@ Everything a build makes stays inside the repository's own `.temp/`, which git i
 | `<worktree>/.temp/tally/results/` | a run's result, until the service takes it in | the runner |
 | `<worktree>/.temp/<track>/landing/` | the landing's clean checkout | the landing |
 | `<worktree>/.temp/<track>/tally/landings/*.log` | a landing's test log, when tally runs the tests | `land_run` |
+| `<repo>/.temp/closed/<track>/` | the notes of a closed track, moved there from its worktree's `.temp/` (build output is deleted with the worktree) | `track_close`, the service |
 | `<repo>/.temp/tally/state/` | sessions, claims and locks, only for a repository served alone with `--repo` | the server |
 
 The service keeps its live state in its own data volume, outside every repository.

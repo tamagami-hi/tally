@@ -25,12 +25,12 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "track_close",
     {
-      description: "Close a track that track_open made: tally removes its landing checkout, its worktree and its branch, and marks the record closed. For an operator session or a session of the track's parent. Refused, with nothing removed, while the track has an open session, a claimed task, uncommitted work, commits that are not on main, or ignored files in its worktree that tally did not write; the refusal names them. Run logs are kept: they are outside the worktree.",
+      description: "Close a track that track_open made: tally removes its landing checkout, its worktree and its branch, and marks the record closed. For an operator session or a session of the track's parent. Build output in the worktree (node_modules, dist, caches, logs) is deleted with it and named in `cleaned`; what the agent kept under .temp/ is moved to .temp/closed/<track>/ of the repository (`kept`). Refused, with nothing removed, while the track has an open session, an open child, a claimed task, a landing in the queue, uncommitted work or commits that are not on main; the refusal names them. Run logs are kept: they are outside the worktree.",
       inputSchema: { sessionId: z.string(), name: z.string().describe("the track's name, as track_list shows it") },
     },
     ({ sessionId, name }) => inSession(source, sessionId, async (repo, session) => {
-      const { track, commit } = await closeTrack(repo, session, name);
-      return ok({ ...track, commit });
+      const { track, commit, cleaned, kept } = await closeTrack(repo, session, name);
+      return ok({ ...track, cleaned, ...(kept === undefined ? {} : { kept }), commit });
     }),
   );
   server.registerTool(

@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { openLandingCheckout } from "../../src/land/checkout.ts";
@@ -10,24 +10,10 @@ import { Records } from "../../src/store/records.ts";
 import { closeTrack } from "../../src/tracks/close.ts";
 import { openTrack } from "../../src/tracks/open.ts";
 import { commitOn } from "../support/landing.ts";
-import { opening, type Opening } from "../support/opening.ts";
+import { helped, isThere } from "../support/helped.ts";
 import { sh } from "../support/repo.ts";
 
 const NOW = new Date("2026-11-12T12:00:00.000Z");
-
-interface Helped extends Opening {
-  tree: string;
-}
-
-async function helped(records: Parameters<typeof opening>[0] = {}): Promise<Helped> {
-  const made = await opening(records);
-  const opened = await openTrack(made.repo, made.data, { name: "helper", purpose: "split the reader" });
-  return { ...made, repo: await made.fresh(), tree: opened.track.worktree };
-}
-
-async function isThere(path: string): Promise<boolean> {
-  return stat(path).then(() => true, () => false);
-}
 
 const recorded = async (root: string): Promise<{ tracks: { name: string; closedAt?: string }[] }> => JSON.parse(await readFile(join(root, "docs/records/tracks.json"), "utf8"));
 
@@ -160,18 +146,6 @@ describe("a track that cannot be closed", () => {
 
     await expect(closeTrack(repo, operator, "helper")).rejects.toThrow(`the worktree ${tree} is off track/helper and 1 commit ahead of main; put its work on a branch of your own, or land it first`);
     expect(await isThere(tree)).toBe(true);
-  });
-
-  test("holds ignored files tally did not write, and the refusal names them", async () => {
-    const { repo, tree, operator } = await helped();
-    await mkdir(join(tree, ".temp", "helper", "tmp"), { recursive: true });
-    await writeFile(join(tree, ".temp", "notes.md"), "mine\n");
-    await writeFile(join(tree, ".temp", "helper", "tmp", "scratch.bin"), "x");
-    await openLandingCheckout(tree, "helper");
-
-    await expect(closeTrack(repo, operator, "helper")).rejects.toThrow("closing track helper would delete ignored files tally did not write: .temp/helper/tmp/scratch.bin, .temp/notes.md; move or delete them first");
-    expect(await readFile(join(tree, ".temp", "notes.md"), "utf8")).toBe("mine\n");
-    expect(await isThere(join(tree, ".temp", "helper", "landing"))).toBe(true);
   });
 
   test("closes once its worktree was removed by hand, since nothing is left to lose", async () => {

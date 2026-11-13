@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, advance, collect, isActive, queueFile, evidenceFiles, expireSessions, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
+import { Records, advance, closeIdleTracks, collect, isActive, queueFile, evidenceFiles, expireSessions, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitCount, commitGraph, graphBranches, type LaidCommit } from "./graph.ts";
 
 export interface QueuedLanding {
@@ -125,6 +125,7 @@ export class Watcher {
         const repo = await this.source();
         await takeResults(repo);
         await expireSessions(repo);
+        const idle = await closeIdleTracks(repo);
         await advance(repo);
         const now = await fingerprint(repo);
         if (now !== this.last) {
@@ -133,7 +134,7 @@ export class Watcher {
           this.latest = fresh;
           for (const listener of this.listeners) listener(fresh);
         }
-        this.failure = undefined;
+        this.failure = idle.problems.length === 0 ? undefined : idle.problems.join("; ");
       } catch (error: unknown) {
         this.failure = messageOf(error);
       } finally {
