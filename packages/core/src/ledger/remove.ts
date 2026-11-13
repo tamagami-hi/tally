@@ -17,6 +17,10 @@ export interface Removed extends Changed {
   waiters: Waiter[];
 }
 
+export const MAX_REASON = 200;
+
+export const reasonOf = (why: string): string => why.replace(/\s+/g, " ").trim();
+
 function deferredTo(ledger: Ledger, ref: string, except: Task): string[] {
   return ledger.milestones.flatMap((milestone) =>
     milestone.tasks.filter((task) => task !== except && (task.deferred ?? []).some((part) => part.to === ref)).map((task) => `${milestone.id} '${task.id}'`));
@@ -29,8 +33,9 @@ export function remove(ledger: Ledger, input: RemoveInput): Removed {
   if (found.status === "landed" || found.commit !== undefined) {
     throw new TallyError(`'${found.id}' in ${input.milestone} landed at ${found.commit ?? "a commit"}: a landed task is the record of its commit and stays`);
   }
-  const why = input.why.trim();
+  const why = reasonOf(input.why);
   if (why === "") throw new TallyError(`say why '${found.id}' is removed: the reason goes in the record's commit`);
+  if (why.length > MAX_REASON) throw new TallyError(`a reason is one line of at most ${MAX_REASON} characters; this one has ${why.length}`);
   const ref = refOf(input.milestone, found.id);
   const kept = { ...milestone, tasks: milestone.tasks.filter((task) => task !== found) };
   const owedBefore = new Set(uncovered(milestone).map((deliverable) => deliverable.id));

@@ -45,6 +45,23 @@ describe("removing a planned task", () => {
     expect(checksum.message).toBe("B2 '6 checksum': removed (not needed); a part deferred to it has no task to finish it now: B2 '1 reader'");
   });
 
+  test("keeps the reason on one line", () => {
+    const removed = remove(base(), { milestone: "B2", task: "7 again", why: "planned twice\n  by mistake\n" });
+
+    expect(removed.message).toBe("B2 '7 again': removed (planned twice by mistake)");
+  });
+
+  test("names only the deliverables the removal uncovers, not one that was uncovered before or one another task covers", () => {
+    const ledger = base();
+    const wider: Ledger = { ...ledger, milestones: ledger.milestones.map((milestone) => ({
+      ...milestone,
+      delivers: [...(milestone.delivers ?? []), { id: "docs", what: "the docs" }],
+      tasks: milestone.tasks.map((task) => (task.id === "5 transcoder" ? { ...task, covers: ["manifest", "index"] } : task)),
+    })) };
+
+    expect(remove(wider, { milestone: "B2", task: "5 transcoder", why: "dropped" }).message).toContain("no task covers manifest now;");
+  });
+
   test("does not call a deliverable uncovered when another task still covers it", () => {
     const withTwo = remove(base(), { milestone: "B2", task: "7 again", why: "a mistake" });
 
@@ -60,6 +77,17 @@ describe("what cannot be removed", () => {
   test("a task that is not there, or a milestone that is not", () => {
     expect(() => remove(base(), { milestone: "B2", task: "nope", why: "x" })).toThrow("'nope' is not planned in B2");
     expect(() => remove(base(), { milestone: "ZZ", task: "nope", why: "x" })).toThrow("no milestone 'ZZ'");
+  });
+
+  test("a task still marked planned that names a commit, as a hand-edited ledger might", () => {
+    const ledger = base();
+    const edited: Ledger = { ...ledger, milestones: ledger.milestones.map((milestone) => ({ ...milestone, tasks: milestone.tasks.map((task) => (task.id === "7 again" ? { ...task, commit: "fed9876" } : task)) })) };
+
+    expect(() => remove(edited, { milestone: "B2", task: "7 again", why: "x" })).toThrow("'7 again' in B2 landed at fed9876");
+  });
+
+  test("anything, with a reason longer than a line", () => {
+    expect(() => remove(base(), { milestone: "B2", task: "7 again", why: "x".repeat(201) })).toThrow("a reason is one line of at most 200 characters; this one has 201");
   });
 
   test("anything, without a reason", () => {

@@ -1,3 +1,5 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { findMilestone, findTask } from "../../src/ledger/items.ts";
 import { wait } from "../../src/ledger/ops.ts";
@@ -76,6 +78,28 @@ describe("removing a task from a repository's records", () => {
     expect(removed.message).toBe("B2 '5 transcoder': removed (folded into the manifest); still waiting on it: B2 'T9 store'; its 1 run record stays in B2's evidence");
     expect(removed.evidenceKept).toBe(1);
     expect(told.map((item) => item.text)).toEqual(["heads-up from data (claude): B2:5 transcoder was removed (folded into the manifest); B2 'T9 store' still waits on it: clear the wait, or wait on another task"]);
+  });
+
+  test("still answers, and says so, when the task's run records cannot be read afterwards", async () => {
+    const { repo, data } = await tracked();
+    await mkdir(join(repo.recordsDir, "evidence"), { recursive: true });
+    await writeFile(join(repo.recordsDir, "evidence", "B2.json"), "{ not json");
+
+    const removed = await removeTask(repo, { milestone: "B2", task: "5 transcoder", why: "dropped" }, data);
+
+    expect(removed.message).toBe("B2 '5 transcoder': removed (dropped)");
+    expect(removed.problem).toContain("its run records could not be counted");
+    expect(await taskOf(repo, "B2", "5 transcoder")).toBeUndefined();
+  });
+
+  test("checks the claim and the queue with the ledger held, so nothing is written when either refuses", async () => {
+    const { repo, data, operator } = await tracked();
+    await claimTask(repo, data, await new Records(repo).readLedger(), "B2", "5 transcoder");
+    const before = await readFile(join(repo.recordsDir, "ledger.json"), "utf8");
+
+    await expect(removeTask(repo, { milestone: "B2", task: "5 transcoder", why: "dropped" }, operator)).rejects.toThrow("is held by claude on data");
+
+    expect(await readFile(join(repo.recordsDir, "ledger.json"), "utf8")).toBe(before);
   });
 
   test("works without a session, as the command line calls it", async () => {
