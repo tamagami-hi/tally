@@ -4,7 +4,7 @@
 
 It makes a small git repository with fixed commit dates, starts tally's records in it, and fills
 them through the MCP tools: milestones, tasks, waits, landings, run records, questions, decisions,
-context entries, the rulebook (adopted, two rules tailored, one retired) and a hand-off. Run it again on a fresh folder and the answers are the same.
+context entries, the rulebook (adopted, two rules tailored, one retired), two phases (the first closed) and a hand-off. Run it again on a fresh folder and the answers are the same.
 """
 import json, os, subprocess, sys
 from pathlib import Path
@@ -134,6 +134,15 @@ m.call("context_put", sessionId=data, kind="convention", title="Offsets are u64"
 m.call("question_add", sessionId=data, group="store", question="Should snapshot files be compressed?", meanwhile="They are written uncompressed.")
 m.call("question_add", sessionId=data, group="store", question="How many segments are kept before compaction?", meanwhile="Every segment is kept.")
 m.call("handoff_write", sessionId=data, task="3 recovery", lines=["The segment index lives in crates/store/src/index.rs.", "Recovery reads the newest snapshot first, then the log from its position."])
+exports = commit("exports/csv.py", "# csv\n", "feat(exports): csv export")
+m.call("phase_add", sessionId=op, id="X1", name="exports", goal="Lumen exports a stream as csv.", weight=3, decision="STO-1")
+m.call("phase_add", sessionId=op, id="X2", name="imports", goal="Lumen reads csv back in.", weight=2)
+m.call("milestone_add", sessionId=op, id="X1a", stage="X1", name="csv export", track="data", weight=1)
+m.call("milestone_add", sessionId=op, id="X2a", stage="X2", name="csv import", track="data", weight=1)
+m.call("task_plan", sessionId=op, milestone="X1a", track="data", tasks=["1 write csv"])
+m.call("task_plan", sessionId=op, milestone="X2a", track="data", tasks=["1 read csv", "2 validate rows"])
+m.call("task_land", sessionId=op, milestone="X1a", task="1 write csv", commit=exports)
+m.call("phase_close", sessionId=op, phase="X1", summary="Csv export ships.")
 m.call("session_close", sessionId=data)
 m.call("session_close", sessionId=op)
 m.proc.stdin.close(); m.proc.wait(timeout=20)

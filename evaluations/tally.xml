@@ -32,8 +32,8 @@
     <answer>rule-32</answer>
   </qa_pair>
   <qa_pair>
-    <question>In the engine group of Lumen's decisions, one decision is decided but not built yet. Give its id.</question>
-    <answer>ENG-2</answer>
+    <question>Lumen's phase named imports cannot close yet. Of the tasks that stop it, which is named first? Give it as MILESTONE / TASK.</question>
+    <answer>X2a / 1 read csv</answer>
   </qa_pair>
   <qa_pair>
     <question>According to the current hand-off of Lumen's data track, in which file does the segment index live? Give the path.</question>

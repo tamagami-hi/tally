@@ -304,3 +304,25 @@ The service keeps its live state in its own data volume, outside every repositor
 
 - `repo_configure` refuses a `worktreeRoot` that is not `.temp` or under it (`.temp/lanes` is fine, `lanes` is not). A config written earlier that holds another root still reads.
 - A run's `TMPDIR` is not moved by default: a Unix socket path past 108 characters would break test suites that open sockets in a nested worktree. A repository that wants it under `.temp/` sets `commands.tmpdir` (`{track}` is replaced), for example `.temp/{track}/tmp`.
+
+### 10.11 Phases, and records committed once per phase
+
+A phase is a stage: a stretch of work with one goal, closed as a whole. The tools say `phase`; the config's `stages` and a milestone's `stage` keep their names.
+
+- **`phase_add({ sessionId, id, name, goal, weight, decision? })`** (operator session) adds a phase to `docs/records/phases.json`. It joins the repository's stages at once, so `milestone_add` takes its id as `stage`. `goal` is a sentence; `decision` is the id of the decision that approved its plan.
+- **`phase_list({ state?, sessionId?, repo? })`** answers each phase with its goal, decision, state (`open` or `closed`), how many of its tasks are landed, and `left`: up to ten sentences saying what still stops an open phase from closing. It runs the checks `phase_close` runs and writes nothing. Report `left` to the operator before asking to close a phase.
+- **`phase_close({ sessionId, phase, summary })`** (operator session, and only on the operator's word: a phase's end is their gate) refuses, with nothing written, while a task of the phase is not landed, while `ledger_check` lists a commit on `main` no record names or a gap in one of the phase's milestones, or while a landing for one of its tracks is in the queue. Otherwise it closes each track tally opened whose tasks all belong to the phase (the way `track_close` does; one that cannot close is named in `tracksLeft` with the reason and does not stop the phase), writes the phase's closing fields, tells every open session in one line (`phase G was closed by <agent>: <summary>`), and commits everything waiting under `docs/records/` as one commit: `records: phase G closed, <n> record files`, with the summary as its body. The answer carries `missing`, the phase's milestones with no build-log section: told, not refused. If a landing has its turn the commit waits (`waits`) and is made after it. If the commit fails the phase stays closed and `problem` carries git's words.
+- **A closed phase stays closed.** `milestone_add` and `task_plan` refuse it: later work goes in a new phase.
+- **`records_commit({ sessionId, why })`** (operator session) commits what waits now, for the day the operator pushes in the middle of a phase. Its subject says how many files and why. With nothing waiting it answers `{ commit: null, files: 0 }`. It is refused where `records.commit` is false.
+- **What waits is visible:** `ledger_check` and an operator session's brief answer `recordsWaiting: { files, since }`.
+
+**When records are committed** is one of four modes, read from `records.commit`, `records.batch` and the new `records.commitAt`:
+
+| `commit` | `batch` | `commitAt` | mode | records are committed |
+| --- | --- | --- | --- | --- |
+| `false` | any | any | `never` | never by tally |
+| `true` | not `true` | any | `each` | at each write |
+| `true` | `true` | absent | `rest` | when the last session closes, when a landing finishes, and on a write with no session open |
+| `true` | `true` | `"phase"` | `phase` | only by `phase_close` and `records_commit` |
+
+A repository added in the sidebar starts in `phase` mode. A repository already tracked keeps its setting until its own operator session changes it with `repo_configure`. A records commit still waits while a landing has its turn and is made under the landing lock.

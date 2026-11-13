@@ -456,6 +456,13 @@ A task with deferred parts shows as "landed in part" until those tasks land. A w
 | 14 | no end-to-end check at landings | checks by path, §15.4 |
 | 15 | a track looks ahead of main while it tests | the "testing" state, §15.3 |
 
+### 15.9 Phases, and records committed once per phase (2026-11-14)
+
+- **A phase is a stage.** `docs/records/phases.json` holds `{id, name?, weight?, goal?, decision?, openedAt?, openedBy?, closedAt?, closedBy?, summary?, commit?}`: a phase added by `phase_add` whole (it joins `config.stages` when the repository is opened, as `tracks.json` joins `config.tracks`), and, for a stage the config lists, only its id and closing fields once it is closed. `commit` is the tip of main the phase closed at.
+- **`records.commitAt: "phase"`** is one optional config key, read with `commit` and `batch` by one function, `recordsMode`: `never`, `each`, `rest` or `phase`. In `phase` mode none of the three flush points (a write, the last session closing, a landing finishing) commits; `phase_close` and `records_commit` do. A release that does not know `commitAt` reads the config as `rest`, which is safe. A new repository starts in `phase` mode.
+- **`phase_close`** checks (tasks landed, nothing unrecorded on main, no landing queued), closes the tracks that are wholly the phase's with the close of §15.2, writes the closing fields, tells every session, and makes one records commit; a landing's turn makes it wait, and the flush after that landing still makes it. A closed phase takes no milestone or task. `phase_list` runs the same checks without writing.
+
+
 ## 16. Context as records (Phase 7)
 
 ### 16.1 The principle
@@ -620,6 +627,7 @@ Phases 5, 6 and 7 are built, tests first, with 55 MCP tools, and are on `main`. 
 - **The rulebook template** (§16.9): `rulebook_get`, `rulebook_adopt` and `rule_tailor`, a section and a source on every rule, and a brief that carries the rules slim. 58 MCP tools.
 - **A landed worktree that sits idle is removed** (§15.2): `track_close` deletes build output and keeps notes, and the service closes a landed, idle track after `worktrees.idleMinutes`.
 - **Scratch under `.temp/`**: `session_open` and `track_open` answer a `scratch` folder, `.temp/<track>/` in the worktree, and `repo_configure` refuses a `worktreeRoot` outside `.temp/`.
+- **Phases and one records commit per phase** (§15.9): `phase_add`, `phase_list`, `phase_close` and `records_commit`, and `records.commitAt`. 62 MCP tools.
 
 **Not built:**
 - The board doesn't show a child track under its parent, the context or the activity log.
