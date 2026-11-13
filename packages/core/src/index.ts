@@ -80,6 +80,7 @@ export { commitRecords, flushRecords, flushWhenFree } from "./records/commit.ts"
 export { StateFile } from "./state/file.ts";
 export { assertMayWrite, closeSession, getSession, isOperator, listSessions, markSeen, openSession, sessionSchema, trackAt } from "./state/sessions.ts";
 export type { OpenInput, Session } from "./state/sessions.ts";
+export { SCRATCH_ROOT, openScratch } from "./state/scratch.ts";
 export { claimTask, listClaims, releaseClaim, releaseClaimsOf, releaseLanded } from "./state/claims.ts";
 export type { Claim } from "./state/claims.ts";
 export { acquireLock, listLocks, releaseLock, releaseLocksOf } from "./state/locks.ts";

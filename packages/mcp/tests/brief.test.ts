@@ -34,7 +34,7 @@ describe("a session's first call", () => {
 
     const answer = await call("session_open", { worktree: trees["data"]!, agent: "claude" });
 
-    expect(Object.keys(answer.structured)).toEqual(["id", "track", "worktree", "branch", "agent", "openedAt", "lastSeenAt", "repo", "runner"]);
+    expect(Object.keys(answer.structured)).toEqual(["id", "track", "worktree", "branch", "agent", "openedAt", "lastSeenAt", "repo", "runner", "scratch"]);
   });
 
   test("context_pack at the project level is built from the records of such a repository, and from its Markdown elsewhere", async () => {

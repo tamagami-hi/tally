@@ -6,6 +6,7 @@ import { writeRunner } from "../land/runner.ts";
 import { commitRecords } from "../records/commit.ts";
 import { REPO_NAME } from "../repos/name.ts";
 import { DEFAULT_WORKTREE_ROOT, TRACK_BRANCH_PREFIX, type OpenedTrack } from "../schema/tracks.ts";
+import { openScratch } from "../state/scratch.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import { reopenRepo, type Repo } from "../store/records.ts";
 import { changeTracks, isPresent } from "./file.ts";
@@ -20,6 +21,7 @@ export interface OpenTrackInput {
 export interface TrackOpened {
   track: OpenedTrack;
   runner: string;
+  scratch: string;
   commit: string | null;
 }
 
@@ -88,5 +90,5 @@ export async function openTrack(repo: Repo, session: Session, input: OpenTrackIn
     }
   });
   const commit = await commitRecords(repo, `track ${record.name} opened by ${session.agent}`);
-  return { track: { ...record, worktree: folder }, runner, commit };
+  return { track: { ...record, worktree: folder }, runner, scratch: await openScratch(folder, record.name), commit };
 }

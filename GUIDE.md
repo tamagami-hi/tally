@@ -143,6 +143,7 @@ Sections 1 to 9 describe one server for one repository, started with `--repo`. T
 - `id`: the session id every writing tool takes.
 - `repo` and `track`: where the session is bound.
 - `runner`: the path of a script in your worktree (10.2).
+- `scratch`: your own folder, `.temp/<track>/` in your worktree, made for you. Plans, notes, logs and throwaway scripts go there, never in `/tmp` and never in another hidden folder (10.10).
 - `brief`, in a repository that keeps its context as records (10.8): the project, every rule, your track's unlanded tasks and its hand-off, the context entries that apply to your track's paths, who else is working, how many questions are open, and what the repository's context still lacks.
 
 `repo_list` lists the repositories the service tracks. A reading tool called with neither a `sessionId` nor a `repo` goes to the default repository: the first one added, unless the operator picked another.
@@ -281,3 +282,23 @@ A repository whose config says `context: "records"` keeps everything a session n
 With `TALLY_URL` set (`export TALLY_URL=http://127.0.0.1:47560`), every `tally` command is carried out by the service, so there is one writer. `tally land` joins the same queue as the agents' landings, runs the turn's script in your shell, and waits for the result. Without `TALLY_URL` the command works on the files itself, which is right only for a repository the service doesn't serve.
 
 `tally repo add PATH [--name NAME]`, `remove NAME`, `default NAME` and `list` manage the list of repositories from a shell. The board's sidebar does the same.
+
+### 10.10 What a build leaves on disk
+
+Everything a build makes stays inside the repository's own `.temp/`, which git ignores (`startRecords` adds it to `.git/info/exclude`, and every worktree shares that file):
+
+| path | what | written by |
+| --- | --- | --- |
+| `<repo>/.temp/worktrees/<track>/` | a track's worktree, on branch `track/<track>` | `track_open` |
+| `<worktree>/.temp/<track>/` | the session's scratch: plans, notes, logs and throwaway scripts (`session_open` and `track_open` answer it as `scratch` and make it) | the agent |
+| `<worktree>/.temp/tally/run` | the runner script | `track_open`, `session_open` |
+| `<repo>/.temp/tally/logs/<track>/` | the log of each run made through the runner; it is in the repository's own folder, so it outlives the worktree | the runner |
+| `<worktree>/.temp/tally/results/` | a run's result, until the service takes it in | the runner |
+| `<worktree>/.temp/<track>/landing/` | the landing's clean checkout | the landing |
+| `<worktree>/.temp/<track>/tally/landings/*.log` | a landing's test log, when tally runs the tests | `land_run` |
+| `<repo>/.temp/tally/state/` | sessions, claims and locks, only for a repository served alone with `--repo` | the server |
+
+The service keeps its live state in its own data volume, outside every repository.
+
+- `repo_configure` refuses a `worktreeRoot` that is not `.temp` or under it (`.temp/lanes` is fine, `lanes` is not). A config written earlier that holds another root still reads.
+- A run's `TMPDIR` is not moved by default: a Unix socket path past 108 characters would break test suites that open sockets in a nested worktree. A repository that wants it under `.temp/` sets `commands.tmpdir` (`{track}` is replaced), for example `.temp/{track}/tmp`.

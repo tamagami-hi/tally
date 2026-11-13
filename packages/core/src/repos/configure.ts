@@ -6,6 +6,7 @@ import { configSchema, type Config } from "../schema/config.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
+import { SCRATCH_ROOT } from "../state/scratch.ts";
 import { CONFIG_FILE, RECORDS_DIR, type Repo } from "../store/records.ts";
 
 type Keyed = Record<string, unknown>;
@@ -31,6 +32,13 @@ function dropped(given: unknown, kept: unknown, at = ""): string[] {
   });
 }
 
+function refusedOutsideScratch(given: Keyed): void {
+  const root = given["worktreeRoot"];
+  if (typeof root !== "string") return;
+  const isUnder = root === SCRATCH_ROOT || root.startsWith(`${SCRATCH_ROOT}/`);
+  if (!isUnder || root.split("/").includes("..")) throw new TallyError(`worktrees live under ${SCRATCH_ROOT}/, which git ignores; '${root}' is not`);
+}
+
 function fitted(candidate: Keyed, given: Keyed): Config {
   const parsed = configSchema.safeParse(candidate);
   if (!parsed.success) {
@@ -45,6 +53,7 @@ function fitted(candidate: Keyed, given: Keyed): Config {
 export async function configureRepo(repo: Repo, session: Pick<Session, "track" | "agent">, given: Keyed): Promise<{ config: Config; changed: string[]; commit: string | null }> {
   if (!isOperator(repo, session)) throw new TallyError("only an operator session changes the config; a track that wants a change asks a question with question_add");
   const changed = Object.keys(given);
+  refusedOutsideScratch(given);
   if (changed.length === 0) throw new TallyError("changing the config needs at least one of its keys");
   const path = join(repo.root, RECORDS_DIR, CONFIG_FILE);
   const config = await withLock(path, async () => {

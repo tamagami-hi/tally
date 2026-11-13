@@ -616,6 +616,7 @@ Phases 5, 6 and 7 are built, tests first, with 55 MCP tools, and are on `main`. 
 
 **Built later (2026-11-14):**
 - **The rulebook template** (§16.9): `rulebook_get`, `rulebook_adopt` and `rule_tailor`, a section and a source on every rule, and a brief that carries the rules slim. 58 MCP tools.
+- **Scratch under `.temp/`**: `session_open` and `track_open` answer a `scratch` folder, `.temp/<track>/` in the worktree, and `repo_configure` refuses a `worktreeRoot` outside `.temp/`.
 
 **Not built:**
 - The board doesn't show a child track under its parent, the context or the activity log.

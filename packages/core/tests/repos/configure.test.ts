@@ -82,4 +82,35 @@ describe("changing a repository's config through a tool", () => {
     expect(await sh(root, ["log", "-1", "--format=%s"])).toBe("records: config changed by operator: locks, context");
     expect(await sh(root, ["status", "--porcelain"])).toBe("");
   });
+
+  test("takes a worktreeRoot under .temp/, where git ignores it", async () => {
+    const { repo, root } = await makeTracked();
+
+    for (const worktreeRoot of [".temp", ".temp/lanes", ".temp/a/b"]) {
+      const { config } = await configureRepo(repo, OPERATOR, { worktreeRoot });
+      expect(config.worktreeRoot).toBe(worktreeRoot);
+    }
+    expect(JSON.parse(await onDisk(root)).worktreeRoot).toBe(".temp/a/b");
+  });
+
+  test("refuses a worktreeRoot that is not .temp or under it, and writes nothing", async () => {
+    const { repo, root } = await makeTracked();
+    const before = await onDisk(root);
+
+    for (const worktreeRoot of ["lanes", "../x", ".temper", "docs/.temp", "/abs/.temp"]) {
+      await expect(configureRepo(repo, OPERATOR, { worktreeRoot })).rejects.toThrow(`worktrees live under .temp/, which git ignores; '${worktreeRoot}' is not`);
+    }
+    expect(await onDisk(root)).toBe(before);
+  });
+
+  test("still reads a config that already holds another worktreeRoot, and changes its other keys", async () => {
+    const { repo, root } = await makeTracked();
+    const written = JSON.parse(await onDisk(root)) as Record<string, unknown>;
+    await writeFile(join(root, "docs/records/config.json"), JSON.stringify({ ...written, worktreeRoot: "lanes" }));
+
+    const { config } = await configureRepo(repo, OPERATOR, { locks: ["landing", "gpu"] });
+
+    expect(config.worktreeRoot).toBe("lanes");
+    expect((await openRepo(root)).config.worktreeRoot).toBe("lanes");
+  });
 });

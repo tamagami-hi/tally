@@ -28,6 +28,15 @@ describe("opening a track", () => {
     expect((await fresh()).config.tracks.map((track) => track.name)).toEqual(["data", "engine", "helper"]);
   });
 
+  test("makes the track's scratch folder, .temp/<name> in its worktree, and answers where it is", async () => {
+    const { repo, operator } = await opening();
+
+    const opened = await openTrack(repo, operator, helper, NOW);
+
+    expect(opened.scratch).toBe(join(opened.track.worktree, ".temp", "helper"));
+    expect((await stat(opened.scratch)).isDirectory()).toBe(true);
+  });
+
   test("gives a track a session can open on at once", async () => {
     const { repo, operator, fresh } = await opening();
     const opened = await openTrack(repo, operator, helper);

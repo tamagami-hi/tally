@@ -8,7 +8,7 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "track_open",
     {
-      description: "Open a new track: tally makes the branch track/<name> at main's tip and a worktree for it, writes the runner there, and records who opened it and why. The answer carries the absolute `worktree`: start the helper there and have it call session_open with that folder. An operator session opens any track; a track's session opens only a child of its own track, and may then write that child's tasks, evidence and hand-offs. Every track, child or not, lands on main through land_start.",
+      description: "Open a new track: tally makes the branch track/<name> at main's tip and a worktree for it, writes the runner there, and records who opened it and why. The answer carries the absolute `worktree`: start the helper there and have it call session_open with that folder; `scratch` is the helper's own folder for notes and throwaway files. An operator session opens any track; a track's session opens only a child of its own track, and may then write that child's tasks, evidence and hand-offs. Every track, child or not, lands on main through land_start.",
       inputSchema: {
         sessionId: z.string(),
         name: z.string().describe("lowercase letters, digits, - and _; it names the branch track/<name> and the worktree's folder"),
@@ -18,8 +18,8 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
       },
     },
     ({ sessionId, name, purpose, parent, paths }) => inSession(source, sessionId, async (repo, session) => {
-      const { track, runner, commit } = await openTrack(repo, session, { name, purpose, ...(parent === undefined ? {} : { parent }), ...(paths === undefined ? {} : { paths }) });
-      return ok({ ...track, runner, commit });
+      const { track, runner, scratch, commit } = await openTrack(repo, session, { name, purpose, ...(parent === undefined ? {} : { parent }), ...(paths === undefined ? {} : { paths }) });
+      return ok({ ...track, runner, scratch, commit });
     }),
   );
   server.registerTool(
