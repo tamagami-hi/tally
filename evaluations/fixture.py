@@ -4,7 +4,7 @@
 
 It makes a small git repository with fixed commit dates, starts tally's records in it, and fills
 them through the MCP tools: milestones, tasks, waits, landings, run records, questions, decisions,
-context entries and a hand-off. Run it again on a fresh folder and the answers are the same.
+context entries, the rulebook (adopted, two rules tailored, one retired) and a hand-off. Run it again on a fresh folder and the answers are the same.
 """
 import json, os, subprocess, sys
 from pathlib import Path
@@ -120,7 +120,11 @@ ran("A1", "2 snapshots", "red", 20, 101, passed=41, failed=7)
 ran("A1", "2 snapshots", "green", 31, 0, passed=57, failed=0)
 ran("B1", "1 shell", "green", 40, 0, passed=12, failed=0)
 
-m.call("context_put", sessionId=op, kind="rule", title="Never block the scheduler's thread", text="A job that waits on disk or the network runs on the worker pool.", paths=["crates/engine"])
+m.call("context_put", sessionId=op, kind="rule", title="Never block the scheduler's thread", text="A job that waits on disk or the network runs on the worker pool.", paths=["crates/engine"], section="working", source="the operator, 2026-03-01")
+m.call("rulebook_adopt", sessionId=op)
+m.call("rule_tailor", sessionId=op, id="rule-2", source="the operator, 2026-03-03")
+m.call("rule_tailor", sessionId=op, id="rule-12", source="the operator, 2026-03-03", text="Every test sits in its crate's tests folder and runs with cargo test --locked; write it first and see it fail.")
+m.call("context_retire", sessionId=op, id="rule-4", why="Lumen holds no credentials.")
 m.call("context_put", sessionId=op, kind="area", title="the store", text="The log, the snapshots and recovery. Entry point: crates/store/src/lib.rs.", paths=["crates/store"])
 m.call("context_put", sessionId=op, kind="area", title="the engine", text="The scheduler and its queue. Entry point: crates/engine/src/lib.rs.", paths=["crates/engine"])
 m.call("context_put", sessionId=data, kind="howto", title="run the store's tests", text="cargo test -p store --locked", paths=["crates/store"], tags=["tests"])

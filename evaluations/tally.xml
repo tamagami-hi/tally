@@ -16,20 +16,20 @@
     <answer>3</answer>
   </qa_pair>
   <qa_pair>
-    <question>Which track owns the milestone with the largest weight in Lumen's product stage? Answer with the track's name.</question>
-    <answer>web</answer>
+    <question>How many of the rules that tally's rulebook template asks a question of are still waiting for Lumen's own answer? Answer with the number only.</question>
+    <answer>7</answer>
   </qa_pair>
   <qa_pair>
     <question>In Lumen's context, a finding about fsync on tmpfs was retired because a newer entry replaced it. What is the title of the entry that replaced it?</question>
     <answer>fsync on tmpfs is a no-op</answer>
   </qa_pair>
   <qa_pair>
-    <question>Which rule in Lumen's context applies to the file crates/engine/src/queue.rs? Give the rule's title.</question>
+    <question>Most of Lumen's rules apply everywhere. Which one rule was written for the folder crates/engine alone? Give its title.</question>
     <answer>Never block the scheduler's thread</answer>
   </qa_pair>
   <qa_pair>
-    <question>Lumen's operator answered the question about compressing snapshot files. Which compression level did the answer give? Answer with the number only.</question>
-    <answer>3</answer>
+    <question>Lumen adopted tally's rulebook and tailored its test-first rule with new words. Which rule, by id, now stands in force where that template rule was first adopted?</question>
+    <answer>rule-32</answer>
   </qa_pair>
   <qa_pair>
     <question>In the engine group of Lumen's decisions, one decision is decided but not built yet. Give its id.</question>

@@ -18,7 +18,7 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 
 ## Run as a service
 
-**Phases 5, 6 and 7 are built** (2026-11-12, [DESIGN.md](DESIGN.md) §14 to §16): one Docker service for every repository, the tools agents need to work in parallel, and context kept as JSON records. The MCP server has 55 tools. [GUIDE.md](GUIDE.md), section 10, is how an agent works through it.
+**Phases 5, 6 and 7 are built** (2026-11-12, [DESIGN.md](DESIGN.md) §14 to §16): one Docker service for every repository, the tools agents need to work in parallel, and context kept as JSON records. The MCP server has 58 tools. [GUIDE.md](GUIDE.md), section 10, is how an agent works through it.
 
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config

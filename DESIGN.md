@@ -485,7 +485,7 @@ The rest of a repository's context already has a home in `docs/records/`: the le
 
 ### 16.3 An entry
 
-`{id, kind, title, text, paths[], tags[], refs[], by: {track, agent}, at, replaces?, retiredAt?}`
+`{id, kind, title, text, paths[], tags[], refs[], by: {track, agent}, at, replaces?, section?, source?, template?, tailor?, retiredAt?}`
 
 - **`id`** is the kind and the next number, given by tally under the lock, the way a question takes its row.
 - **`title`** is at most 120 characters and **`text`** at most 2,000. A longer subject is several entries.
@@ -510,7 +510,7 @@ The rest of a repository's context already has a home in `docs/records/`: the le
 ### 16.5 Writing
 
 - **`context_put({kind, title, text, paths?, tags?, refs?, replaces?})`** and **`context_retire({id, why})`**. Any session may write a convention, an area, an interface, a how-to or a finding, and its track and agent are recorded.
-- **Rules and `project.json`** are written only by an operator-scope session. A track that wants a rule asks a question.
+- **Rules and `project.json`** are written only by an operator-scope session. A track that wants a rule asks a question. A rule needs its `section` and its `source` (§16.9).
 - **A landing refuses a commit that touches `docs/records/`.** Records change through the tools alone (rule 1).
 
 ### 16.6 Logs as records
@@ -532,6 +532,15 @@ Nothing lands unchecked in the meantime. A landing runs the default `commands.te
 - **The importers** (`tally import decisions|questions|checks|buildlog|plans|documents`) stay as the one-time way in.
 - **The Markdown verbs** (`views claude`, `buildlog render`, `checks render`, the plans and documents indexes, a report's narrative) keep working for the first tracked repository until its config says `context: "records"`. The operator sets that day. A repository added after Phase 7 never has them.
 - **Moving a repository's prose into context** is a session's work in that repository: its rules become rule entries, its plans become milestones' `delivers` and tasks' `brief`s, and what its standing notes said becomes entries. Tally never deletes or rewrites a repository's Markdown. What becomes of those files is that repository's decision.
+
+### 16.9 The rulebook template (2026-11-14)
+
+Rules need a shape, and a repository needs somewhere to start.
+
+- **A rule has a section and a source.** Two optional fields on an entry, required of every rule written from now on: `section` (`authority`, `safety`, `working` or `once`) and `source` (whose word it is and when, or a decision's id). A rule written before has neither, reads as it is and sorts last. Two more fields belong to the template: `template` (the key of the template rule an entry came from, which every successor keeps) and `tailor` (the question the project still has to answer, dropped when the rule is replaced).
+- **The template** is 29 short rules in four sections, shipped in tally (`rulebook-template.ts`), with the specifics of any one project taken out. `rulebook_adopt` (operator session, on the operator's word) adds each rule the repository has never had, so a rule that was tailored or retired never comes back and a second call adds nothing. It is a call and not a file written when a repository is added, because a repository that already has rules would otherwise get 29 it did not ask for.
+- **Tailoring** is `rule_tailor`: the successor of a rule, with what is left out kept, so a `source` alone settles a rule as written. An operator session's brief lists the rules that still carry a question (`tailoring`).
+- **Reading.** `rulebook_get` answers the rules in rulebook order. The brief carries each rule slim (`id`, `section`, `title`, `text`), and the size cut spares `brief.rules` while any other part can be cut, so a large brief never loses the authority and safety rules first.
 
 ## 17. Building it, and the cut-over
 
@@ -604,6 +613,9 @@ Phases 5, 6 and 7 are built, tests first, with 55 MCP tools, and are on `main`. 
 - **Every tool** carries a title, hints (read-only, destructive, idempotent) and a description of each argument, and refuses an argument it doesn't have.
 - **A commit on main the ledger doesn't record** reaches an agent's inbox, with how to record it. Before, only the board and `ledger_check` showed it, so nothing told the agent that made the commit.
 - **`task_remove`** (and `tally task remove`) takes a planned task out of the ledger, with a reason. No section above asked for it: an agent that planned a task by mistake had no way to take it back, and it counted against its milestone for good. A landed task can't be removed.
+
+**Built later (2026-11-14):**
+- **The rulebook template** (§16.9): `rulebook_get`, `rulebook_adopt` and `rule_tailor`, a section and a source on every rule, and a brief that carries the rules slim. 58 MCP tools.
 
 **Not built:**
 - The board doesn't show a child track under its parent, the context or the activity log.
