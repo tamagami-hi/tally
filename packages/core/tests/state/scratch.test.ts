@@ -22,4 +22,10 @@ describe("a session's scratch folder", () => {
     expect(await openScratch(worktree, "exports")).toBe(folder);
     expect((await stat(join(folder, "notes.md"))).size).toBe(4);
   });
+
+  test("names a track like the landing does, so a branch with a slash is one folder", async () => {
+    const worktree = await tmpDir();
+
+    expect(await openScratch(worktree, "release/1.0")).toBe(join(worktree, ".temp", "release_1.0"));
+  });
 });

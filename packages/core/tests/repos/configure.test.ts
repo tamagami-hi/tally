@@ -97,7 +97,7 @@ describe("changing a repository's config through a tool", () => {
     const { repo, root } = await makeTracked();
     const before = await onDisk(root);
 
-    for (const worktreeRoot of ["lanes", "../x", ".temper", "docs/.temp", "/abs/.temp"]) {
+    for (const worktreeRoot of ["lanes", "../x", ".temper", "docs/.temp", "/abs/.temp", ".temp/../x"]) {
       await expect(configureRepo(repo, OPERATOR, { worktreeRoot })).rejects.toThrow(`worktrees live under .temp/, which git ignores; '${worktreeRoot}' is not`);
     }
     expect(await onDisk(root)).toBe(before);
@@ -111,6 +111,18 @@ describe("changing a repository's config through a tool", () => {
     const { config } = await configureRepo(repo, OPERATOR, { locks: ["landing", "gpu"] });
 
     expect(config.worktreeRoot).toBe("lanes");
+    expect(config.locks).toEqual(["landing", "gpu"]);
     expect((await openRepo(root)).config.worktreeRoot).toBe("lanes");
+  });
+
+  test("accepts the worktreeRoot the config already holds when it is given again, and refuses another outside .temp/", async () => {
+    const { repo, root } = await makeTracked();
+    const written = JSON.parse(await onDisk(root)) as Record<string, unknown>;
+    await writeFile(join(root, "docs/records/config.json"), JSON.stringify({ ...written, worktreeRoot: "lanes" }));
+    const stored = await openRepo(root);
+
+    await expect(configureRepo(stored, OPERATOR, { worktreeRoot: "lanes", locks: ["landing"] })).resolves.toMatchObject({ config: { worktreeRoot: "lanes" } });
+    await expect(configureRepo(stored, OPERATOR, { worktreeRoot: "other" })).rejects.toThrow("worktrees live under .temp/");
+    expect(repo.config.worktreeRoot).toBeUndefined();
   });
 });
