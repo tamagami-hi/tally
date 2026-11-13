@@ -11,6 +11,8 @@ import { isOperator, type Session } from "../state/sessions.ts";
 import { reopenRepo, type Repo } from "../store/records.ts";
 import { changeTracks, isPresent } from "./file.ts";
 
+const TALLY_FOLDER = "tally";
+
 export interface OpenTrackInput {
   name: string;
   purpose: string;
@@ -27,6 +29,7 @@ export interface TrackOpened {
 
 function checkedInput(input: OpenTrackInput): void {
   if (!REPO_NAME.test(input.name)) throw new TallyError(`a track's name is lowercase letters, digits, - and _, and starts with a letter or a digit: '${input.name}'`);
+  if (input.name === TALLY_FOLDER) throw new TallyError(`the name ${TALLY_FOLDER} is tally's own folder under .temp/; pick another name`);
   if (input.purpose.trim() === "") throw new TallyError("a track needs a purpose: say in a line what it is for");
   const outside = (input.paths ?? []).find((path) => isAbsolute(path) || path.split("/").includes(".."));
   if (outside !== undefined) throw new TallyError(`a track's paths are relative to its worktree: ${outside}`);

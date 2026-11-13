@@ -189,6 +189,15 @@ describe("a landed, idle track whose worktree holds uncommitted files", () => {
     expect(await isThere(made.tree)).toBe(true);
   });
 
+  test("names a renamed file by its new path in the note", async () => {
+    const made = await landed();
+    await sh(made.tree, ["mv", "RULES.md", "RULES2.md"]);
+
+    await closeIdleTracks(await made.fresh(), after(61));
+
+    expect((await notesTo(made, "data"))[0]).toContain("uncommitted files: RULES2.md;");
+  });
+
   test("closes on a later pass once the files are gone", async () => {
     const made = await landed();
     await writeFile(join(made.tree, "draft.rs"), "x\n");

@@ -10,7 +10,8 @@ import { listClaims } from "../state/claims.ts";
 import { isOperator, listSessions, type Session } from "../state/sessions.ts";
 import { CONFIG_FILE, type Repo } from "../store/records.ts";
 import { changeTracks, isOpen, isPresent } from "./file.ts";
-import { keepScratch } from "./keep.ts";
+import { clearRest } from "../state/rest.ts";
+import { discardKept, keepScratch } from "./keep.ts";
 
 export interface Cleaned {
   names: string[];
@@ -52,7 +53,7 @@ const revCount = async (cwd: string, range: string): Promise<number> => Number(a
 
 const isScratch = (path: string): boolean => path === SCRATCH_ROOT || path.startsWith(`${SCRATCH_ROOT}/`);
 
-function entriesOf(status: string): Entry[] {
+export function entriesOf(status: string): Entry[] {
   const tokens = status.split("\0").filter((token) => token !== "");
   const entries: Entry[] = [];
   for (let index = 0; index < tokens.length; index += 1) {
@@ -112,7 +113,12 @@ async function removed(repo: Repo, track: OpenedTrack, tree: string, now: Date):
   const checkout = landingCheckoutPath(tree, track.name);
   if (await isPresent(checkout)) await gitMust(repo.root, ["worktree", "remove", "--force", checkout]);
   const kept = (await isPresent(tree)) ? await keepScratch(repo, tree, track.name, now) : undefined;
-  if (await isPresent(tree)) await gitMust(repo.root, ["worktree", "remove", tree]);
+  try {
+    if (await isPresent(tree)) await gitMust(repo.root, ["worktree", "remove", tree]);
+  } catch (error: unknown) {
+    if (kept !== undefined) await discardKept(kept);
+    throw error;
+  }
   if ((await gitOut(repo.root, ["rev-parse", "--verify", "-q", `refs/heads/${track.branch}`])) !== null) await gitMust(repo.root, ["branch", "--quiet", "-d", track.branch]);
   return kept;
 }
@@ -130,6 +136,7 @@ export async function closeOpened(repo: Repo, name: string, options: CloseOption
     const closed: OpenedTrack = { ...open, closedAt: now.toISOString(), closedBy: options.by, ...(options.why === undefined ? {} : { closedWhy: options.why }) };
     return { file: { ...file, tracks: file.tracks.map((one) => (one === open ? closed : one)) }, result: { track: closed, cleaned, kept } };
   });
+  await clearRest(repo, name);
   const commit = await commitRecords(repo, `track ${name} closed by ${options.by.agent}`);
   return { track: done.track, commit, cleaned: done.cleaned, ...(done.kept === undefined ? {} : { kept: done.kept }) };
 }

@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { openLandingCheckout } from "../../src/land/checkout.ts";
@@ -8,6 +8,7 @@ import { openTrack } from "../../src/tracks/open.ts";
 import { commitOn } from "../support/landing.ts";
 import { helped, isThere } from "../support/helped.ts";
 import { sh } from "../support/repo.ts";
+import { readRest, stampRest } from "../../src/state/rest.ts";
 
 const NOW = new Date("2026-11-12T12:00:00.000Z");
 const LATER = new Date("2026-11-12T15:30:45.000Z");
@@ -130,5 +131,45 @@ describe("closing a track that holds work", () => {
     expect(await isThere(tree)).toBe(true);
     await closeTrack(await fresh(), operator, "kid", NOW);
     await expect(closeTrack(await fresh(), operator, "helper", NOW)).resolves.toMatchObject({ track: { name: "helper" } });
+  });
+});
+
+describe("keeping notes safely", () => {
+  test("a worktree git will not remove leaves the notes where they were, and no half-kept folder behind", async () => {
+    const { repo, root, tree, operator } = await helped();
+    await writeFile(join(tree, ".temp", "helper", "notes.md"), "mine\n");
+    await sh(root, ["worktree", "lock", tree]);
+
+    await expect(closeTrack(repo, operator, "helper", NOW)).rejects.toThrow();
+
+    expect(await readFile(join(tree, ".temp", "helper", "notes.md"), "utf8")).toBe("mine\n");
+    expect(await readdir(join(root, ".temp", "closed"))).toEqual([]);
+    expect(await sh(root, ["branch", "--list", "track/helper"])).toContain("track/helper");
+  });
+
+  test("a scratch path that is a plain file is kept too", async () => {
+    const { repo, root, tree, operator } = await helped();
+    await rm(join(tree, ".temp", "helper"), { recursive: true });
+    await writeFile(join(tree, ".temp", "helper"), "not a folder\n");
+
+    const closed = await closeTrack(repo, operator, "helper", NOW);
+
+    expect(closed.kept).toBe(join(root, ".temp", "closed", "helper"));
+    expect(await readFile(join(closed.kept ?? "", "helper"), "utf8")).toBe("not a folder\n");
+  });
+
+  test("forgets the track's rest time when it closes, so a track of the same name starts fresh", async () => {
+    const { repo, operator } = await helped();
+    await stampRest(repo, "helper", NOW);
+
+    await closeTrack(repo, operator, "helper", NOW);
+
+    expect(await readRest(repo, "helper")).toEqual({});
+  });
+
+  test("refuses a track named tally, whose scratch would be tally's own folder", async () => {
+    const { repo, operator } = await helped();
+
+    await expect(openTrack(repo, operator, { name: "tally", purpose: "x" })).rejects.toThrow("the name tally is tally's own folder under .temp/; pick another name");
   });
 });

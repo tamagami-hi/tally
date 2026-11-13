@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, rename, rm, stat } from "node:fs/promises";
+import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { safeName } from "../records/handoffs.ts";
 import { SCRATCH_ROOT } from "../state/scratch.ts";
@@ -8,7 +8,6 @@ import { isPresent } from "./file.ts";
 export const CLOSED_FOLDER = "closed";
 
 const RUNNER_FOLDER = "tally";
-const CROSS_DEVICE = "EXDEV";
 
 async function listing(folder: string): Promise<string[]> {
   try {
@@ -25,15 +24,9 @@ async function holdsFiles(path: string): Promise<boolean> {
   return inside.some((entry) => !entry.isDirectory());
 }
 
-async function moved(from: string, to: string): Promise<void> {
-  try {
-    await rename(from, to);
-  } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code !== CROSS_DEVICE) throw error;
-    await cp(from, to, { recursive: true });
-    await rm(from, { recursive: true, force: true });
-  }
-}
+const copied = (from: string, to: string): Promise<void> => cp(from, to, { recursive: true, verbatimSymlinks: true });
+
+export const discardKept = (folder: string): Promise<void> => rm(folder, { recursive: true, force: true });
 
 const stampOf = (now: Date): string => `${now.toISOString().slice(0, 19).replaceAll(":", "-")}Z`;
 
@@ -58,13 +51,14 @@ export async function keepScratch(repo: Repo, tree: string, track: string, now: 
   const own = safeName(track);
   const groups = await Promise.all((await listing(scratch)).filter((name) => name !== RUNNER_FOLDER).map(async (name) => {
     const path = join(scratch, name);
-    return name === own ? (await listing(path)).map((child) => join(path, child)) : [path];
+    const isOwnFolder = name === own && (await stat(path)).isDirectory();
+    return isOwnFolder ? (await listing(path)).map((child) => join(path, child)) : [path];
   }));
   const worth: string[] = [];
   for (const path of groups.flat()) if (await holdsFiles(path)) worth.push(path);
   if (worth.length === 0) return undefined;
   const folder = await freeFolder(join(repo.root, SCRATCH_ROOT, CLOSED_FOLDER, own), now);
   await mkdir(folder, { recursive: true });
-  for (const path of worth) await moved(path, await freeName(folder, basename(path)));
+  for (const path of worth) await copied(path, await freeName(folder, basename(path)));
   return folder;
 }

@@ -15,3 +15,5 @@ export const readRest = (repo: Pick<Repo, "stateDir">, track: string): Promise<R
 export const stampRest = (repo: Pick<Repo, "stateDir">, track: string, now: Date): Promise<void> => restFile(repo, track).update((rest) => ({ value: { ...rest, endedAt: now.toISOString() }, result: undefined }));
 
 export const markTold = (repo: Pick<Repo, "stateDir">, track: string, told: string): Promise<void> => restFile(repo, track).update((rest) => ({ value: { ...rest, told }, result: undefined }));
+
+export const clearRest = (repo: Pick<Repo, "stateDir">, track: string): Promise<void> => restFile(repo, track).update(() => ({ value: {}, result: undefined }));
