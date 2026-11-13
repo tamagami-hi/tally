@@ -45,6 +45,24 @@ describe("an answer too large to read", () => {
     expect(texts[1]).toBe(`This answer was cut to fit ${ANSWER_LIMIT} characters: decisions shows the last ${kept.length} of 200. Narrow it with ids, group or limit.`);
   });
 
+  test("cuts another list before the brief's rules, which are kept whole while anything else can be cut", async () => {
+    const brief = { rules: rows(40), entries: rows(30), working: rows(5) };
+
+    const { structured } = await cut("session_open", ["worktree", "agent"], { id: "s1", brief });
+    const kept = structured["brief"] as { rules: unknown[]; entries: unknown[] };
+
+    expect(kept.rules).toHaveLength(40);
+    expect(kept.entries.length).toBeLessThan(30);
+    expect(structured["truncated"]).toEqual([{ path: "brief.entries", shown: kept.entries.length, of: 30 }]);
+  });
+
+  test("cuts the protected list as a last resort, when nothing else is left to cut", async () => {
+    const { structured } = await cut("session_open", ["worktree", "agent"], { id: "s1", brief: { rules: rows(200) } });
+
+    expect(jsonText(structured).length).toBeLessThanOrEqual(ANSWER_LIMIT);
+    expect((structured["brief"] as { rules: unknown[] }).rules.length).toBeLessThan(200);
+  });
+
   test("keeps the first of a list whose newest come first", async () => {
     const { structured } = await cut("context_get", ["ids", "limit"], { entries: rows(200), matched: 200 });
 

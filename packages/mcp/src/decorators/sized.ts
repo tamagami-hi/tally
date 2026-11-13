@@ -1,6 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Decorator } from "../decorate.ts";
-import { newestFirst } from "../meta.ts";
+import { newestFirst, wholePaths } from "../meta.ts";
 import { jsonText } from "../respond.ts";
 
 export const ANSWER_LIMIT = 25_000;
@@ -10,7 +10,7 @@ const MOST_BESIDE = ANSWER_LIMIT / 4;
 const LEAST_ROOM = 2_000;
 const CUT_TEXTS_OVER: readonly number[] = [2_000, 200];
 const MOST_CUTS = 40;
-const NARROWING: ReadonlySet<string> = new Set(["ids", "group", "kind", "task", "track", "level", "scope", "fields", "since", "limit", "paths", "tags", "query", "state", "answered"]);
+const NARROWING: ReadonlySet<string> = new Set(["ids", "group", "kind", "task", "track", "level", "scope", "fields", "since", "limit", "paths", "tags", "query", "state", "answered", "section", "waiting"]);
 const WHOLE_ELSEWHERE = "Nothing narrows this tool: the whole of it is in the repository's docs/records.";
 const NOTE_KEY = "truncated";
 const NOTE_KEY_WHEN_TAKEN = "cut";
@@ -42,10 +42,18 @@ function partsOf(value: unknown, textsOver: number, path: Path = []): Part[] {
   return [];
 }
 
-function largestPart(value: unknown): Part | undefined {
-  for (const textsOver of CUT_TEXTS_OVER) {
-    const largest = partsOf(value, textsOver).sort((a, b) => b.size - a.size)[0];
-    if (largest !== undefined) return largest;
+function isWhole(path: Path, keptWhole: readonly string[]): boolean {
+  const name = path.join(".");
+  return keptWhole.some((kept) => name === kept || name.startsWith(`${kept}.`));
+}
+
+function largestPart(value: unknown, keptWhole: readonly string[]): Part | undefined {
+  for (const sparing of [true, false]) {
+    for (const textsOver of CUT_TEXTS_OVER) {
+      const candidates = partsOf(value, textsOver).filter((part) => !sparing || !isWhole(part.path, keptWhole));
+      const largest = candidates.sort((a, b) => b.size - a.size)[0];
+      if (largest !== undefined) return largest;
+    }
   }
   return undefined;
 }
@@ -74,11 +82,11 @@ function shortened(list: readonly unknown[], budget: number, fromTheStart: boole
   return fromTheStart ? kept : kept.reverse();
 }
 
-function fitted(answer: Answer, room: number, fromTheStart: boolean): { answer: Answer; cuts: Cut[] } {
+function fitted(answer: Answer, room: number, fromTheStart: boolean, keptWhole: readonly string[]): { answer: Answer; cuts: Cut[] } {
   let current = answer;
   let cuts: Cut[] = [];
   for (let round = 0; round < MOST_CUTS && jsonText(current).length > room; round += 1) {
-    const largest = largestPart(current);
+    const largest = largestPart(current, keptWhole);
     if (largest === undefined) break;
     const whole = valueAt(current, largest.path);
     const budget = Math.max(room - (jsonText(current).length - largest.size), 0);
@@ -140,7 +148,7 @@ export const sized: Decorator = async ({ tool, params, result }) => {
   const beside = texts.map((text, index) => (index === mainAt || text.length <= MOST_BESIDE ? text : text.slice(0, MOST_BESIDE)));
   const room = Math.max(ANSWER_LIMIT - ROOM_FOR_THE_NOTE - (lengthOf(beside) - (beside[mainAt] ?? "").length), LEAST_ROOM);
 
-  const { answer, cuts } = original === undefined ? { answer: undefined, cuts: [] } : fitted(original, room, fromTheStart);
+  const { answer, cuts } = original === undefined ? { answer: undefined, cuts: [] } : fitted(original, room, fromTheStart, wholePaths(tool));
   const noteKey = answer !== undefined && NOTE_KEY in answer ? NOTE_KEY_WHEN_TAKEN : NOTE_KEY;
   const structured = answer === undefined || cuts.length === 0 ? answer : { ...answer, [noteKey]: cuts.map(({ path, shown, of }) => ({ path, shown, of })) };
   const mainText = texts[mainAt] ?? "";

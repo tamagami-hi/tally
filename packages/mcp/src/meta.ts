@@ -8,6 +8,7 @@ export interface ToolMeta {
   again?: true;
   outside?: true;
   newestFirst?: true;
+  whole?: readonly string[];
 }
 
 const read = (title: string): ToolMeta => ({ title, effect: "read" });
@@ -17,7 +18,7 @@ const replace = (title: string): ToolMeta => ({ title, effect: "replace", again:
 const runs = (title: string): ToolMeta => ({ title, effect: "add", outside: true });
 
 export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
-  session_open: add("Open a session"),
+  session_open: { title: "Open a session", effect: "add", whole: ["brief.rules"] },
   session_close: add("Close a session"),
   session_list: read("List open sessions"),
   repo_list: read("List repositories"),
@@ -72,6 +73,9 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   project_set: replace("Set the project record"),
   repo_configure: replace("Change the repository's config"),
   activity_get: read("Read the activity log"),
+  rulebook_get: { title: "Read the rulebook", effect: "read", newestFirst: true },
+  rulebook_adopt: addAgain("Bring the rulebook template"),
+  rule_tailor: add("Tailor a rule"),
 };
 
 export function annotationsOf(meta: ToolMeta): ToolAnnotations {
@@ -85,6 +89,8 @@ export function annotationsOf(meta: ToolMeta): ToolAnnotations {
 }
 
 export const newestFirst = (tool: string): boolean => TOOL_META[tool]?.newestFirst === true;
+
+export const wholePaths = (tool: string): readonly string[] => TOOL_META[tool]?.whole ?? [];
 
 export const writesNothing = (tool: string): boolean => {
   const effect = TOOL_META[tool]?.effect;
