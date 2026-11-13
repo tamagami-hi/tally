@@ -10,7 +10,7 @@ const at = (hour: number): Date => new Date(`2026-11-12T${String(hour).padStart(
 
 async function filled(): Promise<Repo> {
   const { repo } = await makeTracked();
-  await putEntry(repo, OPERATOR, { kind: "rule", title: "Never push main", text: "pushing is the operator's" }, at(1));
+  await putEntry(repo, OPERATOR, { kind: "rule", title: "Never push main", text: "pushing is the operator's", section: "safety", source: "the operator, 2026-11-14" }, at(1));
   await putEntry(repo, DATA, { kind: "area", title: "the store", text: "where the records are kept", paths: ["src/store"], tags: ["Store", "records"] }, at(2));
   await putEntry(repo, DATA, { kind: "howto", title: "run the tests", text: "npm test runs VITEST", paths: ["**/*.test.ts"], tags: ["tests"] }, at(3));
   await putEntry(repo, DATA, { kind: "finding", title: "the lock is a folder", text: "it holds no file", paths: ["src/store/lock.ts"], tags: ["store"] }, at(4));

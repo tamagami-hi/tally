@@ -82,14 +82,14 @@ describe("context entries", () => {
 
   test("a rule is written, replaced and retired only at operator scope", async () => {
     const { repo } = await makeTracked();
-    const rule = { kind: "rule" as const, title: "never push main", text: "pushing is the operator's" };
+    const rule = { kind: "rule" as const, title: "never push main", text: "pushing is the operator's", section: "safety", source: "the operator, 2026-11-12" };
 
     await expect(putEntry(repo, DATA, rule)).rejects.toThrow("only an operator session writes a rule; a track that wants one asks a question with question_add");
     const { entry } = await putEntry(repo, OPERATOR, rule, NINE);
     await expect(retireEntry(repo, DATA, "rule-1", "x")).rejects.toThrow(/only an operator session writes a rule/);
     await expect(putEntry(repo, DATA, { ...finding("a finding"), replaces: "rule-1" })).rejects.toThrow(/only an operator session writes a rule/);
 
-    expect(entry).toMatchObject({ id: "rule-1", by: OPERATOR });
+    expect(entry).toMatchObject({ id: "rule-1", by: OPERATOR, section: "safety", source: "the operator, 2026-11-12" });
     expect((await readKind(repo, "rule")).entries).toEqual([entry]);
     expect((await retireEntry(repo, OPERATOR, "rule-1", "lifted", TEN)).entry.retiredWhy).toBe("lifted");
   });

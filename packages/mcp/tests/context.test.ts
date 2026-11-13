@@ -59,7 +59,7 @@ describe("the context tools", () => {
     expect(idsOf(await call("context_get", { query: "SLOW", sessionId: data }))).toEqual(["finding-1"]);
     expect(idsOf(await call("context_get", { ids: ["area-1", "howto-1"] })).sort()).toEqual(["area-1", "howto-1"]);
     expect((await call("context_get", { limit: 1, fields: ["id", "title"] })).structured).toEqual({ entries: [{ id: "finding-1", title: "the web build is slow" }], matched: 3 });
-    expect((await call("context_get", { fields: ["id", "body"] })).text).toBe("an entry has no field 'body'; its fields: id, kind, title, text, paths, tags, refs, by, at, replaces, retiredAt, retiredWhy");
+    expect((await call("context_get", { fields: ["id", "body"] })).text).toBe("an entry has no field 'body'; its fields: id, kind, title, text, paths, tags, refs, by, at, replaces, section, source, template, tailor, retiredAt, retiredWhy");
   });
 
   test("an entry is replaced or retired, never edited, and since tells a reader of both", async () => {
@@ -81,7 +81,7 @@ describe("the context tools", () => {
 
   test("a rule and the project record are refused to a track's session and written by the operator's", async () => {
     const { call, data, operator, root } = await serving();
-    const rule = { kind: "rule", title: "never push main", text: "pushing is the operator's" };
+    const rule = { kind: "rule", title: "never push main", text: "pushing is the operator's", section: "safety", source: "the operator, 2026-11-14" };
 
     const refusedRule = await call("context_put", { sessionId: data, ...rule });
     const refusedProject = await call("project_set", { sessionId: data, purpose: "x" });

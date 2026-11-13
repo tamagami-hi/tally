@@ -7,6 +7,8 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 import { segmentsOf } from "./match.ts";
+import { MAX_SOURCE, MAX_TAILOR, refuseRuleFieldsOnAnyOther, ruleFieldsOf } from "./rule-fields.ts";
+import { RULE_SECTIONS } from "./rulebook-template.ts";
 
 export const ENTRY_KINDS = ["rule", "convention", "area", "interface", "howto", "finding"] as const;
 export const MAX_TITLE = 120;
@@ -36,6 +38,10 @@ export const entrySchema = z.object({
   by: authorSchema,
   at: z.string(),
   replaces: z.string().optional(),
+  section: z.enum(RULE_SECTIONS).optional(),
+  source: z.string().min(1).max(MAX_SOURCE).optional(),
+  template: z.string().min(1).optional(),
+  tailor: z.string().min(1).max(MAX_TAILOR).optional(),
   retiredAt: z.string().optional(),
   retiredWhy: z.string().optional(),
 });
@@ -58,6 +64,8 @@ export interface EntryInput {
   tags?: readonly string[];
   refs?: readonly string[];
   replaces?: string;
+  section?: string | undefined;
+  source?: string | undefined;
 }
 
 export const contextDir = (repo: Repo): string => join(repo.recordsDir, CONTEXT_DIR);
@@ -121,15 +129,16 @@ function retiredIn(file: KindFile, id: string, at: string, why: string): { file:
   return { file: { ...file, entries: file.entries.map((each) => (each.id === id ? entry : each)) }, entry };
 }
 
-const locked = <T>(repo: Repo, body: () => Promise<T>): Promise<T> => withLock(join(contextDir(repo), LOCK_NAME), body);
+export const locked = <T>(repo: Repo, body: () => Promise<T>): Promise<T> => withLock(join(contextDir(repo), LOCK_NAME), body);
 
-const write = (repo: Repo, file: KindFile): Promise<void> => writeJsonAtomic(kindPath(repo, file.kind), kindFileSchema.parse(file));
+export const write = (repo: Repo, file: KindFile): Promise<void> => writeJsonAtomic(kindPath(repo, file.kind), kindFileSchema.parse(file));
 
 export async function putEntry(repo: Repo, session: Author, input: EntryInput, now = new Date()): Promise<{ entry: Entry; retired?: Entry; commit: string | null }> {
   const { kind, replaces } = input;
   const replacedKind = replaces === undefined ? undefined : kindOfId(replaces);
   mustMayWrite(repo, session, kind);
   if (replacedKind !== undefined) mustMayWrite(repo, session, replacedKind);
+  if (kind !== OPERATOR_KIND) refuseRuleFieldsOnAnyOther(input);
   const fields = {
     title: bounded("title", input.title, MAX_TITLE),
     text: bounded("text", input.text, MAX_TEXT, ". A longer subject is several entries"),
@@ -140,14 +149,21 @@ export async function putEntry(repo: Repo, session: Author, input: EntryInput, n
   const at = now.toISOString();
   const written = await locked(repo, async () => {
     const file = await readKind(repo, kind);
-    const entry: Entry = { id: `${kind}-${file.nextNumber}`, kind, ...fields, by: authorOf(session), at, ...(replaces === undefined ? {} : { replaces }) };
+    const id = `${kind}-${file.nextNumber}`;
+    const oldFile = replacedKind === undefined || replacedKind === kind ? file : await readKind(repo, replacedKind);
+    const retiring = replaces === undefined ? undefined : retiredIn(oldFile, replaces, at, `replaced by ${id}`);
+    const ruleFields = kind === OPERATOR_KIND ? ruleFieldsOf(input, retiring?.entry) : {};
+    const entry: Entry = { id, kind, ...fields, ...ruleFields, by: authorOf(session), at, ...(replaces === undefined ? {} : { replaces }) };
     const added: KindFile = { ...file, nextNumber: file.nextNumber + 1, entries: [...file.entries, entry] };
-    if (replaces === undefined || replacedKind === undefined) {
+    if (retiring === undefined) {
       await write(repo, added);
       return { entry };
     }
-    const retiring = retiredIn(replacedKind === kind ? added : await readKind(repo, replacedKind), replaces, at, `replaced by ${entry.id}`);
-    if (replacedKind !== kind) await write(repo, added);
+    if (replacedKind === kind) {
+      await write(repo, { ...added, entries: added.entries.map((each) => (each.id === replaces ? retiring.entry : each)) });
+      return { entry, retired: retiring.entry };
+    }
+    await write(repo, added);
     await write(repo, retiring.file);
     return { entry, retired: retiring.entry };
   });

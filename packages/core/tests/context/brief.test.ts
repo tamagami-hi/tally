@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { sessionBrief, unlandedTasks } from "../../src/context/brief.ts";
 import { putEntry, retireEntry } from "../../src/context/entries.ts";
+import { adoptRulebook, tailorRule } from "../../src/context/rulebook.ts";
+import { RULEBOOK } from "../../src/context/rulebook-template.ts";
 import { setProject } from "../../src/context/project.ts";
 import { writeHandoff } from "../../src/records/handoffs.ts";
 import { addQuestion } from "../../src/records/questions.ts";
@@ -24,8 +26,8 @@ describe("a session's brief", () => {
     const operator = await openSession(repo, { worktree: root, agent: "operator" }, new Date("2026-11-12T08:30:00Z"));
     await claimTask(repo, engine, await new Records(repo).readLedger(), "B2", "T9 store");
     await setProject(repo, operator, { purpose: "Replay market data." });
-    await putEntry(repo, operator, { kind: "rule", title: "Never push main", text: "Pushing is the operator's." });
-    await putEntry(repo, operator, { kind: "rule", title: "Old rule", text: "No longer." });
+    await putEntry(repo, operator, { kind: "rule", title: "Never push main", text: "Pushing is the operator's.", section: "safety", source: "the operator, 2026-11-14" });
+    await putEntry(repo, operator, { kind: "rule", title: "Old rule", text: "No longer.", section: "safety", source: "the operator, 2026-11-14" });
     await retireEntry(repo, operator, "rule-2", "lifted");
     await writeHandoff(repo, data, { task: "4 manifest", lines: ["RED is in"] });
     await addQuestion(repo, { group: "platform", question: "Lots?", meanwhile: "refused" });
@@ -44,7 +46,7 @@ describe("a session's brief", () => {
     const repo = withPaths(tracked.repo, "data", ["packages/core"]);
     const data = await openSession(repo, { worktree: tracked.trees["data"]!, agent: "claude" });
     const engine = await openSession(repo, { worktree: tracked.trees["engine"]!, agent: "kiro" });
-    await putEntry(repo, OPERATOR, { kind: "rule", title: "Never push main", text: "x" });
+    await putEntry(repo, OPERATOR, { kind: "rule", title: "Never push main", text: "x", section: "safety", source: "the operator, 2026-11-14" });
     await putEntry(repo, DATA, { kind: "convention", title: "errors are TallyError", text: "x" });
     await putEntry(repo, DATA, { kind: "area", title: "the landing", text: "x", paths: ["packages/core/src/land/**"] });
     await putEntry(repo, DATA, { kind: "area", title: "the board", text: "x", paths: ["packages/web"] });
@@ -71,13 +73,44 @@ describe("a session's brief", () => {
     await putEntry(started, operator, { kind: "area", title: "the store", text: "x" });
     await putEntry(started, operator, { kind: "howto", title: "run the tests", text: "x" });
     const partly = await sessionBrief(await openRepo(git.root), operator);
-    await putEntry(started, operator, { kind: "rule", title: "Never push main", text: "x" });
+    await putEntry(started, operator, { kind: "rule", title: "Never push main", text: "x", section: "safety", source: "the operator, 2026-11-14" });
     const filled = await sessionBrief(await openRepo(git.root), operator);
 
     expect(first.missing).toEqual(["no project purpose", "no check is set", "no area", "no howto", "no rule"]);
     expect(first).toMatchObject({ project: { purpose: "" }, rules: [], track: { name: "main", tasks: [], handoff: null }, entries: [], working: [], openQuestions: 0 });
     expect(partly.missing).toEqual(["no rule"]);
     expect(filled.missing).toEqual([]);
+  });
+
+  test("carries each rule slim, in rulebook order, and tells an operator session which rules still wait, and no track session", async () => {
+    const tracked = await makeTracked();
+    const repo = keepingContextAsRecords(tracked.repo);
+    const data = await openSession(repo, { worktree: tracked.trees["data"]!, agent: "claude" });
+    const operator = await openSession(repo, { worktree: tracked.root, agent: "operator" });
+    await putEntry(repo, OPERATOR, { kind: "rule", title: "Ours", text: "x", section: "working", source: "the operator, 2026-11-14" });
+    await adoptRulebook(repo, OPERATOR);
+    await tailorRule(repo, OPERATOR, { id: "rule-2", source: "the operator, 2026-11-14" });
+
+    const mine = await sessionBrief(repo, data);
+    const theirs = await sessionBrief(repo, operator);
+
+    expect(mine.rules).toHaveLength(29 + 1);
+    expect(mine.rules[0]).toEqual({ id: "rule-31", section: "authority", title: RULEBOOK[0]?.title, text: RULEBOOK[0]?.text });
+    expect(Object.keys(mine.rules[1] ?? {})).toEqual(["id", "section", "title", "text"]);
+    expect(mine.rules.map((rule) => rule.section).filter((section, index, all) => all.indexOf(section) === index)).toEqual(["authority", "safety", "working", "once"]);
+    expect(mine).not.toHaveProperty("tailoring");
+    expect(theirs.tailoring).toHaveLength(8);
+    expect(theirs.tailoring?.[0]).toEqual({ id: "rule-3", title: RULEBOOK[1]?.title, tailor: RULEBOOK[1]?.tailor });
+    expect(Object.keys(theirs.tailoring?.[0] ?? {})).toEqual(["id", "title", "tailor"]);
+  });
+
+  test("leaves tailoring out of an operator's brief when no rule waits", async () => {
+    const tracked = await makeTracked();
+    const repo = keepingContextAsRecords(tracked.repo);
+    const operator = await openSession(repo, { worktree: tracked.root, agent: "operator" });
+    await putEntry(repo, OPERATOR, { kind: "rule", title: "Ours", text: "x", section: "working", source: "the operator, 2026-11-14" });
+
+    expect(await sessionBrief(repo, operator)).not.toHaveProperty("tailoring");
   });
 
   test("a task carries who holds it, what it waits for, and its brief and paths when the ledger has them", () => {

@@ -4,12 +4,13 @@ import { readQuestions } from "../records/questions.ts";
 import { NO_CHECK } from "../repos/start.ts";
 import type { Ledger, Task } from "../schema/ledger.ts";
 import { listClaims, type Claim } from "../state/claims.ts";
-import { listSessions, type Session } from "../state/sessions.ts";
+import { isOperator, listSessions, type Session } from "../state/sessions.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { readEntries, type Entry, type EntryKind } from "./entries.ts";
 import { isInForce } from "./find.ts";
 import { overlaps } from "./match.ts";
 import { readProject, type Project } from "./project.ts";
+import { inRulebookOrder, waitingRules } from "./rulebook.ts";
 
 export interface BriefTask {
   milestone: string;
@@ -27,9 +28,23 @@ export interface Working {
   task?: string;
 }
 
+export interface BriefRule {
+  id: string;
+  section?: string;
+  title: string;
+  text: string;
+}
+
+export interface Tailoring {
+  id: string;
+  title: string;
+  tailor: string;
+}
+
 export interface Brief {
   project: Project;
-  rules: Entry[];
+  rules: BriefRule[];
+  tailoring?: Tailoring[];
   track: { name: string; tasks: BriefTask[]; handoff: HandoffNote | null };
   entries: { id: string; kind: EntryKind; title: string }[];
   working: Working[];
@@ -86,14 +101,24 @@ function applying(repo: Repo, track: string, inForce: readonly Entry[]): Entry[]
   return inForce.filter((entry) => entry.kind !== RULE && isWithin(entry));
 }
 
+const slim = ({ id, section, title, text }: Entry): BriefRule => ({ id, ...(section === undefined ? {} : { section }), title, text });
+
+function tailoringOf(repo: Repo, session: Session, rules: readonly Entry[]): { tailoring?: Tailoring[] } {
+  const waiting = inRulebookOrder(waitingRules(rules));
+  if (!isOperator(repo, session) || waiting.length === 0) return {};
+  return { tailoring: waiting.map(({ id, title, tailor }) => ({ id, title, tailor: tailor ?? "" })) };
+}
+
 export async function sessionBrief(repo: Repo, session: Session): Promise<Brief> {
   const project = await readProject(repo);
   const inForce = (await readEntries(repo)).filter(isInForce);
   const claims = await listClaims(repo);
   const handoff = await readHandoff(repo, session.track);
+  const rules = inForce.filter((entry) => entry.kind === RULE);
   return {
     project,
-    rules: inForce.filter((entry) => entry.kind === RULE),
+    rules: inRulebookOrder(rules).map(slim),
+    ...tailoringOf(repo, session, rules),
     track: { name: session.track, tasks: unlandedTasks(await new Records(repo).readLedger(), session.track, claims), handoff: handoff.current ?? null },
     entries: applying(repo, session.track, inForce).map(({ id, kind, title }) => ({ id, kind, title })),
     working: working(await listSessions(repo), claims, session),

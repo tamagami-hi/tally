@@ -110,7 +110,12 @@ export { appliesTo, entriesAbout, findEntries, isInForce, keepEntries } from "./
 export type { EntryFilter, EntryTitle, Found } from "./context/find.ts";
 export { applies, overlaps as pathsOverlap } from "./context/match.ts";
 export { missingFrom, sessionBrief, unlandedTasks } from "./context/brief.ts";
-export type { Brief, BriefTask, Working } from "./context/brief.ts";
+export type { Brief, BriefRule, BriefTask, Tailoring, Working } from "./context/brief.ts";
+export { adoptRulebook, inRulebookOrder, readRulebook, tailorRule, waitingRules } from "./context/rulebook.ts";
+export type { Adopted, RulebookFilter, RulebookRead, TailorInput, Tailored } from "./context/rulebook.ts";
+export { RULEBOOK, RULEBOOK_SOURCE, RULE_SECTIONS, SECTION_HEADINGS } from "./context/rulebook-template.ts";
+export type { RuleSection, TemplateRule } from "./context/rulebook-template.ts";
+export { MAX_SOURCE, MAX_TAILOR } from "./context/rule-fields.ts";
 export { listDocs, readDoc, searchDocs } from "./docs/files.ts";
 export type { Hit } from "./docs/files.ts";
 export { landingEnvironment } from "./land/run.ts";

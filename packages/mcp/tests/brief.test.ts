@@ -8,7 +8,7 @@ describe("a session's first call", () => {
     const { call } = await connect(keepingContextAsRecords(repo));
     const operator = await opened(call, root, "operator");
     await call("project_set", { sessionId: operator, purpose: "Replay market data." });
-    await call("context_put", { sessionId: operator, kind: "rule", title: "Never push main", text: "Pushing is the operator's." });
+    await call("context_put", { sessionId: operator, kind: "rule", title: "Never push main", text: "Pushing is the operator's.", section: "safety", source: "the operator, 2026-11-14" });
     await call("context_put", { sessionId: operator, kind: "convention", title: "errors are TallyError", text: "x" });
     await call("question_add", { sessionId: operator, group: "platform", question: "Lots?", meanwhile: "refused" });
 
@@ -42,12 +42,12 @@ describe("a session's first call", () => {
     const records = (await connect(keepingContextAsRecords(repo))).call;
     const markdown = (await connect(repo)).call;
     const operator = await opened(records, root, "operator");
-    await records("context_put", { sessionId: operator, kind: "rule", title: "Never push main", text: "Pushing is the operator's." });
+    await records("context_put", { sessionId: operator, kind: "rule", title: "Never push main", text: "Pushing is the operator's.", section: "safety", source: "the operator, 2026-11-14" });
 
     const fromRecords = await records("context_pack", { level: "project" });
     const fromMarkdown = await markdown("context_pack", { level: "project" });
 
-    expect(fromRecords.text).toContain("## Rules\n\n### rule-1. Never push main\n\nPushing is the operator's.");
+    expect(fromRecords.text).toContain("## Rules\n\n### Safety\n\nBreaking any of these fails the work, whatever the tests say.\n\n#### rule-1. Never push main\n\nPushing is the operator's.");
     expect(fromRecords.text).not.toContain("RULES.md");
     expect((fromRecords.structured["parts"] as Record<string, unknown>)["rules"]).toMatchObject([{ id: "rule-1" }]);
     expect(fromMarkdown.text).toContain("## RULES.md\n\n# Rules\n\n1. Keep it simple.\n");

@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { ENTRY_KINDS, MAX_LISTED, MAX_TEXT, MAX_TITLE, TallyError, configureRepo, entrySchema, findEntries, putEntry, readActivity, retireEntry, setProject, type Entry } from "@tally/core";
+import { ENTRY_KINDS, MAX_LISTED, MAX_SOURCE, MAX_TEXT, MAX_TITLE, RULE_SECTIONS, configureRepo, findEntries, putEntry, readActivity, retireEntry, setProject } from "@tally/core";
 import { defined } from "../defined.ts";
+import { keeping } from "../entry-fields.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -9,15 +10,6 @@ const DEFAULT_ENTRIES = 50;
 const MOST_ENTRIES = 200;
 const DEFAULT_EVENTS = 100;
 const MOST_EVENTS = 500;
-const ENTRY_FIELDS = Object.keys(entrySchema.shape);
-
-function keeping(fields: readonly string[] | undefined): (entry: Entry) => Record<string, unknown> {
-  if (fields === undefined) return (entry) => entry;
-  const unknown = fields.filter((field) => !ENTRY_FIELDS.includes(field));
-  if (unknown.length > 0) throw new TallyError(`an entry has no field ${unknown.map((field) => `'${field}'`).join(", ")}; its fields: ${ENTRY_FIELDS.join(", ")}`);
-  return (entry) => Object.fromEntries(Object.entries(entry).filter(([key]) => fields.includes(key)));
-}
-
 const FILTER = {
   ids: z.array(z.string()).optional().describe("these entries whole, retired or not"),
   kind: z.enum(ENTRY_KINDS).optional(),
@@ -52,6 +44,8 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
         tags: z.array(z.string()).optional(),
         refs: z.array(z.string()).optional().describe("other records this one rests on: a decision, a question, a task, another entry"),
         replaces: z.string().optional().describe("the id of the entry this one takes the place of"),
+        section: z.enum(RULE_SECTIONS).optional().describe("for a rule only, and required of one unless it replaces a rule that has one: authority, safety, working or once"),
+        source: z.string().max(MAX_SOURCE).optional().describe(`for a rule only, and required of one: whose word it is and when, or the id of the decision it rests on, one line, for example "the operator, 2026-11-14"`),
       },
     },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await putEntry(repo, session, defined(input)))),
