@@ -105,6 +105,23 @@ describe("an answer when what is shared cannot be read", () => {
   });
 });
 
+describe("a commit on main that no record names", () => {
+  test("is told to the session on main in its very first answer, with how to record it", async () => {
+    const tracked = await makeTracked();
+    const hash = await commitOn(tracked.root, "docs/plan.md", "docs(plan): by hand");
+    const server = createTallyServer(tracked.repo);
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverSide);
+    const client = new Client({ name: "test", version: "0" });
+    await client.connect(clientSide);
+
+    const opened = await client.callTool({ name: "session_open", arguments: { worktree: tracked.root, agent: "operator" } });
+    const inbox = ((opened.structuredContent ?? {}) as { inbox?: { kind: string; text: string }[] }).inbox ?? [];
+
+    expect(inbox.filter((item) => item.kind === "ledger").map((item) => item.text)).toEqual([expect.stringContaining(`${hash.slice(0, 7)} docs(plan): by hand. Record it with task_land`)]);
+  });
+});
+
 describe("overlap warnings", () => {
   test("a claim says which other tracks have changed the same files", async () => {
     const s = await two();

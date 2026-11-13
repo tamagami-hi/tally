@@ -13,16 +13,17 @@ import { readQuestions } from "../records/questions.ts";
 import { changedFiles } from "../status/overlaps.ts";
 import type { Repo } from "../store/records.ts";
 import { StateFile } from "./file.ts";
+import { hashOf, unrecordedFor, unrecordedText } from "./inbox-ledger.ts";
 import type { Session } from "./sessions.ts";
 
 export interface InboxItem {
-  kind: "note" | "reply" | "answer" | "main" | "landing" | "run" | "context";
+  kind: "note" | "reply" | "answer" | "main" | "landing" | "run" | "context" | "ledger";
   at: string;
   text: string;
   from?: string;
 }
 
-const cursorSchema = z.object({ seenAt: z.string(), main: z.string().optional(), recent: z.array(z.string()).optional() });
+const cursorSchema = z.object({ seenAt: z.string(), main: z.string().optional(), recent: z.array(z.string()).optional(), told: z.array(z.string()).optional() });
 type Cursor = z.infer<typeof cursorSchema>;
 
 const SHORT_HASH = 7;
@@ -131,9 +132,11 @@ async function gathered(repo: Repo, session: Session, cursor: Cursor, now: Date)
   return found.flat().sort((a, b) => a.at.localeCompare(b.at));
 }
 
+const ledgerItem = (lines: readonly string[], now: Date): InboxItem[] => (lines.length === 0 ? [] : [{ kind: "ledger", at: now.toISOString(), text: unrecordedText(lines) }]);
+
 export async function peekInbox(repo: Repo, session: Session, since: string = session.openedAt, now = new Date()): Promise<InboxItem[]> {
   const cursor = await cursorFile(repo, session).read();
-  return gathered(repo, session, { ...cursor, seenAt: since }, now);
+  return [...(await gathered(repo, session, { ...cursor, seenAt: since }, now)), ...ledgerItem(await unrecordedFor(repo, session), now)];
 }
 
 export async function collectInbox(repo: Repo, session: Session, now = new Date()): Promise<InboxItem[]> {
@@ -145,6 +148,11 @@ export async function collectInbox(repo: Repo, session: Session, now = new Date(
     const items = inWindow.filter((item) => !delivered.has(keyOf(item)));
     const kept = before(now, GRACE_MS);
     const recent = inWindow.filter((item) => item.at > kept).map(keyOf);
-    return { value: { seenAt: now.toISOString(), ...(main === undefined ? {} : { main }), ...(recent.length === 0 ? {} : { recent }) }, result: items };
+    const mainMoved = cursor.main !== main || cursor.told === undefined;
+    const unrecordedNow = mainMoved ? await unrecordedFor(repo, session) : [];
+    const alreadyTold = new Set(cursor.told ?? []);
+    const told = mainMoved ? unrecordedNow.map(hashOf) : (cursor.told ?? []);
+    const news = ledgerItem(unrecordedNow.filter((line) => !alreadyTold.has(hashOf(line))), now);
+    return { value: { seenAt: now.toISOString(), told, ...(main === undefined ? {} : { main }), ...(recent.length === 0 ? {} : { recent }) }, result: [...items, ...news] };
   });
 }

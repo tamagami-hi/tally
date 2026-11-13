@@ -190,6 +190,7 @@ A landing refuses a commit that changes `docs/records/`: records change only thr
   - your landing ticket's changes
   - runs taken in or set aside
   - a context entry another track added or retired for the files you work on
+  - a commit on `main` that no record names, with how to record it (`task_land` for a task's commit, `task_other` for any other). The session on `main` is told about a commit made there by hand; a track is told about its own landing that named no task. With no session on `main`, every session is told
 
   Each item is delivered once. `inbox_get({ sessionId, since })` reads the inbox again from a time.
 

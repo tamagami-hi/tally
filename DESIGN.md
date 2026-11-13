@@ -602,6 +602,7 @@ Phases 5, 6 and 7 are built, tests first, with 55 MCP tools, and are on `main`. 
 - **`/api/cli`**, the endpoint the `tally` command calls, refuses a repository outside the workspace.
 - **An answer** is compact JSON of at most 25,000 characters. A longer one is cut, says what was shortened, and names the arguments that narrow the tool (§15.7 asked for small defaults). `evidence_list` answers the 20 latest runs unless told.
 - **Every tool** carries a title, hints (read-only, destructive, idempotent) and a description of each argument, and refuses an argument it doesn't have.
+- **A commit on main the ledger doesn't record** reaches an agent's inbox, with how to record it. Before, only the board and `ledger_check` showed it, so nothing told the agent that made the commit.
 - **`task_remove`** (and `tally task remove`) takes a planned task out of the ledger, with a reason. No section above asked for it: an agent that planned a task by mistake had no way to take it back, and it counted against its milestone for good. A landed task can't be removed.
 
 **Not built:**

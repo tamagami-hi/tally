@@ -63,10 +63,9 @@ describe("a session's inbox", () => {
     await writeFile(join(q.root, "src", "lib.rs"), "fn main_side() {}\n");
     await sh(q.root, ["commit", "-q", "-am", "feat: main edits lib"]);
 
-    const items = await collectInbox(q.repo, q.session, new Date(Date.now() + 2000));
+    const items = (await collectInbox(q.repo, q.session, new Date(Date.now() + 2000))).filter((item) => item.kind === "main");
 
     expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ kind: "main" });
     expect(items[0]?.text).toMatch(/^main changed src\/lib\.rs, which this track has changed too \([0-9a-f]{7} feat: main edits lib\); rebase soon$/);
   });
 
