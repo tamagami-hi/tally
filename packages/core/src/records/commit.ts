@@ -71,7 +71,9 @@ export async function commitRecords(repo: Repo, message: string): Promise<string
 
 export async function flushRecords(repo: Repo): Promise<string | null> {
   if (recordsMode(repo.config) === "never") return null;
-  return (await commitStaged(repo, (files, head) => `${files} record file${files === 1 ? "" : "s"} up to ${head}`)).commit;
+  const done = await commitStaged(repo, (files, head) => `${files} record file${files === 1 ? "" : "s"} up to ${head}`);
+  if (!done.waits) await clearPendingPhase(repo);
+  return done.commit;
 }
 
 export const phaseSubject = (phase: string): Subject => (files) => `phase ${phase} closed, ${files} record file${files === 1 ? "" : "s"}`;
@@ -89,3 +91,5 @@ export async function flushWhenFree(repo: Repo): Promise<string | null> {
   if (recordsMode(repo.config) === "never") return null;
   return (await leftWhenBusy(commitStaged(repo, (files, head) => `${files} record file${files === 1 ? "" : "s"} up to ${head}`))).commit;
 }
+
+export const flushPendingPhase = async (repo: Repo): Promise<string | null> => (recordsMode(repo.config) === "phase" ? flushClosedPhase(repo) : null);

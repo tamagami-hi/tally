@@ -76,7 +76,7 @@ export { landingTarget, recordLanding, recordTask } from "./land/record.ts";
 export type { LandingRecord, LandingTarget, RecordedTask } from "./land/record.ts";
 export type { LandDeps, LandOptions, Landed } from "./land/run.ts";
 export { STATE_DIR, fingerprint, statePath, trackOf, worktreeOf } from "./land/paths.ts";
-export { commitRecords, commitStaged, commitWhenFree, flushRecords, flushWhenFree, phaseSubject, recordsMode } from "./records/commit.ts";
+export { commitRecords, commitStaged, commitWhenFree, flushPendingPhase, flushRecords, flushWhenFree, phaseSubject, recordsMode } from "./records/commit.ts";
 export type { RecordsMode, Staged } from "./records/commit.ts";
 export { commitWaitingRecords, recordsWaiting } from "./records/waiting.ts";
 export type { Waiting } from "./records/waiting.ts";

@@ -3,6 +3,7 @@ import { git, gitMust } from "../git/run.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
 import { commitWhenFree, recordsMode, type Staged } from "./commit.ts";
+import { clearPendingPhase } from "./pending-phase.ts";
 
 export interface Waiting {
   files: number;
@@ -27,5 +28,7 @@ export async function commitWaitingRecords(repo: Repo, session: Pick<Session, "t
   if (reason === "") throw new TallyError("committing the records needs a why, in a line");
   if (reason.length > MOST_WHY) throw new TallyError(`the why holds at most ${MOST_WHY} characters; this one has ${reason.length}`);
   await gitMust(repo.root, ["rev-parse", "--verify", "-q", "HEAD"]);
-  return commitWhenFree(repo, (files) => `${files} record file${files === 1 ? "" : "s"}, ${reason}`);
+  const done = await commitWhenFree(repo, (files) => `${files} record file${files === 1 ? "" : "s"}, ${reason}`);
+  if (!done.waits) await clearPendingPhase(repo);
+  return done;
 }

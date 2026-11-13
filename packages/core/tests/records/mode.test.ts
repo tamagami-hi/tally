@@ -63,6 +63,7 @@ describe("in the phase mode", () => {
 
     expect(ended.recordsCommit).toBeNull();
     expect(await count(root)).toBe(before);
+    expect(await sh(root, ["status", "--porcelain", "-uall"])).toContain("docs/records/context/finding.json");
   });
 
   test("the flush that follows a landing and a write with no session open commits nothing", async () => {

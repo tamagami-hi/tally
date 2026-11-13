@@ -1,7 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { flushWhenFree } from "../../src/records/commit.ts";
+import { flushPendingPhase, flushRecords, flushWhenFree } from "../../src/records/commit.ts";
+import { putEntry } from "../../src/context/entries.ts";
 import { commitWaitingRecords } from "../../src/records/waiting.ts";
 import { appendBuildlog } from "../../src/records/buildlog.ts";
 import { listNotes } from "../../src/records/notes.ts";
@@ -51,7 +52,6 @@ describe("closing a phase", () => {
     await milestoneIn(repo, "G", "G2", "data", Array.from({ length: 12 }, (_, index) => `t${index + 1}`));
 
     await expect(closePhase(repo, OPERATOR, { phase: "G", summary: "s" }, NOW)).rejects.toThrow(/^phase G cannot close: 12 of its tasks are not landed \(G2 \/ t1, G2 \/ t2, .* and 2 more\); land them, or remove a planned one with task_remove/);
-    expect(await sh(root, ["status", "--porcelain", "-uall"])).not.toContain("closedAt");
     expect((await readPhases(repo.recordsDir)).phases.some((phase) => phase.closedAt !== undefined)).toBe(false);
   });
 
@@ -193,5 +193,69 @@ describe("closing a phase", () => {
     expect(second.commit).toBeNull();
     expect(second.problem).toBeUndefined();
     expect(await never.count()).toBe(beforeNever);
+  });
+
+  test("a commit made some other way while it waited clears the wait, so the next phase's records are not committed as this one's", async () => {
+    const { repo, root, count } = await ready();
+    const ticket = await queued(repo, "engine", "turn");
+    await closePhase(repo, OPERATOR, { phase: "G", summary: "both formats ship" }, NOW);
+    await queueFile(repo).update((queue) => ({ value: { tickets: queue.tickets.filter((one) => one.id !== ticket) }, result: undefined }));
+    await commitWaitingRecords(repo, OPERATOR, "by hand");
+    await putEntry(repo, DATA, { kind: "finding", title: "later", text: "work of the next phase" });
+    const before = await count();
+
+    expect(await flushWhenFree(repo)).toBeNull();
+    expect(await flushPendingPhase(repo)).toBeNull();
+
+    expect(await count()).toBe(before);
+    expect(await sh(root, ["log", "-1", "--format=%s"])).toMatch(/by hand$/);
+  });
+
+  test("an explicit flush clears the wait too", async () => {
+    const { repo } = await ready();
+    const ticket = await queued(repo, "engine", "turn");
+    await closePhase(repo, OPERATOR, { phase: "G", summary: "s" }, NOW);
+    await queueFile(repo).update((queue) => ({ value: { tickets: queue.tickets.filter((one) => one.id !== ticket) }, result: undefined }));
+
+    await flushRecords(repo);
+    await putEntry(repo, DATA, { kind: "finding", title: "later", text: "next" });
+
+    expect(await flushPendingPhase(repo)).toBeNull();
+  });
+
+  test("the service's own flush commits a close that waited when no landing's end followed it", async () => {
+    const { repo, root, count } = await ready();
+    const ticket = await queued(repo, "engine", "turn");
+    const before = await count();
+    await closePhase(repo, OPERATOR, { phase: "G", summary: "both formats ship" }, NOW);
+    await queueFile(repo).update((queue) => ({ value: { tickets: queue.tickets.filter((one) => one.id !== ticket) }, result: undefined }));
+
+    const flushed = await flushPendingPhase(repo);
+
+    expect(flushed).toMatch(/^[0-9a-f]{7}$/);
+    expect(await count()).toBe(before + 1);
+    expect(await sh(root, ["log", "-1", "--format=%b"])).toBe("both formats ship");
+    expect(await flushPendingPhase(repo)).toBeNull();
+  });
+
+  test("the service's own flush does nothing while a landing still has its turn, and when no close waits", async () => {
+    const { repo, count } = await ready();
+    const before = await count();
+    expect(await flushPendingPhase(repo)).toBeNull();
+    await queued(repo, "engine", "turn");
+    await closePhase(repo, OPERATOR, { phase: "G", summary: "s" }, NOW);
+
+    expect(await flushPendingPhase(repo)).toBeNull();
+    expect(await count()).toBe(before);
+  });
+
+  test("a second close of the same phase that passed the first check is refused inside the write", async () => {
+    const { repo } = await ready();
+    const closes = await Promise.allSettled([closePhase(repo, OPERATOR, { phase: "G", summary: "first" }, NOW), closePhase(repo, OPERATOR, { phase: "G", summary: "second" }, NOW)]);
+
+    expect(closes.map((one) => one.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const kept = (await readPhases(repo.recordsDir)).phases.find((phase) => phase.id === "G");
+    expect(["first", "second"]).toContain(kept?.summary);
+    expect((await listNotes(repo, { track: "data", state: "all" })).filter((note) => note.text.startsWith("phase G was closed"))).toHaveLength(1);
   });
 });

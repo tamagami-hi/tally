@@ -3,7 +3,7 @@ import { gitMust } from "../git/run.ts";
 import { MAX_NOTE, noteFrom } from "../records/notes.ts";
 import { readBuildlog } from "../records/buildlog.ts";
 import { commitRecords, commitWhenFree, phaseSubject, recordsMode } from "../records/commit.ts";
-import { markPendingPhase } from "../records/pending-phase.ts";
+import { clearPendingPhase, markPendingPhase } from "../records/pending-phase.ts";
 import type { PhaseRecord } from "../schema/phases.ts";
 import type { Ledger } from "../schema/ledger.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
@@ -50,7 +50,7 @@ function ownTracks(ledger: Ledger, phase: string, opened: readonly string[]): st
   });
 }
 
-async function closeTracks(repo: Repo, session: Session, ledger: Ledger, phase: string, now: Date): Promise<Pick<PhaseClosed, "tracksClosed" | "tracksLeft">> {
+async function closeTracks(repo: Repo, session: Pick<Session, "track" | "agent">, ledger: Ledger, phase: string, now: Date): Promise<Pick<PhaseClosed, "tracksClosed" | "tracksLeft">> {
   const opened = (await readTracks(repo.recordsDir)).tracks.filter(isOpen).map((track) => track.name);
   const result: Pick<PhaseClosed, "tracksClosed" | "tracksLeft"> = { tracksClosed: [], tracksLeft: [] };
   for (const name of ownTracks(ledger, phase, opened)) {
@@ -72,11 +72,13 @@ async function committedTogether(repo: Repo, phase: string, summary: string): Pr
   const mode = recordsMode(repo.config);
   if (mode === "each" || mode === "never") return { commit: null };
   try {
-    const done = await commitWhenFree(repo, phaseSubject(phase), summary);
-    if (!done.waits) return { commit: done.commit };
     if (mode === "phase") await markPendingPhase(repo, phase, summary);
-    return { commit: null, waits: WAITS };
+    const done = await commitWhenFree(repo, phaseSubject(phase), summary);
+    if (done.waits) return { commit: null, waits: WAITS };
+    if (mode === "phase") await clearPendingPhase(repo);
+    return { commit: done.commit };
   } catch (error: unknown) {
+    if (mode === "phase") await clearPendingPhase(repo);
     return { commit: null, problem: messageOf(error) };
   }
 }
@@ -86,7 +88,7 @@ async function withoutBuildLog(repo: Repo, milestones: readonly string[]): Promi
   return milestones.filter((id) => !written.has(id));
 }
 
-export async function closePhase(repo: Repo, session: Session | Pick<Session, "track" | "agent">, input: { phase: string; summary: string }, now = new Date()): Promise<PhaseClosed> {
+export async function closePhase(repo: Repo, session: Pick<Session, "track" | "agent">, input: { phase: string; summary: string }, now = new Date()): Promise<PhaseClosed> {
   if (!isOperator(repo, session)) throw new TallyError("only an operator session closes a phase; a track that wants one closed asks a question with question_add");
   const summary = checkedSummary(input.summary);
   const rows = await phaseRows(repo);
@@ -97,12 +99,13 @@ export async function closePhase(repo: Repo, session: Session | Pick<Session, "t
   const blockers = blockersOf(await contextOf(repo, ledger), ledger, row.id);
   if (blockers.length > 0) throw refusal(row.id, blockers.slice(0, MOST_LEFT));
   const { milestones, total, landed } = tasksOf(ledger, row.id);
-  const tracks = await closeTracks(repo, session as Session, ledger, row.id, now);
+  const tracks = await closeTracks(repo, session, ledger, row.id, now);
   const by = { track: session.track, agent: session.agent };
   const tip = await gitMust(repo.root, ["rev-parse", "--short=7", repo.config.mainBranch]);
   const phase = await changePhases(repo.recordsDir, (file) => {
     const closing = { closedAt: now.toISOString(), closedBy: by, summary, commit: tip };
     const held = file.phases.find((one) => one.id === row.id);
+    if (held !== undefined && isClosed(held)) throw new TallyError(`phase ${row.id} was closed on ${held.closedAt ?? "an earlier day"} by ${held.closedBy?.agent ?? "someone"}; later work goes in a new phase (phase_add)`);
     const next: PhaseRecord = { ...(held ?? { id: row.id }), ...closing };
     return { file: { ...file, phases: held === undefined ? [...file.phases, next] : file.phases.map((one) => (one.id === row.id ? next : one)) }, result: next };
   });

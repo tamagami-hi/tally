@@ -13,4 +13,7 @@ export async function readPendingPhase(repo: Pick<Repo, "stateDir">): Promise<{ 
 
 export const markPendingPhase = (repo: Pick<Repo, "stateDir">, phase: string, summary: string): Promise<void> => pendingFile(repo).update(() => ({ value: { pending: { phase, summary } }, result: undefined }));
 
-export const clearPendingPhase = (repo: Pick<Repo, "stateDir">): Promise<void> => pendingFile(repo).update(() => ({ value: {}, result: undefined }));
+export async function clearPendingPhase(repo: Pick<Repo, "stateDir">): Promise<void> {
+  if ((await readPendingPhase(repo)) === undefined) return;
+  await pendingFile(repo).update(() => ({ value: {}, result: undefined }));
+}
