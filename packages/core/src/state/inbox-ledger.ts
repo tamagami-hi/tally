@@ -1,27 +1,71 @@
 import { logLines } from "../git/refs.ts";
-import { queueFile } from "../land/queue.ts";
+import { queueFile, type Ticket } from "../land/queue.ts";
 import { unrecorded } from "../ledger/check.ts";
+import { SHORT } from "../ledger/items.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { listSessions, type Session } from "./sessions.ts";
 
 const MOST_NAMED = 5;
 
-export const hashOf = (line: string): string => line.split(" ", 1)[0] ?? line;
+export interface Standing {
+  someoneIsOnMain: boolean;
+  tickets: readonly Ticket[];
+}
 
-export async function unrecordedFor(repo: Repo, session: Session): Promise<string[]> {
+export interface LedgerNews {
+  lines: string[];
+  told: string[];
+  checked: string;
+}
+
+export const hashOf = (line: string): string => (line.split(" ", 1)[0] ?? line).slice(0, SHORT);
+
+export const isSameCommit = (a: string, b: string): boolean => a.slice(0, SHORT) === b.slice(0, SHORT);
+
+const commitsOf = (ticket: Ticket): readonly string[] => ticket.landed?.commits ?? ticket.turn?.commits ?? [];
+
+const isSettled = (ticket: Ticket): boolean => ticket.landed !== undefined && (ticket.target === undefined || ticket.landed.recording !== undefined);
+
+export async function standingOf(repo: Repo): Promise<Standing> {
+  const main = repo.config.mainBranch;
+  return { someoneIsOnMain: (await listSessions(repo)).some((open) => open.track === main), tickets: (await queueFile(repo).read()).tickets };
+}
+
+export function markOf(main: string | undefined, standing: Standing): string {
+  return [main ?? "", standing.someoneIsOnMain ? "on-main" : "none-on-main", standing.tickets.filter(isSettled).length].join("|");
+}
+
+export async function unrecordedFor(repo: Repo, session: Session, standing: Standing): Promise<string[]> {
   const main = repo.config.mainBranch;
   const ledger = await new Records(repo).readLedger();
   const missing = unrecorded(ledger, await logLines(repo.root, `${ledger.baseline}..${main}`), repo.config.records.commitPrefix);
-  if (missing.length === 0) return [];
-  const landings = (await queueFile(repo).read()).tickets.filter((ticket) => ticket.landed !== undefined);
-  const someoneIsOnMain = (await listSessions(repo)).some((open) => open.track === main);
   return missing.filter((line) => {
-    const hash = hashOf(line);
-    const landing = landings.find((ticket) => ticket.landed?.commits.some((commit) => commit.startsWith(hash)));
-    if (landing === undefined) return session.track === main || !someoneIsOnMain;
-    const isBeingRecorded = landing.target !== undefined && landing.landed?.recording === undefined;
-    return !isBeingRecorded && landing.track === session.track;
+    const landing = standing.tickets.find((ticket) => commitsOf(ticket).some((commit) => isSameCommit(commit, hashOf(line))));
+    if (landing === undefined) return session.track === main || !standing.someoneIsOnMain;
+    return isSettled(landing) && landing.track === session.track;
   });
+}
+
+export async function ledgerNewsFor(repo: Repo, session: Session, main: string | undefined, before: { checked?: string | undefined; told?: readonly string[] | undefined }): Promise<LedgerNews> {
+  const unchanged: LedgerNews = { lines: [], told: [...(before.told ?? [])], checked: before.checked ?? "" };
+  try {
+    const standing = await standingOf(repo);
+    const mark = markOf(main, standing);
+    if (mark === before.checked) return unchanged;
+    const now = await unrecordedFor(repo, session, standing);
+    const alreadyTold = new Set(before.told ?? []);
+    return { lines: now.filter((line) => !alreadyTold.has(hashOf(line))), told: now.map(hashOf), checked: mark };
+  } catch {
+    return unchanged;
+  }
+}
+
+export async function unrecordedNow(repo: Repo, session: Session): Promise<string[]> {
+  try {
+    return await unrecordedFor(repo, session, await standingOf(repo));
+  } catch {
+    return [];
+  }
 }
 
 export function unrecordedText(lines: readonly string[]): string {
