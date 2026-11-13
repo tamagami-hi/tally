@@ -4,7 +4,7 @@ import { findMilestone, findTask } from "../ledger/items.ts";
 import { land, type LandInput } from "../ledger/ops.ts";
 import { refOf } from "../ledger/refs.ts";
 import { waitersOn, type Waiter } from "../ledger/waits.ts";
-import { MAX_NOTE, noteFrom } from "../records/notes.ts";
+import { TALLY, tellWaiters } from "../records/tell.ts";
 import { commitRecords } from "../records/commit.ts";
 import type { Deferred, Ledger } from "../schema/ledger.ts";
 import { releaseLanded, type Claim } from "../state/claims.ts";
@@ -51,23 +51,16 @@ async function releasing(repo: Repo, input: LandInput): Promise<Omit<RecordedTas
   }
 }
 
-const TALLY = "tally";
-
-async function tellingWaiters(repo: Repo, input: LandInput, waiters: readonly Waiter[], session: Session | undefined): Promise<string | undefined> {
+function tellingWaiters(repo: Repo, input: LandInput, waiters: readonly Waiter[], session: Session | undefined): Promise<string | undefined> {
   const from = { track: session?.track ?? input.track ?? repo.config.mainBranch, agent: session?.agent ?? TALLY };
-  const known = new Set([repo.config.mainBranch, ...repo.config.tracks.map((track) => track.name)]);
-  const told = waiters.filter((waiter) => waiter.track !== from.track && known.has(waiter.track));
-  if (told.length === 0) return undefined;
   const ref = refOf(input.milestone, input.task);
-  const labels = told.map((waiter) => waiter.label);
-  try {
-    const commit = await resolveOnMain(repo.root, repo.config.mainBranch)(input.commit);
-    const text = `${ref} landed at ${commit}; ${labels.join(", ")} no longer wait${labels.length === 1 ? "s" : ""} on it`.slice(0, MAX_NOTE);
-    await noteFrom(repo, from, { to: [...new Set(told.map((waiter) => waiter.track))], kind: "heads-up", text, about: { task: ref } });
-    return undefined;
-  } catch (error: unknown) {
-    return `the tracks waiting on it were not told: ${messageOf(error)}`;
-  }
+  return tellWaiters(repo, from, waiters, {
+    ref,
+    text: async (labels) => {
+      const commit = await resolveOnMain(repo.root, repo.config.mainBranch)(input.commit);
+      return `${ref} landed at ${commit}; ${labels.join(", ")} no longer wait${labels.length === 1 ? "s" : ""} on it`;
+    },
+  });
 }
 
 export async function recordTask(repo: Repo, input: LandInput, session?: Session): Promise<RecordedTask> {

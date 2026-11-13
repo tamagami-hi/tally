@@ -11,6 +11,10 @@ export type { Changed, DeliverInput, LandInput, MilestoneInput, OtherInput, Plan
 export type { PlannedTask } from "./ledger/details.ts";
 export { parseRef, refOf, taskAt } from "./ledger/refs.ts";
 export type { TaskRef } from "./ledger/refs.ts";
+export { remove } from "./ledger/remove.ts";
+export type { RemoveInput, Removed } from "./ledger/remove.ts";
+export { removeTask } from "./records/task-removal.ts";
+export type { TaskRemoved } from "./records/task-removal.ts";
 export { COVERED, unrecorded } from "./ledger/check.ts";
 export { findGaps, gapsOf, uncovered, unfinished } from "./ledger/gaps.ts";
 export type { Gap } from "./ledger/gaps.ts";

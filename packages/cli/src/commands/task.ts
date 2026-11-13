@@ -1,4 +1,4 @@
-import { Records, commitRecords, other, plan, recordTask, resolveOnMain, unwait, wait, type Repo } from "@tally/core";
+import { Records, commitRecords, other, plan, recordTask, removeTask, resolveOnMain, unwait, wait, type Repo } from "@tally/core";
 import { list, need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
 import { TallyError } from "@tally/core";
@@ -42,6 +42,15 @@ export async function taskCommand(repo: Repo, argv: readonly string[], io: IO): 
       const parsed = parse(rest, {});
       const input = { milestone: need(parsed, 0, "milestone"), task: need(parsed, 1, "task") };
       await recorded(repo, io, await records.update((ledger) => unwait(ledger, input)));
+      return 0;
+    }
+    case "remove": {
+      const parsed = parse(rest, { why: { type: "string" } });
+      const why = text(parsed, "why");
+      if (why === undefined) throw new TallyError("tally task remove <milestone> <task> --why REASON: say why the task is removed", 2);
+      const { message, problem } = await removeTask(repo, { milestone: need(parsed, 0, "milestone"), task: need(parsed, 1, "task"), why });
+      if (problem !== undefined) io.err(problem);
+      await recorded(repo, io, message);
       return 0;
     }
     case "other": {

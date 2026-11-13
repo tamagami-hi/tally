@@ -26,6 +26,7 @@ const OWN: Readonly<Record<string, string>> = {
   "task_plan.tasks": "the tasks to add, each a name or {id, brief?, paths?, covers?}",
   "task_plan.track": "the track the tasks are for; the session's own when left out",
   "task_wait.what": "what it waits for, in a line",
+  "task_remove.why": "why it is removed, in a line; it goes in the record's commit and the activity log",
   "task_land.commit": "the commit on main that landed the task",
   "task_land.also": "follow-up commits of the same task",
   "task_land.track": "the task's track, needed only when the task was never planned",

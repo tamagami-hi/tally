@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { Records, TallyError, addMilestone, assertMayWrite, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, findMilestone, findTask, getSession, isOperator, listClaims, listLocks, other, plan, recordTask, releaseClaim, resolveOnMain, rowsOf, unwait, wait, type Ledger, type Repo, type Session, entriesAbout } from "@tally/core";
+import {
+  addMilestone, assertMayWrite, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  listLocks, other, plan, Records, recordTask, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type Repo, type Session,
+} from "@tally/core";
 import { FIELDS, pickKnown } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -109,6 +112,17 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
       assertMayWriteTask(repo, session, await records.readLedger(), milestone, task);
       const message = await records.update((current) => wait(current, { milestone, task, what, on }));
       return ok(await recorded(repo, message));
+    }),
+  );
+  server.registerTool(
+    "task_remove",
+    {
+      description: "Remove a planned task that will not be done: planned by mistake, split into others, or dropped. A landed task stays, since it is the record of its commit. Refused while another session holds the task or a landing in the queue is to record it; your own claim on it is released. Its run records stay in the milestone's evidence, and the tracks whose tasks wait on it are told. The answer's message says what the removal leaves: a deliverable nothing covers now, or a deferred part with no task to finish it.",
+      inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), why: z.string() },
+    },
+    ({ sessionId, milestone, task, why }) => inSession(source, sessionId, async (repo, session) => {
+      const removed = await removeTask(repo, { milestone, task, why }, session);
+      return ok({ ...removed, commit: await commitRecords(repo, removed.message) });
     }),
   );
   server.registerTool(

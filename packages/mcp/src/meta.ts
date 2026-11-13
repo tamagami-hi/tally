@@ -30,6 +30,7 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   task_release: add("Give a claimed task back"),
   task_wait: addAgain("Mark a task as waiting"),
   task_unwait: addAgain("Clear a task's wait"),
+  task_remove: { title: "Remove a planned task", effect: "remove" },
   task_land: add("Record a landed task"),
   task_other: add("Record a commit that is no task's"),
   land_run: runs("Land a track, running its tests here"),

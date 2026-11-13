@@ -69,6 +69,7 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 | record a landing made without them | `task_land` or `tally task land` with the commit (and `also` for follow-ups); the claim is released, whoever holds it, since a landed task cannot be worked |
 | leave what the next session cannot find in the commits | `handoff_write` (at most 60 lines) |
 | wait on something | `task_wait`, cleared by `task_unwait` (`tally task unwait <milestone> <task>`); a commit that is no task's: `task_other` |
+| drop a task that will not be done | `task_remove` with `why` (`tally task remove <milestone> <task> --why REASON`): for a task planned by mistake, split into others, or dropped. A landed task stays, since it is the record of its commit. It is refused while another session holds the task or a landing in the queue is to record it. The task's run records stay in the milestone's evidence, the tracks whose tasks wait on it are told, and the message says what the removal leaves behind |
 | check | `ledger_check` must say the ledger covers every commit on main |
 
 Every change to a record is written to `docs/records/` at once, so the board and every session see it. By default it also becomes a docs-only `records:` commit on main, made by the harness with the configured identity under the landing lock. With `records.batch: true` in the config, the changes wait on disk and go in as one commit: when the last open session closes, or on `tally records commit`, which must run before a push if a session is still open.

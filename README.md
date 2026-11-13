@@ -18,7 +18,7 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 
 ## Run as a service
 
-**Phases 5, 6 and 7 are built** (2026-11-12, [DESIGN.md](DESIGN.md) §14 to §16): one Docker service for every repository, the tools agents need to work in parallel, and context kept as JSON records. The MCP server has 54 tools. [GUIDE.md](GUIDE.md), section 10, is how an agent works through it.
+**Phases 5, 6 and 7 are built** (2026-11-12, [DESIGN.md](DESIGN.md) §14 to §16): one Docker service for every repository, the tools agents need to work in parallel, and context kept as JSON records. The MCP server has 55 tools. [GUIDE.md](GUIDE.md), section 10, is how an agent works through it.
 
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config
@@ -55,6 +55,7 @@ tally status                       # the terminal tables; --markdown, --json
 tally task plan B2 --track data "4 manifest and atomic publication" "B2 data close"
 tally task land B2 "4 manifest and atomic publication" <commit> [--also <commit>]
 tally task wait B2 "B2 data close" "product transcode job"
+tally task remove B2 "9 planned by mistake" --why "it is covered by task 4"
 tally task other <commit> "docs: a note"
 tally ledger check                 # commits on main the ledger misses; exit 1 when any
 tally land data --message .temp/data/msg.txt crates/acme-core/src/store/manifest.rs

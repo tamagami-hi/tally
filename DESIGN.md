@@ -582,7 +582,7 @@ RULES.md is amended as each phase is built:
 
 ### 17.4 As built (2026-11-12)
 
-Phases 5, 6 and 7 are built, tests first, with 54 MCP tools, and are on `main`. The first tracked repository's cut-over (§17.2) has not been made. Where the build differs from the sections above:
+Phases 5, 6 and 7 are built, tests first, with 55 MCP tools, and are on `main`. The first tracked repository's cut-over (§17.2) has not been made. Where the build differs from the sections above:
 
 **Kept until the cut-over, as §18's decision 10 says:**
 - `evidence_run`, `land_run` and the three `docs_*` tools are still there. A server of one repository, started with `--repo` on the host, needs them.
@@ -602,6 +602,7 @@ Phases 5, 6 and 7 are built, tests first, with 54 MCP tools, and are on `main`. 
 - **`/api/cli`**, the endpoint the `tally` command calls, refuses a repository outside the workspace.
 - **An answer** is compact JSON of at most 25,000 characters. A longer one is cut, says what was shortened, and names the arguments that narrow the tool (§15.7 asked for small defaults). `evidence_list` answers the 20 latest runs unless told.
 - **Every tool** carries a title, hints (read-only, destructive, idempotent) and a description of each argument, and refuses an argument it doesn't have.
+- **`task_remove`** (and `tally task remove`) takes a planned task out of the ledger, with a reason. No section above asked for it: an agent that planned a task by mistake had no way to take it back, and it counted against its milestone for good. A landed task can't be removed.
 
 **Not built:**
 - The board doesn't show a child track under its parent, the context or the activity log.

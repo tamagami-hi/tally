@@ -46,6 +46,7 @@ export const USAGE = `tally: the tracking harness
   tally task   land  <milestone> <task> <commit> [--track T] [--also C]...
   tally task   wait  <milestone> <task> <what>
   tally task   unwait <milestone> <task>                         clear a task's wait
+  tally task   remove <milestone> <task> --why REASON            remove a planned task that will not be done
   tally task   other <commit> <note>
   tally ledger check                                             commits on main the ledger misses
   tally status [--markdown | --json] [--no-color]
