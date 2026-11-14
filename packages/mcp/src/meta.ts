@@ -52,6 +52,7 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   docs_search: read("Search the documents"),
   question_add: add("Ask the operator a question"),
   question_list: read("List questions"),
+  question_edit: add("Edit a question"),
   decision_list: read("List decisions"),
   context_pack: read("Read a context pack"),
   views_claude: replace("Show or write CLAUDE.md's standing block"),

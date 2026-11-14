@@ -50,7 +50,7 @@ describe("a session's inbox", () => {
     await collectInbox(q.repo, q.session);
     await answerQuestion(q.repo, question.row, "Keep 47560.");
 
-    expect(await collectInbox(q.repo, q.session)).toEqual([expect.objectContaining({ kind: "answer", text: `the operator answered question ${question.row}: Keep 47560.` })]);
+    expect(await collectInbox(q.repo, q.session)).toEqual([expect.objectContaining({ kind: "answer", text: `the operator answered Q-${question.row}: Keep 47560.` })]);
   });
 
   test("says when main changed a file the track has changed", async () => {

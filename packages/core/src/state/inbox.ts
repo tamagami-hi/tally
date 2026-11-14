@@ -9,7 +9,7 @@ import { statePath } from "../land/paths.ts";
 import { queueFile } from "../land/queue.ts";
 import { RESULTS } from "../land/runner.ts";
 import { isFor, readNotes } from "../records/notes.ts";
-import { readQuestions } from "../records/questions.ts";
+import { questionId, readQuestions } from "../records/questions.ts";
 import { changedFiles } from "../status/overlaps.ts";
 import type { Repo } from "../store/records.ts";
 import { StateFile } from "./file.ts";
@@ -53,7 +53,7 @@ async function fromNotes(repo: Repo, session: Session, since: string): Promise<I
 
 async function fromAnswers(repo: Repo, session: Session, since: string): Promise<InboxItem[]> {
   const answered = (await readQuestions(repo))?.answered ?? [];
-  return answered.filter((row) => row.by === session.agent && row.answeredAt > since).map((row) => ({ kind: "answer" as const, at: row.answeredAt, text: `the operator answered question ${row.row}: ${row.decision}` }));
+  return answered.filter((row) => row.by === session.agent && row.answeredAt > since).map((row) => ({ kind: "answer" as const, at: row.answeredAt, text: `the operator answered ${questionId(row.row)}: ${row.decision}` }));
 }
 
 async function fromMain(repo: Repo, session: Session, seen: string | undefined, now: Date): Promise<InboxItem[]> {

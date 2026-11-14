@@ -38,7 +38,7 @@ export const USAGE = `tally: the tracking harness
   tally report manifest DATE NAME --group G --narrative P [--bundle DIR] [--fingerprint F] [--evidence M[:T]]... [--decision ID]... [--question N]...
   tally checks get | render | fingerprint | set --file F         the code-check record; fingerprint exits 1 when stale
   tally buildlog render --group G | append --group G --milestone M --title T --date D --file BODY [--commit C]...
-  tally question add --group G <question> <meanwhile> | answer <row> <decision> | list
+  tally question add --group G <question> <meanwhile> | answer <row> <decision> | edit <id> [--question T] [--meanwhile T] --why W | list
   tally decision list [--group G] | add|replace <id> --group G --text T --since S --status ST [--section X] [--why W] --operator
   tally decision setStatus <id> --group G --status ST [--by WHO | --operator]
   tally milestone add <id> --stage S --name N --track T --weight W [--waits X] [--group G]

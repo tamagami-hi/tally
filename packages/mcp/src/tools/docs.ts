@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TallyError, addQuestion, contextPack, isOperator, listDocs, readDecisions, readDoc, readQuestions, searchDocs, standingNow, writeClaudeView } from "@tally/core";
+import { TallyError, contextPack, isOperator, listDocs, readDecisions, readDoc, searchDocs, standingNow, writeClaudeView } from "@tally/core";
 import { LIMIT, latest } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -23,22 +23,6 @@ export function registerDocTools(server: ToolHost, source: RepoSource): void {
     "docs_search",
     { description: "Case-insensitive search across the documents; each hit is a path, a line and its text.", inputSchema: { query: z.string(), limit: z.number().int().positive().max(200).default(50), ...WHERE } },
     ({ query, limit, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok({ hits: await searchDocs(repo, query, limit) })),
-  );
-  server.registerTool(
-    "question_add",
-    { description: "Add a question row for the operator (a choice that changes what a result means or costs): the question and the conservative behaviour built meanwhile. Takes the next row under the lock.", inputSchema: { sessionId: z.string(), group: z.string(), question: z.string(), meanwhile: z.string() } },
-    ({ sessionId, group, question, meanwhile }) => inSession(source, sessionId, async (repo, session) => {
-      return ok(await addQuestion(repo, { group, question, meanwhile, by: session.agent }));
-    }),
-  );
-  server.registerTool(
-    "question_list",
-    { description: "The open question rows, the next row number and how many were answered; `answered: true` adds the answered rows. `ids` (row numbers), `group` and `limit` (the most recent rows) narrow the rows listed, never the count.", inputSchema: { answered: z.boolean().default(false), ids: z.array(z.number().int().positive()).optional(), group: z.string().optional(), limit: LIMIT, ...WHERE } },
-    ({ answered, ids, group, limit, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
-      const { answered: rows, open, ...rest } = (await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] };
-      const keep = <T extends { row: number; group: string }>(all: T[]): T[] => latest(all.filter((q) => (ids === undefined || ids.includes(q.row)) && (group === undefined || q.group === group)), limit);
-      return ok({ ...rest, open: keep(open), answeredCount: rows.length, ...(answered ? { answered: keep(rows) } : {}) });
-    }),
   );
   server.registerTool(
     "decision_list",
