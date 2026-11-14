@@ -1,5 +1,5 @@
 import { waitsOf } from "../ledger/waits.ts";
-import { readHandoff, type HandoffNote } from "../records/handoffs.ts";
+import { readHandoff } from "../records/handoffs.ts";
 import { readQuestions } from "../records/questions.ts";
 import { NO_CHECK } from "../repos/start.ts";
 import type { Ledger, Task } from "../schema/ledger.ts";
@@ -11,50 +11,9 @@ import { isInForce } from "./find.ts";
 import { overlaps } from "./match.ts";
 import { readProject, type Project } from "./project.ts";
 import { inRulebookOrder, waitingRules } from "./rulebook.ts";
-import { recordsWaiting, type Waiting } from "../records/waiting.ts";
-import { checkoutState, type CheckoutState } from "../land/operator.ts";
-
-export interface BriefTask {
-  milestone: string;
-  id: string;
-  waits?: string;
-  claimedBy?: string;
-  brief?: string;
-  paths?: string[];
-}
-
-export interface Working {
-  track: string;
-  agent: string;
-  since: string;
-  task?: string;
-}
-
-export interface BriefRule {
-  id: string;
-  section?: string;
-  title: string;
-  text: string;
-}
-
-export interface Tailoring {
-  id: string;
-  title: string;
-  tailor: string;
-}
-
-export interface Brief {
-  project: Project;
-  rules: BriefRule[];
-  tailoring?: Tailoring[];
-  recordsWaiting?: Waiting;
-  checkout?: CheckoutState;
-  track: { name: string; tasks: BriefTask[]; handoff: HandoffNote | null };
-  entries: { id: string; kind: EntryKind; title: string }[];
-  working: Working[];
-  openQuestions: number;
-  missing: string[];
-}
+import { recordsWaiting } from "../records/waiting.ts";
+import { checkoutState } from "../land/operator.ts";
+import { atLevel, rulebookOf, type Brief, type BriefLevel, type BriefRule, type BriefTask, type FullBrief, type Tailoring, type Working } from "./brief-level.ts";
 
 type Told = Task & { brief?: unknown; paths?: unknown };
 
@@ -113,15 +72,20 @@ function tailoringOf(repo: Repo, session: Session, rules: readonly Entry[]): { t
   return { tailoring: waiting.map(({ id, title, tailor }) => ({ id, title, tailor: tailor ?? "" })) };
 }
 
-export async function sessionBrief(repo: Repo, session: Session): Promise<Brief> {
+export type { Brief, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
+
+export async function sessionBrief(repo: Repo, session: Session, level: BriefLevel = "full"): Promise<Brief> {
   const project = await readProject(repo);
-  const inForce = (await readEntries(repo)).filter(isInForce);
+  const all = await readEntries(repo);
+  const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);
   const handoff = await readHandoff(repo, session.track);
   const rules = inForce.filter((entry) => entry.kind === RULE);
-  return {
+  const full: FullBrief = {
+    level: "full",
     project,
     rules: inRulebookOrder(rules).map(slim),
+    rulebook: rulebookOf(all, rules.length),
     ...tailoringOf(repo, session, rules),
     ...(isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo) } : {}),
     track: { name: session.track, tasks: unlandedTasks(await new Records(repo).readLedger(), session.track, claims), handoff: handoff.current ?? null },
@@ -130,4 +94,5 @@ export async function sessionBrief(repo: Repo, session: Session): Promise<Brief>
     openQuestions: (await readQuestions(repo))?.open.length ?? 0,
     missing: missingFrom(repo, project, inForce),
   };
+  return atLevel(full, level, repo.config.name);
 }
