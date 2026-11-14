@@ -7,6 +7,7 @@ export const MOST_EDIT_WHY = 200;
 
 export interface Editor {
   agent: string;
+  track?: string;
   operator: boolean;
 }
 
@@ -23,6 +24,7 @@ function assertInput(input: QuestionEditInput): void {
   if (input.meanwhile !== undefined) assertQuestionText(input.meanwhile, "a question's meanwhile");
   const why = input.why.trim();
   if (why === "") throw new TallyError("an edit needs a why, in a line");
+  if (why.includes("\n")) throw new TallyError("an edit's why is one line; say it in a line");
   if (why.length > MOST_EDIT_WHY) throw new TallyError(`an edit's why holds at most ${MOST_EDIT_WHY} characters; this one has ${why.length}`);
 }
 
@@ -35,9 +37,11 @@ function openOne(file: QuestionsFile, row: number): Question {
 }
 
 function assertMayEdit(editor: Editor, question: Question): void {
-  if (editor.operator || (question.by !== undefined && question.by === editor.agent)) return;
-  const asker = question.by === undefined ? "the agent" : question.by;
-  throw new TallyError(`only an operator session or ${asker}, who asked ${questionId(question.row)}, edits it; ask a new question that names it`);
+  if (editor.operator) return;
+  const id = questionId(question.row);
+  if (question.by === undefined || question.track === undefined) throw new TallyError(`only an operator session edits ${id}; ask a new question that names it`);
+  if (question.by === editor.agent && question.track === editor.track) return;
+  throw new TallyError(`only an operator session or ${question.by} on track ${question.track}, who asked ${id}, edits it; ask a new question that names it`);
 }
 
 export async function editQuestion(repo: Repo, editor: Editor, input: QuestionEditInput, now = new Date()): Promise<{ question: Question; id: string; commit: string | null }> {

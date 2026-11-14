@@ -53,7 +53,7 @@ async function fromNotes(repo: Repo, session: Session, since: string): Promise<I
 
 async function fromAnswers(repo: Repo, session: Session, since: string): Promise<InboxItem[]> {
   const answered = (await readQuestions(repo))?.answered ?? [];
-  return answered.filter((row) => row.by === session.agent && row.answeredAt > since).map((row) => ({ kind: "answer" as const, at: row.answeredAt, text: `the operator answered ${questionId(row.row)}: ${row.decision}` }));
+  return answered.filter((row) => row.by === session.agent && (row.track === undefined || row.track === session.track) && row.answeredAt > since).map((row) => ({ kind: "answer" as const, at: row.answeredAt, text: `the operator answered ${questionId(row.row)}: ${row.decision}` }));
 }
 
 async function fromMain(repo: Repo, session: Session, seen: string | undefined, now: Date): Promise<InboxItem[]> {

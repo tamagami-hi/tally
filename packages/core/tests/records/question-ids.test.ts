@@ -5,12 +5,12 @@ import { questionsFileSchema as previousQuestions } from "../fixtures/questions-
 import { makeTracked } from "../support/tracked.ts";
 
 const OPERATOR = { agent: "operator", operator: true };
-const CLAUDE = { agent: "claude", operator: false };
+const CLAUDE = { agent: "claude", track: "data", operator: false };
 const ASKED = new Date("2026-11-14T09:00:00.000Z");
 
 async function asked() {
   const { repo } = await makeTracked();
-  const first = await addQuestion(repo, { group: "store", question: "Keep the cache?", meanwhile: "keep it", by: "claude" }, CLAUDE, ASKED);
+  const first = await addQuestion(repo, { group: "store", question: "Keep the cache?", meanwhile: "keep it", by: "claude", track: "data" }, CLAUDE, ASKED);
   return { repo, first };
 }
 
@@ -86,7 +86,7 @@ describe("editing a question", () => {
   test("refuses another track's agent, and an edit that changes nothing", async () => {
     const { repo } = await asked();
 
-    await expect(editQuestion(repo, { agent: "kiro", operator: false }, { id: "Q-1", question: "x", why: "mine" })).rejects.toThrow("only an operator session or claude, who asked Q-1, edits it; ask a new question that names it");
+    await expect(editQuestion(repo, { agent: "kiro", track: "engine", operator: false }, { id: "Q-1", question: "x", why: "mine" })).rejects.toThrow("only an operator session or claude on track data, who asked Q-1, edits it; ask a new question that names it");
     await expect(editQuestion(repo, CLAUDE, { id: "Q-1", why: "nothing" })).rejects.toThrow("an edit gives the question, the meanwhile, or both");
   });
 

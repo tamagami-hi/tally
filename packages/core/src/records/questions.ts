@@ -23,6 +23,7 @@ export const questionSchema = z.object({
   meanwhile: z.string(),
   asked: z.string().optional(),
   by: z.string().optional(),
+  track: z.string().optional(),
   edits: z.array(questionEditSchema).optional(),
 });
 
@@ -50,11 +51,13 @@ export const questionId = (row: number): string => `Q-${row}`;
 
 export function rowOf(id: string | number): number {
   const found = ID.exec(String(id).trim());
-  if (found === null) throw new TallyError(`'${id}' is not a question's id; give it as Q-24 or 24`);
-  return Number(found[1]);
+  const row = found === null ? Number.NaN : Number(found[1]);
+  if (!Number.isSafeInteger(row)) throw new TallyError(`'${id}' is not a question's id; give it as Q-24 or 24`);
+  return row;
 }
 
 export function assertQuestionText(text: string, what: string): void {
+  if (text.trim() === "") throw new TallyError(`${what} needs some text`);
   if (text.length > MOST_QUESTION_TEXT) throw new TallyError(`${what} holds at most ${MOST_QUESTION_TEXT} characters; this one has ${text.length}`);
 }
 
@@ -129,13 +132,17 @@ export interface QuestionInput {
   question: string;
   meanwhile: string;
   by?: string;
+  track?: string | undefined;
   number?: number | undefined;
 }
+
+const MOST_JUMP = 999;
 
 function numbered(current: QuestionsFile, number: number | undefined, authority: { operator: boolean }): number {
   if (number === undefined) return current.nextRow;
   if (!authority.operator) throw new TallyError("only an operator session gives a question its number; leave number out and the next one is taken");
   if (number < current.nextRow) throw new TallyError(`the next question number is ${current.nextRow}; a number may jump forward, never back or to one used before`);
+  if (number > current.nextRow + MOST_JUMP) throw new TallyError(`the next question number is ${current.nextRow}; a number may jump forward by at most ${MOST_JUMP} at once, so ${number} is refused as a slip`);
   return number;
 }
 
@@ -144,7 +151,7 @@ export async function addQuestion(repo: Repo, input: QuestionInput, authority: {
   assertQuestionText(input.meanwhile, "a question's meanwhile");
   const question = await changeQuestions(repo, (current) => {
     const row = numbered(current, input.number, authority);
-    const added: Question = { row, group: input.group, question: input.question, meanwhile: input.meanwhile, asked: now.toISOString(), ...(input.by === undefined ? {} : { by: input.by }) };
+    const added: Question = { row, group: input.group, question: input.question, meanwhile: input.meanwhile, asked: now.toISOString(), ...(input.by === undefined ? {} : { by: input.by }), ...(input.track === undefined ? {} : { track: input.track }) };
     return { file: { ...current, nextRow: row + 1, open: [...current.open, added] }, result: added };
   });
   const commit = await commitRecords(repo, `${questionId(question.row)} (${input.group}) asked`);

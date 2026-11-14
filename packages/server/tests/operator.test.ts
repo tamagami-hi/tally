@@ -182,6 +182,17 @@ describe("the operator's actions in one repository", () => {
     expect(file?.answered[0]?.decision).toBe("Keep 47560.");
   });
 
+  test("answering a question takes its id as Q-24 too", async () => {
+    const { app, hub } = await service();
+    const repo = await hub.repos.get("alpha");
+    const { question } = await addQuestion(repo, { group: "platform", question: "Which port?", meanwhile: "47560" });
+
+    const response = await act(app, "POST", `/api/r/alpha/operator/questions/Q-${question.row}/answer`, { decision: "Keep 47560." });
+
+    expect(response.status).toBe(200);
+    expect((await readQuestions(repo))?.answered[0]?.row).toBe(question.row);
+  });
+
   test("entering a decision records it as the operator's", async () => {
     const { app, hub } = await service();
     const repo = await hub.repos.get("alpha");

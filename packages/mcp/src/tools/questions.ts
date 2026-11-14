@@ -20,7 +20,7 @@ export function registerQuestionTools(server: ToolHost, source: RepoSource): voi
       description: "Ask the operator a question (a choice that changes what a result means or costs): the question and the conservative behaviour built meanwhile. Answers its id, Q-<number>; the next number is taken under the lock. An operator session may give `number` to line up with a plan's numbering, forward only.",
       inputSchema: { sessionId: z.string(), group: z.string(), question: text, meanwhile: text, number: z.number().int().positive().optional() },
     },
-    ({ sessionId, group, question, meanwhile, number }) => inSession(source, sessionId, async (repo, session) => ok(await addQuestion(repo, { group, question, meanwhile, by: session.agent, number }, { operator: isOperator(repo, session) }))),
+    ({ sessionId, group, question, meanwhile, number }) => inSession(source, sessionId, async (repo, session) => ok(await addQuestion(repo, { group, question, meanwhile, by: session.agent, track: session.track, number }, { operator: isOperator(repo, session) }))),
   );
   server.registerTool(
     "question_list",
@@ -41,6 +41,6 @@ export function registerQuestionTools(server: ToolHost, source: RepoSource): voi
       description: "Edit an open question or its meanwhile (an operator session, or the agent that asked it), saying why. The question keeps what it said before in `edits`, oldest first. An answered question is refused: ask a new one that names it.",
       inputSchema: { sessionId: z.string(), id: z.union([z.string(), z.number().int().positive()]), question: text.optional(), meanwhile: text.optional(), why: z.string().min(1).max(MOST_EDIT_WHY) },
     },
-    ({ sessionId, id, question, meanwhile, why }) => inSession(source, sessionId, async (repo, session) => ok(await editQuestion(repo, { agent: session.agent, operator: isOperator(repo, session) }, { id, question, meanwhile, why }))),
+    ({ sessionId, id, question, meanwhile, why }) => inSession(source, sessionId, async (repo, session) => ok(await editQuestion(repo, { agent: session.agent, track: session.track, operator: isOperator(repo, session) }, { id, question, meanwhile, why }))),
   );
 }
