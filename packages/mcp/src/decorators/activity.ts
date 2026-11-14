@@ -47,9 +47,9 @@ function withProblem(result: CallToolResult, problem: string): CallToolResult {
 }
 
 export const activity: Decorator = async (called) => {
-  const { tool, args, result } = called;
+  const { tool, args, result, place } = called;
   const sessionId = args["sessionId"];
-  if (typeof sessionId !== "string" || result.isError === true || isUnlogged(tool)) return result;
+  if (typeof sessionId !== "string" || result.isError === true || isUnlogged(tool) || writesNothing(tool, place)) return result;
   const actor = await actorOf(called, sessionId).catch(withoutActor);
   if (actor === undefined) return result;
   const target = targetOf(args);

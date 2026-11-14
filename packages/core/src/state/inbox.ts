@@ -88,14 +88,21 @@ async function field(folder: string, name: string): Promise<string> {
 }
 
 const TAKEN = "taken";
+const REFUSED = "refused";
+
+const isUntold = (folder: string): Promise<boolean> => stat(join(folder, "untold")).then(() => true, () => false);
 
 async function fromRuns(session: Session, since: string): Promise<InboxItem[]> {
   const items: InboxItem[] = [];
-  const folder = join(session.worktree, RESULTS, TAKEN);
-  for (const id of await readdir(folder).catch(() => [] as string[])) {
-    const at = (await stat(join(folder, id))).mtime.toISOString();
-    if (at <= since) continue;
-    items.push({ kind: "run", at, text: `your ${await field(join(folder, id), "kind")} run exited ${await field(join(folder, id), "exit")} and is recorded` });
+  for (const outcome of [TAKEN, REFUSED] as const) {
+    const folder = join(session.worktree, RESULTS, outcome);
+    for (const id of await readdir(folder).catch(() => [] as string[])) {
+      const at = (await stat(join(folder, id))).mtime.toISOString();
+      if (at <= since) continue;
+      const kept = join(folder, id);
+      if (outcome === TAKEN) items.push({ kind: "run", at, text: `your ${await field(kept, "kind")} run exited ${await field(kept, "exit")} and is recorded` });
+      else if (await isUntold(kept)) items.push({ kind: "run", at, text: `a ${await field(kept, "kind")} run was set aside: ${await field(kept, "problem")}` });
+    }
   }
   return items;
 }

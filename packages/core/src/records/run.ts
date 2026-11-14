@@ -21,7 +21,7 @@ export interface RunInput {
 }
 
 const MOST_LAST_LINE = 200;
-const NOT_FOUND = "ENOENT";
+const CANNOT_START: Readonly<Record<string, string>> = { ENOENT: "is not found", EACCES: "cannot be run" };
 const ELSEWHERE = "this service runs in a container without the project's tools, so it runs no command; run the line in your own shell: the runner records the run, and evidence_list shows the record a few seconds later";
 
 const lineOf = (session: Session, input: RunInput): string => runnerLine(session.worktree, input);
@@ -33,8 +33,9 @@ function lastLine(text: string): string {
 
 function startFailure(session: Session, input: RunInput, program: string, error: NodeJS.ErrnoException): TallyError {
   const command = input.command.join(" ");
-  if (error.code !== NOT_FOUND) return new TallyError(`${command} could not start: ${error.message}`);
-  return new TallyError(`${command} could not start: ${program} is not found where this service runs; run it in your own shell, and the runner records it: ${lineOf(session, input)}`);
+  const why = CANNOT_START[error.code ?? ""];
+  if (why === undefined) return new TallyError(`${command} could not start: ${error.message}`);
+  return new TallyError(`${command} could not start: ${program} ${why} where this service runs; run it in your own shell, and the runner records it: ${lineOf(session, input)}`);
 }
 
 function told(session: Session, input: RunInput, kept: Kept, text: string): Kept {
@@ -91,5 +92,6 @@ export interface NotRun {
 export function runnerInstead(repo: Repo, session: Session, ledger: Ledger, input: RunInput): NotRun {
   if (input.command.length === 0) throw new TallyError("the command is empty");
   writableTrack(repo, session, ledger, input);
+  if (input.milestone.includes(":")) throw new TallyError(`the runner cannot name milestone ${input.milestone}, since it splits MILESTONE:TASK at the first ':'; record the run with evidence_record`);
   return { ran: false, run: lineOf(session, input), why: ELSEWHERE };
 }

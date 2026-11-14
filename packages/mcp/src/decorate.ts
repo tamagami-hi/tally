@@ -16,6 +16,7 @@ export interface Called {
   params: readonly string[];
   result: CallToolResult;
   source: RepoSource;
+  place: CommandPlace;
 }
 
 export type Decorator = (called: Called) => Promise<CallToolResult>;
@@ -50,7 +51,7 @@ export function decorating(server: McpServer, source: RepoSource, decorators: re
     return register(name, whole, async (args, extra) => {
       let result = await handler(args, extra);
       const given = typeof args === "object" && args !== null ? (args as Record<string, unknown>) : {};
-      for (const decorate of decorators) result = await decorate({ tool: name, args: given, params: Object.keys(shape), result, source });
+      for (const decorate of decorators) result = await decorate({ tool: name, args: given, params: Object.keys(shape), result, source, place });
       return result;
     });
   };

@@ -1,9 +1,9 @@
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { RUNNER } from "../../core/src/land/runner.ts";
 import { listEvidence } from "../../core/src/records/evidence.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
-import { connect, opened } from "./support/connect.ts";
+import { connect, keepingContextAsRecords, opened } from "./support/connect.ts";
 
 async function serving(place: "service" | "agent") {
   const tracked = await makeTracked();
@@ -20,9 +20,22 @@ describe("a service whose agents run the project's commands", () => {
     const answer = await call("evidence_run", { sessionId: data, milestone: "B2", task: "4 manifest", kind: "sweep", command: ["tools/run.sh", "npm test"] });
 
     expect(answer.isError).toBe(false);
-    expect(answer.structured).toMatchObject({ ran: false, run: `sh ${join(trees["data"]!, RUNNER)} sweep --task 'B2:4 manifest' -- tools/run.sh 'npm test'` });
+    expect(answer.structured).toMatchObject({ ran: false, run: `cd ${trees["data"]!} && sh .temp/tally/run sweep --task 'B2:4 manifest' -- tools/run.sh 'npm test'` });
     expect(answer.structured["why"]).toContain("run the line in your own shell");
     expect(await listEvidence(repo, "B2")).toEqual([]);
+  });
+
+  test("writes nothing to the activity log for an evidence_run that ran nothing", async () => {
+    const tracked = await makeTracked();
+    const { call } = await connect(keepingContextAsRecords(tracked.repo), "agent");
+    const data = await opened(call, tracked.trees["data"]!, "claude");
+    const logged = async (): Promise<string[]> => readdir(join(tracked.repo.recordsDir, "log")).catch(() => []);
+    const before = await logged();
+
+    await call("evidence_run", { sessionId: data, milestone: "B2", task: "4 manifest", kind: "sweep", command: ["true"] });
+
+    expect((await call("activity_get", { sessionId: data })).structured).not.toMatchObject({ events: expect.arrayContaining([expect.objectContaining({ tool: "evidence_run" })]) });
+    expect(await logged()).toEqual(before);
   });
 
   test("lists evidence_run as a read that reaches nothing outside, and says the agent runs the command", async () => {

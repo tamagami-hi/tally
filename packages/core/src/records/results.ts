@@ -7,7 +7,7 @@ import { listClaims } from "../state/claims.ts";
 import { listSessions, markSeen, type Session } from "../state/sessions.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { evidenceKinds, recordEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
-import { MAX_NOTE, noteFrom } from "./notes.ts";
+import { MAX_NOTE, noteFrom, readNotes } from "./notes.ts";
 import { TALLY } from "./tell.ts";
 
 export interface Taken {
@@ -116,20 +116,29 @@ async function abandoned(results: string, now: Date): Promise<void> {
   }
 }
 
+const MOST_COMMAND = 160;
+const UNTOLD = "untold";
+
 async function whatRan(folder: string): Promise<string> {
   const kind = await field(folder, "kind").catch(() => "a run");
   const argv = await field(folder, "argv").catch(() => "");
   const command = argv.split("\0").filter((part) => part !== "").join(" ");
-  return command === "" ? kind : `${kind}: ${command}`;
+  const shown = command.length > MOST_COMMAND ? `${command.slice(0, MOST_COMMAND)}…` : command;
+  return shown === "" ? kind : `${kind}: ${shown}`;
 }
 
 async function tellRefused(repo: Repo, place: Place, id: string, problem: string, now: Date): Promise<string> {
   const kept = join(place.worktree, RESULTS, REFUSED, id);
-  const text = `the run ${id} (${await whatRan(kept)}) was not recorded: ${problem}; the result is kept in ${kept}`;
+  const where = `; the result is kept in ${kept}`;
+  const said = `the run ${id} (${await whatRan(kept)}) was not recorded: ${problem}`;
+  const text = `${said.slice(0, MAX_NOTE - where.length)}${where}`;
   try {
-    await noteFrom(repo, { track: repo.config.mainBranch, agent: TALLY }, { to: [place.track], kind: "heads-up", text: text.slice(0, MAX_NOTE) }, now);
+    await noteFrom(repo, { track: repo.config.mainBranch, agent: TALLY }, { to: [place.track], kind: "heads-up", text }, now);
     return problem;
   } catch (error: unknown) {
+    const written = (await readNotes(repo).catch(() => undefined))?.notes.some((note) => note.text === text) === true;
+    if (written) return `${problem}; the note to ${place.track} is written but not committed: ${messageOf(error)}`;
+    await writeFile(join(kept, UNTOLD), `${messageOf(error)}\n`);
     return `${problem}; the track was not told: ${messageOf(error)}`;
   }
 }

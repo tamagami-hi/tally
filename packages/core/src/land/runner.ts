@@ -101,12 +101,12 @@ export interface RunnerCall {
   command: readonly string[];
 }
 
-const PLAIN = /^[A-Za-z0-9_@%+=:,./-]+$/;
+const PLAIN = /^[A-Za-z0-9_@%+:,./-][A-Za-z0-9_@%+=:,./-]*$/;
 
 export const shellWord = (value: string): string => (PLAIN.test(value) ? value : quoted(value));
 
 export function runnerLine(worktree: string, call: RunnerCall): string {
   const note = call.note === undefined ? [] : ["--note", call.note];
-  const words = [join(worktree, RUNNER), call.kind, "--task", `${call.milestone}:${call.task}`, ...note, "--", ...call.command];
-  return ["sh", ...words.map(shellWord)].join(" ");
+  const words = [RUNNER, call.kind, "--task", `${call.milestone}:${call.task}`, ...note, "--", ...call.command];
+  return `cd ${shellWord(worktree)} && ${["sh", ...words.map(shellWord)].join(" ")}`;
 }
