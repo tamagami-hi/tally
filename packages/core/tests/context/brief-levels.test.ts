@@ -91,3 +91,51 @@ describe("the rulebook's time", () => {
     expect([added, tailored, await changed()]).toEqual([T2.toISOString(), T3.toISOString(), T4.toISOString()]);
   });
 });
+
+describe("what each level keeps of a task, and of an operator's brief", () => {
+  async function detailed() {
+    const made = await briefed();
+    const { Records } = await import("../../src/store/records.ts");
+    const { claimTask } = await import("../../src/state/claims.ts");
+    await new Records(made.repo).update((ledger) => ({ ledger: { ...ledger, milestones: ledger.milestones.map((one) => ({ ...one, tasks: one.tasks.map((task) => (task.id === "4 manifest" ? { ...task, brief: "write it", paths: ["src/manifest"], waits: "B1" } : task)) })) }, message: "details" }));
+    await claimTask(made.repo, made.data, await new Records(made.repo).readLedger(), "B2", "4 manifest");
+    return made;
+  }
+
+  test("full and work keep a task's brief and paths, and land keeps only its milestone, id, claim and wait", async () => {
+    const { repo, data } = await detailed();
+
+    const [full, work, land] = await Promise.all((["full", "work", "land"] as const).map((level) => sessionBrief(repo, data, level)));
+
+    const whole = { milestone: "B2", id: "4 manifest", waits: "B1", claimedBy: "claude", brief: "write it", paths: ["src/manifest"] };
+    expect(full.track.tasks[0]).toEqual(whole);
+    expect(work.track.tasks[0]).toEqual(whole);
+    expect(land.track.tasks[0]).toEqual({ milestone: "B2", id: "4 manifest", waits: "B1", claimedBy: "claude" });
+  });
+
+  test("an operator's keys at each level are exactly the table's", async () => {
+    const { repo, operator } = await briefed();
+
+    const [full, work, land] = await Promise.all((["full", "work", "land"] as const).map((level) => sessionBrief(repo, operator, level)));
+
+    expect(keys(full)).toEqual(["checkout", "entries", "level", "missing", "openQuestions", "project", "recordsWaiting", "rulebook", "rules", "track", "working"]);
+    expect(keys(work)).toEqual(["checkout", "entries", "level", "openQuestions", "project", "recordsWaiting", "rulebook", "rules", "track", "working"]);
+    expect(keys(land)).toEqual(["checkout", "level", "recordsWaiting", "rulebook", "track", "working"]);
+  });
+
+  test("land reads nothing it does not answer, so a project record that does not parse cannot stop it", async () => {
+    const { repo, data } = await briefed();
+    const { writeFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    await writeFile(join(repo.recordsDir, "context", "project.json"), "not json");
+
+    await expect(sessionBrief(repo, data, "land")).resolves.toMatchObject({ level: "land" });
+  });
+
+  test("picks the newest rule time by the time, not the text", async () => {
+    const { rulebookOf } = await import("../../src/context/brief-level.ts");
+    const rule = (at: string, retiredAt?: string) => ({ kind: "rule", at, ...(retiredAt === undefined ? {} : { retiredAt }) }) as Parameters<typeof rulebookOf>[0][number];
+
+    expect(rulebookOf([rule("2026-11-14T10:00:00.000Z"), rule("2026-11-14T11:30:00+02:00")], 2).changedAt).toBe("2026-11-14T10:00:00.000Z");
+  });
+});

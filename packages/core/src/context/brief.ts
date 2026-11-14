@@ -13,7 +13,7 @@ import { readProject, type Project } from "./project.ts";
 import { inRulebookOrder, waitingRules } from "./rulebook.ts";
 import { recordsWaiting } from "../records/waiting.ts";
 import { checkoutState } from "../land/operator.ts";
-import { atLevel, rulebookOf, type Brief, type BriefLevel, type BriefRule, type BriefTask, type FullBrief, type Tailoring, type Working } from "./brief-level.ts";
+import { atLevel, landing, rulebookOf, type Brief, type BriefLevel, type BriefRule, type BriefTask, type FullBrief, type Tailoring, type Working } from "./brief-level.ts";
 
 type Told = Task & { brief?: unknown; paths?: unknown };
 
@@ -75,22 +75,24 @@ function tailoringOf(repo: Repo, session: Session, rules: readonly Entry[]): { t
 export type { Brief, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
 
 export async function sessionBrief(repo: Repo, session: Session, level: BriefLevel = "full"): Promise<Brief> {
-  const project = await readProject(repo);
   const all = await readEntries(repo);
   const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);
-  const handoff = await readHandoff(repo, session.track);
   const rules = inForce.filter((entry) => entry.kind === RULE);
+  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo) } : {};
+  const tasks = unlandedTasks(await new Records(repo).readLedger(), session.track, claims);
+  const shared = { rulebook: rulebookOf(all, rules.length), ...operator, working: working(await listSessions(repo), claims, session) };
+  if (level === "land") return { level, ...shared, track: { name: session.track, tasks: tasks.map(landing) } };
+  const project = await readProject(repo);
+  const handoff = await readHandoff(repo, session.track);
   const full: FullBrief = {
     level: "full",
     project,
     rules: inRulebookOrder(rules).map(slim),
-    rulebook: rulebookOf(all, rules.length),
     ...tailoringOf(repo, session, rules),
-    ...(isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo) } : {}),
-    track: { name: session.track, tasks: unlandedTasks(await new Records(repo).readLedger(), session.track, claims), handoff: handoff.current ?? null },
+    ...shared,
+    track: { name: session.track, tasks, handoff: handoff.current ?? null },
     entries: applying(repo, session.track, inForce).map(({ id, kind, title }) => ({ id, kind, title })),
-    working: working(await listSessions(repo), claims, session),
     openQuestions: (await readQuestions(repo))?.open.length ?? 0,
     missing: missingFrom(repo, project, inForce),
   };

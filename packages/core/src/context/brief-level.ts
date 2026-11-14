@@ -71,7 +71,7 @@ export interface Brief {
   missing?: string[];
 }
 
-const latest = (times: readonly string[]): string | null => (times.length === 0 ? null : [...times].sort().at(-1) ?? null);
+const latest = (times: readonly string[]): string | null => times.reduce<string | null>((newest, time) => (newest === null || Date.parse(time) > Date.parse(newest) ? time : newest), null);
 
 export function rulebookOf(entries: readonly Entry[], inForce: number): Rulebook {
   const rules = entries.filter((entry) => entry.kind === "rule");
@@ -80,7 +80,7 @@ export function rulebookOf(entries: readonly Entry[], inForce: number): Rulebook
 
 const titled = ({ text: _text, ...rule }: BriefRule): BriefRule => rule;
 
-const landing = ({ brief: _brief, paths: _paths, ...task }: BriefTask): BriefTask => task;
+export const landing = ({ brief: _brief, paths: _paths, ...task }: BriefTask): BriefTask => task;
 
 export function atLevel(full: FullBrief, level: BriefLevel, name: string): Brief {
   if (level === "full") return full;
