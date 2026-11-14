@@ -85,7 +85,7 @@ describe("a session's inbox", () => {
     expect(ended[0]?.text).toContain(`ticket ${ticket.id} failed: its turn timed out`);
   });
 
-  test("says when a run was taken in or set aside", async () => {
+  test("says when a run was set aside once, through tally's note", async () => {
     const q = await ready();
     await writeRunner(q.repo, q.tree, "data");
     await collectInbox(q.repo, q.session);
@@ -94,7 +94,7 @@ describe("a session's inbox", () => {
 
     const items = await collectInbox(q.repo, q.session, new Date(Date.now() + 2000));
 
-    expect(items).toEqual([expect.objectContaining({ kind: "run", text: expect.stringContaining("a green run was set aside: the run names no task") })]);
+    expect(items).toEqual([expect.objectContaining({ kind: "note", text: expect.stringContaining("(green: true) was not recorded: the run names no task") })]);
   });
 
   test("says when a context entry was added or retired for the files it works on, and not for other files", async () => {

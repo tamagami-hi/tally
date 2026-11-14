@@ -1,4 +1,5 @@
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import type { CommandPlace } from "@tally/core";
 
 type Effect = "read" | "wait" | "add" | "replace" | "remove";
 
@@ -81,6 +82,12 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   phase_close: { title: "Close a phase", effect: "remove" },
   records_commit: addAgain("Commit the waiting records"),
 };
+
+const AGENT_META: Readonly<Record<string, ToolMeta>> = {
+  evidence_run: read("Give the line that runs and records a command"),
+};
+
+export const metaOf = (tool: string, place: CommandPlace): ToolMeta | undefined => (place === "agent" ? (AGENT_META[tool] ?? TOOL_META[tool]) : TOOL_META[tool]);
 
 export function annotationsOf(meta: ToolMeta): ToolAnnotations {
   const reads = meta.effect === "read";

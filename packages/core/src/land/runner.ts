@@ -64,6 +64,12 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     '{ "$@"; echo "$?" > "$out/exit"; } 2>&1 | tee "$log"',
     '[ -s "$out/exit" ] || echo 1 > "$out/exit"',
     'code="$(cat "$out/exit")"',
+    'case "$code" in',
+    '  127) meaning="the shell did not find a program (126: it could not run it)" ;;',
+    '  126) meaning="the shell found a program it could not run (127: it did not find one)" ;;',
+    "  *) meaning='' ;;",
+    "esac",
+    'if [ -n "$meaning" ]; then rm -rf "$out"; echo "tally: not recorded: exit $code means $meaning; fix the command and run it again; the log is $log" >&2; exit "$code"; fi',
     'printf \'%s\\n\' "$kind" > "$out/kind"',
     'printf \'%s\\n\' "$task" > "$out/task"',
     'printf \'%s\\n\' "$note" > "$out/note"',
@@ -85,4 +91,22 @@ export async function writeRunner(repo: Repo, worktree: string, track: string): 
   await writeFile(path, runnerScript(repo, worktree, track));
   await chmod(path, 0o755);
   return path;
+}
+
+export interface RunnerCall {
+  kind: string;
+  milestone: string;
+  task: string;
+  note?: string;
+  command: readonly string[];
+}
+
+const PLAIN = /^[A-Za-z0-9_@%+=:,./-]+$/;
+
+export const shellWord = (value: string): string => (PLAIN.test(value) ? value : quoted(value));
+
+export function runnerLine(worktree: string, call: RunnerCall): string {
+  const note = call.note === undefined ? [] : ["--note", call.note];
+  const words = [join(worktree, RUNNER), call.kind, "--task", `${call.milestone}:${call.task}`, ...note, "--", ...call.command];
+  return ["sh", ...words.map(shellWord)].join(" ");
 }

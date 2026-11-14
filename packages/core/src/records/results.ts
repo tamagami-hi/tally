@@ -7,6 +7,8 @@ import { listClaims } from "../state/claims.ts";
 import { listSessions, markSeen, type Session } from "../state/sessions.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { evidenceKinds, recordEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
+import { MAX_NOTE, noteFrom } from "./notes.ts";
+import { TALLY } from "./tell.ts";
 
 export interface Taken {
   id: string;
@@ -114,7 +116,25 @@ async function abandoned(results: string, now: Date): Promise<void> {
   }
 }
 
-async function takeOne(repo: Repo, place: Place, session: Session, id: string): Promise<Taken | undefined> {
+async function whatRan(folder: string): Promise<string> {
+  const kind = await field(folder, "kind").catch(() => "a run");
+  const argv = await field(folder, "argv").catch(() => "");
+  const command = argv.split("\0").filter((part) => part !== "").join(" ");
+  return command === "" ? kind : `${kind}: ${command}`;
+}
+
+async function tellRefused(repo: Repo, place: Place, id: string, problem: string, now: Date): Promise<string> {
+  const kept = join(place.worktree, RESULTS, REFUSED, id);
+  const text = `the run ${id} (${await whatRan(kept)}) was not recorded: ${problem}; the result is kept in ${kept}`;
+  try {
+    await noteFrom(repo, { track: repo.config.mainBranch, agent: TALLY }, { to: [place.track], kind: "heads-up", text: text.slice(0, MAX_NOTE) }, now);
+    return problem;
+  } catch (error: unknown) {
+    return `${problem}; the track was not told: ${messageOf(error)}`;
+  }
+}
+
+async function takeOne(repo: Repo, place: Place, session: Session, id: string, now: Date): Promise<Taken | undefined> {
   const results = join(place.worktree, RESULTS);
   const mine = await claimed(results, id);
   if (mine === undefined) return undefined;
@@ -129,7 +149,7 @@ async function takeOne(repo: Repo, place: Place, session: Session, id: string): 
     await mkdir(join(results, REFUSED), { recursive: true });
     await writeFile(join(results, mine, "problem"), `${problem}\n`);
     await rename(join(results, mine), join(results, REFUSED, id));
-    return { id, worktree: place.worktree, problem };
+    return { id, worktree: place.worktree, problem: await tellRefused(repo, place, id, problem, now) };
   }
 }
 
@@ -142,7 +162,7 @@ export async function takeResults(repo: Repo, now = new Date()): Promise<Taken[]
     const open = openAt(place, await listSessions(repo));
     const here: Taken[] = [];
     for (const id of ids) {
-      const one = await takeOne(repo, place, open ?? runnerAt(place, now), id);
+      const one = await takeOne(repo, place, open ?? runnerAt(place, now), id, now);
       if (one !== undefined) here.push(one);
     }
     if (open !== undefined && here.length > 0) await markSeen(repo, open.id, now);

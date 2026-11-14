@@ -7,7 +7,8 @@ import { landingEnvironment } from "../land/run.ts";
 import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import type { Session } from "../state/sessions.ts";
-import { keepRun, writableTrack, type EvidenceKind, type Kept } from "./evidence.ts";
+import { runnerLine } from "../land/runner.ts";
+import { isUnstarted, keepRun, writableTrack, type EvidenceKind, type Kept } from "./evidence.ts";
 import { safeName } from "./handoffs.ts";
 import { summarize } from "./totals.ts";
 
@@ -17,6 +18,28 @@ export interface RunInput {
   kind: EvidenceKind;
   command: readonly string[];
   note?: string;
+}
+
+const MOST_LAST_LINE = 200;
+const NOT_FOUND = "ENOENT";
+const ELSEWHERE = "this service runs in a container without the project's tools, so it runs no command; run the line in your own shell: the runner records the run, and evidence_list shows the record a few seconds later";
+
+const lineOf = (session: Session, input: RunInput): string => runnerLine(session.worktree, input);
+
+function lastLine(text: string): string {
+  const line = text.trimEnd().split("\n").at(-1) ?? "";
+  return line === "" ? "the log is empty" : `the log ends: ${line.slice(0, MOST_LAST_LINE)}`;
+}
+
+function startFailure(session: Session, input: RunInput, program: string, error: NodeJS.ErrnoException): TallyError {
+  const command = input.command.join(" ");
+  if (error.code !== NOT_FOUND) return new TallyError(`${command} could not start: ${error.message}`);
+  return new TallyError(`${command} could not start: ${program} is not found where this service runs; run it in your own shell, and the runner records it: ${lineOf(session, input)}`);
+}
+
+function told(session: Session, input: RunInput, kept: Kept, text: string): Kept {
+  if (kept.recorded || !isUnstarted(kept.record.exit)) return kept;
+  return { ...kept, problem: `${kept.problem ?? "not recorded"}; ${lastLine(text)}; in your own shell: ${lineOf(session, input)}` };
 }
 
 export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, input: RunInput, now = new Date()): Promise<Kept & { logPath: string }> {
@@ -39,7 +62,7 @@ export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, 
     };
     child.stdout.on("data", take);
     child.stderr.on("data", take);
-    child.on("error", (error) => fail(new TallyError(`${input.command.join(" ")} could not start: ${error.message}`)));
+    child.on("error", (error) => fail(startFailure(session, input, program, error)));
     child.on("close", (code) => file.end(() => done({ exit: code ?? 1, text: chunks.join("") })));
   });
   const summary = summarize(text);
@@ -56,5 +79,17 @@ export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, 
     ...(summary === undefined ? {} : { summary }),
     ...(input.note === undefined ? {} : { note: input.note }),
   });
-  return { ...kept, logPath };
+  return { ...told(session, input, kept, text), logPath };
+}
+
+export interface NotRun {
+  ran: false;
+  run: string;
+  why: string;
+}
+
+export function runnerInstead(repo: Repo, session: Session, ledger: Ledger, input: RunInput): NotRun {
+  if (input.command.length === 0) throw new TallyError("the command is empty");
+  writableTrack(repo, session, ledger, input);
+  return { ran: false, run: lineOf(session, input), why: ELSEWHERE };
 }

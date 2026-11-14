@@ -1,12 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { TallyError } from "@tally/core";
+import { TallyError, type CommandPlace } from "@tally/core";
 import { z } from "zod";
 import { activity } from "./decorators/activity.ts";
 import { outcome } from "./decorators/outcome.ts";
 import { sharing } from "./decorators/sharing.ts";
 import { sized } from "./decorators/sized.ts";
-import { TOOL_META, annotationsOf } from "./meta.ts";
+import { annotationsOf, metaOf } from "./meta.ts";
 import { paramText } from "./params.ts";
 import type { RepoSource } from "./source.ts";
 
@@ -40,10 +40,10 @@ function described(tool: string, shape: Shape): Shape {
   }));
 }
 
-export function decorating(server: McpServer, source: RepoSource, decorators: readonly Decorator[] = DECORATORS): ToolHost {
+export function decorating(server: McpServer, source: RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = "service"): ToolHost {
   const register = server.registerTool.bind(server) as (name: string, config: unknown, handler: Handler) => unknown;
   const registerTool = (name: string, config: Config, handler: Handler): unknown => {
-    const meta = TOOL_META[name];
+    const meta = metaOf(name, place);
     if (meta === undefined) throw new TallyError(`the tool ${name} has no title: add it to the table in meta.ts`);
     const shape = described(name, config.inputSchema ?? {});
     const whole = { ...config, title: meta.title, annotations: annotationsOf(meta), inputSchema: z.strictObject(shape) };

@@ -100,6 +100,18 @@ export function judgeRed(run: Pick<EvidenceInput, "kind" | "exit" | "summary" | 
   return { kind: "other", note: note === undefined ? notice : `${notice}; ${note}`, notice };
 }
 
+const UNSTARTED: Readonly<Record<number, string>> = {
+  126: "the shell found a program it could not run",
+  127: "the shell did not find a program",
+};
+
+export const isUnstarted = (exit: number): boolean => UNSTARTED[exit] !== undefined;
+
+export function assertStarted(exit: number): void {
+  const meaning = UNSTARTED[exit];
+  if (meaning !== undefined) throw new TallyError(`not recorded: exit ${exit} means ${meaning}; fix the command and run it again`);
+}
+
 export function writableTrack(repo: Repo, session: Session, ledger: Ledger, input: Pick<EvidenceInput, "milestone" | "task">): string {
   const task = findTask(findMilestone(ledger, input.milestone), input.task);
   if (task === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
@@ -137,6 +149,7 @@ const commitLine = (milestone: string, record: RunRecord): string => `${mileston
 
 export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null; notice?: string }> {
   const track = writableTrack(repo, session, ledger, input);
+  assertStarted(input.exit);
   const read = input.logPath === undefined ? undefined : await hashLog(repo, session, input.logPath);
   const summary = input.summary ?? (read === undefined ? undefined : summarize(read.text));
   const measured = summary === undefined ? input : { ...input, summary };
@@ -168,6 +181,7 @@ export async function keepRun(repo: Repo, session: Session, track: string, input
   const judged = { ...input, ...verdict };
   const told = notice === undefined ? {} : { notice };
   try {
+    assertStarted(input.exit);
     const { log } = await hashLog(repo, session, input.logPath);
     const record = composeRecord(session, track, judged, log);
     await appendRecord(repo, input.milestone, record);

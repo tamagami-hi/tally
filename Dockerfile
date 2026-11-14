@@ -35,7 +35,7 @@ RUN apt-get update \
   && mkdir /data \
   && chmod 0777 /data
 WORKDIR /app
-ENV NODE_ENV=production TALLY_HOME=/data HOME=/data
+ENV NODE_ENV=production TALLY_HOME=/data HOME=/data TALLY_COMMANDS=agent
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/cli/package.json packages/cli/

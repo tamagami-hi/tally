@@ -1,45 +1,23 @@
-import { resolve } from "node:path";
 import { z } from "zod";
 import {
-  Records, acquireLock, evidenceKinds, findMilestone, landingLog, landingTarget, landTrack, listEvidence, listLocks,
-  loggedTests, readHandoff, recordEvidence, recordLanding, releaseLock, runEvidence, trackOf, writeHandoff,
+  Records, acquireLock, evidenceKinds, findMilestone, listEvidence, listLocks, readHandoff, recordEvidence, releaseLock, writeHandoff,
 } from "@tally/core";
 import { FIELDS, LIMIT, lastStarted, pick, startedSince } from "../filters.ts";
+import { defined } from "../defined.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const summaryValue = z.union([z.number(), z.string(), z.boolean()]);
 
-function defined<T extends Record<string, unknown>>(input: T): { [K in keyof T]: Exclude<T[K], undefined> } {
-  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
-}
 
 const DEFAULT_RECORDS = 20;
 
 export function registerRecordTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
-    "land_run",
-    { description: "Land the session's track on main: rebase, the configured tests (their output to a log in the worktree), a commit as the operator from --message and explicit files, a fast-forward of main. With commands.landing in the config, the commit comes first and every commit ahead of main is tested in a clean checkout; a failure names the commit and the log, and undoes a commit this landing made, its files left staged. With both milestone and task it records that task at the hash it made and releases its claim; `recording` says how that went, and a landing that could not record is still a landing. Without them, record it with task_land.", inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), messageFile: z.string().optional(), verifiedCode: z.string().optional(), milestone: z.string().optional(), task: z.string().optional() } },
-    ({ sessionId, files, messageFile, verifiedCode, milestone, task }) => inSession(source, sessionId, async (repo, session) => {
-      trackOf(repo.config, session.track);
-      const target = landingTarget(milestone, task);
-      const log = landingLog(session.worktree, session.track);
-      const lines: string[] = [];
-      const landed = await landTrack(repo, { track: session.track, files, ...(messageFile === undefined ? {} : { messageFile: resolve(session.worktree, messageFile) }), ...(verifiedCode === undefined ? {} : { verifiedCode }) }, { runTests: loggedTests(log), log: (line) => lines.push(line) });
-      const recording = target === undefined ? {} : { recording: await recordLanding(repo, landed, target, session) };
-      return ok({ ...landed, log, lines, ...recording });
-    }),
-  );
-  server.registerTool(
     "evidence_record",
     { description: "Record a run that already happened: its command, cwd, timing, exit, an optional log (inside the worktree, hashed) and summary; with no summary the log's totals are read. A `red` that exited 0 or shows no failed test is recorded as `other`, and `notice` says why.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), cwd: z.string(), started: z.string(), seconds: z.number().nonnegative(), exit: z.number().int(), logPath: z.string().optional(), summary: z.record(z.string(), summaryValue).optional(), note: z.string().optional() } },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await recordEvidence(repo, session, await new Records(repo).readLedger(), defined(input)))),
-  );
-  server.registerTool(
-    "evidence_run",
-    { description: "Run a command in the session's worktree with the landing environment, keep its log under .temp/<track>/tally/, and record it (cargo, vitest and pytest totals are read from the output). A `red` that exited 0 or shows no failed test is recorded as `other`, and `notice` says why. Once the command has run this always answers with what ran: `recorded: false` and `problem` say when the record could not be written; a task the session cannot record for is refused before anything runs.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), note: z.string().optional() } },
-    ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await runEvidence(repo, session, await new Records(repo).readLedger(), defined(input)))),
   );
   server.registerTool(
     "evidence_list",

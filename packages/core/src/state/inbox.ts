@@ -87,17 +87,15 @@ async function field(folder: string, name: string): Promise<string> {
   return (await readFile(join(folder, name), "utf8").catch(() => "")).trim();
 }
 
+const TAKEN = "taken";
+
 async function fromRuns(session: Session, since: string): Promise<InboxItem[]> {
   const items: InboxItem[] = [];
-  for (const outcome of ["taken", "refused"] as const) {
-    const folder = join(session.worktree, RESULTS, outcome);
-    for (const id of await readdir(folder).catch(() => [] as string[])) {
-      const at = (await stat(join(folder, id))).mtime.toISOString();
-      if (at <= since) continue;
-      const kind = await field(join(folder, id), "kind");
-      const text = outcome === "taken" ? `your ${kind} run exited ${await field(join(folder, id), "exit")} and is recorded` : `a ${kind} run was set aside: ${await field(join(folder, id), "problem")}`;
-      items.push({ kind: "run", at, text });
-    }
+  const folder = join(session.worktree, RESULTS, TAKEN);
+  for (const id of await readdir(folder).catch(() => [] as string[])) {
+    const at = (await stat(join(folder, id))).mtime.toISOString();
+    if (at <= since) continue;
+    items.push({ kind: "run", at, text: `your ${await field(join(folder, id), "kind")} run exited ${await field(join(folder, id), "exit")} and is recorded` });
   }
   return items;
 }
