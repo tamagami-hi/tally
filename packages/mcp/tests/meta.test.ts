@@ -90,3 +90,13 @@ describe("the size of what the tools say", () => {
     expect(length("session_open")).toBeLessThan(MOST_SESSION_OPEN);
   });
 });
+
+describe("the whole tool list", () => {
+  const MOST_TOOLS_LIST = 77_000;
+
+  test("stays under 77,000 characters as compact JSON, since every agent session reads it", async () => {
+    const tools = await listed();
+
+    expect(JSON.stringify(tools).length).toBeLessThan(MOST_TOOLS_LIST);
+  });
+});

@@ -45,7 +45,7 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
         refs: z.array(z.string()).optional().describe("other records this one rests on: a decision, a question, a task, another entry"),
         replaces: z.string().optional().describe("the id of the entry this one takes the place of"),
         section: z.enum(RULE_SECTIONS).optional().describe("a rule's section, needed unless it replaces one that has it: authority, safety, working or once"),
-        source: z.string().max(MAX_SOURCE).optional().describe(`for a rule only, and required of one: whose word it is and when, or the id of the decision it rests on, one line, for example "the operator, 2026-11-14"`),
+        source: z.string().max(MAX_SOURCE).optional().describe(`a rule's only, and needed: whose word and when, or a decision's id, such as "the operator, 2026-11-14"`),
       },
     },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await putEntry(repo, session, defined(input)))),

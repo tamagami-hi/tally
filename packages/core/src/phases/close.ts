@@ -20,7 +20,7 @@ export interface PhaseClosed {
   tasks: { total: number; landed: number };
   tracksClosed: string[];
   tracksLeft: { name: string; why: string }[];
-  missing: string[];
+  withoutBuildLog?: string[];
   commit: string | null;
   waits?: string;
   problem?: string;
@@ -114,5 +114,6 @@ export async function closePhase(repo: Repo, session: Pick<Session, "track" | "a
   const together = await committedTogether(repo, row.id, summary);
   const result = { ...together, commit: together.commit ?? early };
   const ids = milestones.map((milestone) => milestone.id);
-  return { phase, milestones: ids, tasks: { total, landed }, ...tracks, missing: await withoutBuildLog(repo, ids), ...result };
+  const unlogged = await withoutBuildLog(repo, ids);
+  return { phase, milestones: ids, tasks: { total, landed }, ...tracks, ...(unlogged.length === 0 ? {} : { withoutBuildLog: unlogged }), ...result };
 }

@@ -39,7 +39,7 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
       inputSchema: {
         sessionId: z.string(),
         id: z.string().describe("the rule's id, for example rule-9"),
-        source: z.string().min(1).max(MAX_SOURCE).describe(`whose word the rule is and when, or the id of the decision it rests on, one line of at most ${MAX_SOURCE} characters, for example "the operator, 2026-11-14" or DEC-12`),
+        source: z.string().min(1).max(MAX_SOURCE).describe(`whose word and when, or a decision's id, in one line, such as "the operator, 2026-11-14" or DEC-12`),
         title: z.string().max(MAX_TITLE).optional().describe(`the new title, at most ${MAX_TITLE} characters; the old one when left out`),
         text: z.string().max(MAX_TEXT).optional().describe(`the new text, at most ${MAX_TEXT.toLocaleString("en-US")} characters; the old one when left out`),
         section: z.enum(RULE_SECTIONS).optional().describe("authority, safety, working or once; the old rule's when left out, and needed when it had none"),

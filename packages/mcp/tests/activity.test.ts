@@ -94,7 +94,7 @@ describe("the activity log through the tools", () => {
 
     expect(planned.isError).toBe(false);
     expect(decorated).toBe(answer);
-    expect(Object.keys(closed.structured)).toEqual(["session", "releasedClaims", "releasedLocks", "recordsCommit"]);
+    expect(Object.keys(closed.structured)).toEqual(["session", "releasedClaims", "releasedLocks", "recordsCommit", "records"]);
     await expect(access(join(root, "docs/records/log"))).rejects.toThrow();
     expect(await logged(call)).toEqual([]);
   });

@@ -16,7 +16,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
         name: z.string().describe("the phase's name, 1 to 80 characters, for example exports"),
         goal: z.string().describe("what the phase is for, one sentence of 1 to 500 characters"),
         weight: z.number().int().positive().describe("the phase's share of the build's progress, a positive whole number"),
-        decision: z.string().optional().describe("the id of the decision that approved the phase's plan, 1 to 200 characters, for example DEC-12"),
+        decision: z.string().optional().describe("the decision that approved its plan, such as DEC-12"),
       },
     },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await addPhase(repo, session, defined(input)))),
@@ -24,7 +24,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "phase_list",
     {
-      description: "The build's phases: each one's goal, whether it is open or closed, how many of its tasks are landed, and `left`, what still stops an open phase from closing. Report `left` to the operator before asking to close a phase.",
+      description: "The build's phases: each one's goal, whether it is open or closed, how many of its tasks are landed, and `left`, what still stops an open phase from closing: tasks not landed, commits the ledger lacks, gaps ledger_check lists in its milestones (deliverables, waits, unplaced parts, missing reviews) and landings in the queue. Report `left` to the operator before asking to close.",
       inputSchema: { state: z.enum(["open", "closed"]).optional().describe("only phases in this state"), ...WHERE },
     },
     ({ state, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok({ phases: await listPhases(repo, defined({ state })) })),
@@ -32,7 +32,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "phase_close",
     {
-      description: "Close a phase (operator session only, and only on the operator's word: a phase's end is their gate). Refused while a task of the phase is not landed, while main holds a commit the ledger does not record, or while one of its tracks is landing. It closes the phase's landed tracks, removing their worktrees, and commits every waiting record as one commit. A closed phase takes no new milestone or task.",
+      description: "Close a phase (operator session only, and only on the operator's word: a phase's end is their gate). Refused while a task of the phase is not landed, while main holds a commit the ledger does not record, while ledger_check lists a gap in one of its milestones, or while one of its tracks is landing: phase_list's `left` names each. It closes the phase's landed tracks, removing their worktrees, and commits every waiting record as one commit. `withoutBuildLog` lists its milestones with no build-log section, for a project that keeps one; it stops nothing. A closed phase takes no new milestone or task.",
       inputSchema: {
         sessionId: z.string(),
         phase: z.string().describe("the phase's id, as phase_list shows it, for example G"),

@@ -1,7 +1,7 @@
 const COMMON: Readonly<Record<string, string>> = {
   sessionId: "from session_open",
-  milestone: "the milestone's id, such as B2",
-  task: "the task's id, as planned",
+  milestone: "a milestone's id, such as B2",
+  task: "a task's id, as planned",
   track: "a track's name, as track_list shows it",
   group: "its documents group, a folder under docs/",
   limit: "keep only this many, the most recent",

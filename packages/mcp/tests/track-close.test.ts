@@ -23,7 +23,7 @@ describe("track_close", () => {
     const closed = await call("track_close", { sessionId: operator, name: "helper" });
 
     expect(closed.isError).toBe(false);
-    expect(closed.structured["cleaned"]).toEqual({ names: ["node_modules"], total: 1 });
+    expect(closed.structured["cleaned"]).toEqual({ names: ["node_modules"], total: 1, what: expect.stringContaining("were deleted with the worktree") });
     expect(closed.structured["kept"]).toBe(join(root, ".temp", "closed", "helper"));
     expect(closed.structured["name"]).toBe("helper");
   });

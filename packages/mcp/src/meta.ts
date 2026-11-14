@@ -10,6 +10,7 @@ export interface ToolMeta {
   outside?: true;
   newestFirst?: true;
   whole?: readonly string[];
+  since?: string;
 }
 
 const read = (title: string): ToolMeta => ({ title, effect: "read" });
@@ -52,7 +53,7 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   docs_search: read("Search the documents"),
   question_add: add("Ask the operator a question"),
   question_list: read("List questions"),
-  question_edit: add("Edit a question"),
+  question_edit: { ...add("Edit a question"), since: "0.3.0" },
   decision_list: read("List decisions"),
   context_pack: read("Read a context pack"),
   views_claude: replace("Show or write CLAUDE.md's standing block"),
@@ -75,17 +76,17 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   project_set: replace("Set the project record"),
   repo_configure: replace("Change the repository's config"),
   activity_get: read("Read the activity log"),
-  rulebook_get: { title: "Read the rulebook", effect: "read", newestFirst: true },
-  rulebook_adopt: addAgain("Bring the rulebook template"),
-  rule_tailor: add("Tailor a rule"),
-  phase_add: add("Add a phase"),
-  phase_list: read("List phases"),
-  phase_close: { title: "Close a phase", effect: "remove" },
-  records_commit: addAgain("Commit the waiting records"),
-  deferred_list: read("List deferred parts"),
-  deferred_set: replace("Place a deferred part"),
-  review_record: add("Record a review"),
-  review_list: { title: "List reviews", effect: "read", newestFirst: true },
+  rulebook_get: { title: "Read the rulebook", effect: "read", newestFirst: true, since: "0.2.0" },
+  rulebook_adopt: { ...addAgain("Bring the rulebook template"), since: "0.2.0" },
+  rule_tailor: { ...add("Tailor a rule"), since: "0.2.0" },
+  phase_add: { ...add("Add a phase"), since: "0.2.0" },
+  phase_list: { ...read("List phases"), since: "0.2.0" },
+  phase_close: { title: "Close a phase", effect: "remove", since: "0.2.0" },
+  records_commit: { ...addAgain("Commit the waiting records"), since: "0.2.0" },
+  deferred_list: { ...read("List deferred parts"), since: "0.3.0" },
+  deferred_set: { ...replace("Place a deferred part"), since: "0.3.0" },
+  review_record: { ...add("Record a review"), since: "0.3.0" },
+  review_list: { title: "List reviews", effect: "read", newestFirst: true, since: "0.3.0" },
 };
 
 const AGENT_META: Readonly<Record<string, ToolMeta>> = {
@@ -102,6 +103,21 @@ export function annotationsOf(meta: ToolMeta): ToolAnnotations {
     idempotentHint: reads || meta.effect === "wait" || meta.again === true,
     openWorldHint: meta.outside === true,
   };
+}
+
+const NEWEST_VERSIONS = 2;
+
+const versionKey = (version: string): number[] => version.split(".").map(Number);
+
+const isNewer = (a: string, b: string): number => {
+  const [left, right] = [versionKey(a), versionKey(b)];
+  const at = left.findIndex((part, index) => part !== right[index]);
+  return at === -1 ? 0 : (left[at] ?? 0) - (right[at] ?? 0);
+};
+
+export function newestTools(): string[] {
+  const versions = [...new Set(Object.values(TOOL_META).flatMap((meta) => (meta.since === undefined ? [] : [meta.since])))].sort(isNewer).slice(-NEWEST_VERSIONS);
+  return Object.entries(TOOL_META).filter(([, meta]) => meta.since !== undefined && versions.includes(meta.since)).map(([name]) => name);
 }
 
 export const newestFirst = (tool: string): boolean => TOOL_META[tool]?.newestFirst === true;

@@ -83,7 +83,7 @@ describe("closing a phase", () => {
     expect(await sh(root, ["status", "--porcelain", "-uall"])).toBe("");
     expect(await sh(root, ["show", "--stat", "--format=", "HEAD"])).toContain("docs/records/phases.json");
     expect(closed.phase).toMatchObject({ id: "G", closedAt: NOW.toISOString(), closedBy: OPERATOR, summary: "both formats ship" });
-    expect(closed).toMatchObject({ milestones: ["G1"], tasks: { total: 2, landed: 2 }, tracksClosed: [], tracksLeft: [], missing: ["G1"] });
+    expect(closed).toMatchObject({ milestones: ["G1"], tasks: { total: 2, landed: 2 }, tracksClosed: [], tracksLeft: [], withoutBuildLog: ["G1"] });
   });
 
   test("records the commit on main it closed at, and a stage the config lists gets an entry with only its closing fields", async () => {
@@ -105,7 +105,18 @@ describe("closing a phase", () => {
 
     const closed = await closePhase(repo, OPERATOR, { phase: "G", summary: "s" }, NOW);
 
-    expect(closed.missing).toEqual(["G1"]);
+    expect(closed.withoutBuildLog).toEqual(["G1"]);
+    expect(closed).not.toHaveProperty("missing");
+  });
+
+  test("leaves withoutBuildLog out when every milestone of the phase has a build-log section", async () => {
+    const { repo } = await ready();
+    await appendBuildlog(repo, { group: "exports", milestone: "G1", title: "csv", date: "2026-11-14", markdown: "built" });
+
+    const closed = await closePhase(repo, OPERATOR, { phase: "G", summary: "s" }, NOW);
+
+    expect(closed).not.toHaveProperty("withoutBuildLog");
+    expect(closed).not.toHaveProperty("missing");
   });
 
   test("closes the tracks tally opened whose tasks all belong to the phase, and leaves any other track", async () => {

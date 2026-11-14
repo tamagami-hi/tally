@@ -17,7 +17,10 @@ import { discardKept, keepScratch } from "./keep.ts";
 export interface Cleaned {
   names: string[];
   total: number;
+  what?: string;
 }
+
+const CLEANED = "files git ignores under these top-level folders were deleted with the worktree (build output and installed packages); notes under .temp/ were kept, and `kept` says where";
 
 export interface TrackClosed {
   track: OpenedTrack;
@@ -82,7 +85,7 @@ async function assertNothingToLose(repo: Repo, track: OpenedTrack, tree: string)
   const ahead = await revCount(tree, `${main}..HEAD`);
   if (ahead > 0) throw new TallyError(`the worktree ${tree} is off ${track.branch} and ${commits(ahead)} ahead of ${main}; put its work on a branch of your own, or land it first`);
   const cleaned = [...new Set(entries.filter((entry) => !isScratch(entry.path)).map((entry) => entry.path.split("/")[0] ?? entry.path))].sort();
-  return { names: cleaned.slice(0, MOST_NAMED_CLEANED), total: cleaned.length };
+  return { names: cleaned.slice(0, MOST_NAMED_CLEANED), total: cleaned.length, ...(cleaned.length === 0 ? {} : { what: CLEANED }) };
 }
 
 async function assertLanded(repo: Repo, branch: string): Promise<void> {

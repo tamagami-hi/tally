@@ -92,10 +92,9 @@ describe("outcomes through the server", () => {
     const failed = await call("task_plan", { sessionId: data, milestone: "B9", tasks: ["x"] });
     const closed = await call("session_close", { sessionId: data });
 
-    for (const answer of [board, claim, closed]) {
-      expect(answer.structured).not.toHaveProperty("done");
-      expect(answer.structured).not.toHaveProperty("records");
-    }
+    for (const answer of [board, claim, closed]) expect(answer.structured).not.toHaveProperty("done");
+    for (const answer of [board, claim]) expect(answer.structured).not.toHaveProperty("records");
+    expect(typeof closed.structured["records"]).toBe("string");
     expect(failed.isError).toBe(true);
     expect(failed.structured).toEqual({});
     expect(failed.text).toBe("no milestone 'B9'; known: B2");

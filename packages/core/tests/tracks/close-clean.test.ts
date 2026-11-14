@@ -33,7 +33,7 @@ describe("closing a track that holds build output", () => {
 
     const closed = await closeTrack(repo, operator, "helper", NOW);
 
-    expect(closed.cleaned).toEqual({ names: ["build.log", "dist", "node_modules"], total: 3 });
+    expect(closed.cleaned).toEqual({ names: ["build.log", "dist", "node_modules"], total: 3, what: "files git ignores under these top-level folders were deleted with the worktree (build output and installed packages); notes under .temp/ were kept, and `kept` says where" });
     expect(await isThere(tree)).toBe(false);
     expect(await sh(root, ["branch", "--list", "track/helper"])).toBe("");
   });

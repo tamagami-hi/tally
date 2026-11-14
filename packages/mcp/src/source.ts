@@ -31,7 +31,7 @@ export interface RepoSource {
 }
 
 export const WHERE = {
-  sessionId: z.string().optional().describe("your session, whose repository it reads"),
+  sessionId: z.string().optional().describe("your session's id"),
   repo: z.string().optional().describe("a repo_list name; with neither, the default repository"),
 };
 

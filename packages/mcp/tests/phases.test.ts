@@ -94,7 +94,7 @@ describe("phase_close", () => {
     const closed = await call("phase_close", { sessionId: operator, phase: "G", summary: "both formats ship" });
 
     expect(closed.isError).toBe(false);
-    expect(closed.structured).toMatchObject({ milestones: ["G1"], tasks: { total: 1, landed: 1 }, tracksClosed: [], tracksLeft: [], missing: ["G1"] });
+    expect(closed.structured).toMatchObject({ milestones: ["G1"], tasks: { total: 1, landed: 1 }, tracksClosed: [], tracksLeft: [], withoutBuildLog: ["G1"] });
     expect(closed.structured["phase"]).toMatchObject({ id: "G", summary: "both formats ship" });
     expect(closed.structured["commit"]).toMatch(/^[0-9a-f]{7}$/);
     expect(await sh(root, ["log", "-1", "--format=%s"])).toMatch(/^records: phase G closed, \d+ record files$/);
