@@ -50,13 +50,24 @@ function fitted(candidate: Keyed, given: Keyed): Config {
   return parsed.data;
 }
 
-export async function configureRepo(repo: Repo, session: Pick<Session, "track" | "agent">, given: Keyed): Promise<{ config: Config; changed: string[]; commit: string | null }> {
+const REVIEWS = "reviews";
+
+function withReviewsFrom(current: Keyed, given: Keyed, now: Date): Keyed {
+  const asked = given[REVIEWS];
+  if (!isKeyed(asked) || asked["required"] !== true || asked["from"] !== undefined) return given;
+  const held = current[REVIEWS];
+  const from = isKeyed(held) && held["required"] === true && typeof held["from"] === "string" ? held["from"] : now.toISOString();
+  return { ...given, [REVIEWS]: { ...asked, from } };
+}
+
+export async function configureRepo(repo: Repo, session: Pick<Session, "track" | "agent">, asked: Keyed, now = new Date()): Promise<{ config: Config; changed: string[]; commit: string | null }> {
   if (!isOperator(repo, session)) throw new TallyError("only an operator session changes the config; a track that wants a change asks a question with question_add");
-  const changed = Object.keys(given);
+  const changed = Object.keys(asked);
   if (changed.length === 0) throw new TallyError("changing the config needs at least one of its keys");
   const path = join(repo.root, RECORDS_DIR, CONFIG_FILE);
   const config = await withLock(path, async () => {
     const current = await readJson(path, keyedSchema);
+    const given = withReviewsFrom(current, asked, now);
     refusedOutsideScratch(given, current["worktreeRoot"]);
     const candidate = merged(current, given);
     const fitting = fitted(candidate, given);

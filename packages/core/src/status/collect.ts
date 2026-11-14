@@ -5,6 +5,8 @@ import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import { openQuestions } from "./questions.ts";
 import { summarize, type MilestoneRow, type OnMain } from "./summary.ts";
+import { needingReview } from "../ledger/review-gaps.ts";
+import { readReviews } from "../records/reviews.ts";
 import { isClosed, phaseRows } from "../phases/rows.ts";
 import { branches, type TrackRow } from "./tracks.ts";
 
@@ -48,7 +50,7 @@ export function onMainOf(repo: Repo): OnMain {
 export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Promise<StatusData> {
   const { root, config } = repo;
   const main = config.mainBranch;
-  const summary = await summarize(ledger, config.stages, onMainOf(repo));
+  const summary = await summarize(ledger, config.stages, onMainOf(repo), needingReview(ledger, (await readReviews(repo)).reviews, config.reviews));
   const missing = unrecorded(ledger, await logLines(root, `${ledger.baseline}..${main}`), config.records.commitPrefix);
   const problems = [...summary.problems];
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);

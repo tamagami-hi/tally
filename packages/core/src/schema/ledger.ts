@@ -41,6 +41,7 @@ export const taskSchema = z
     covers: z.array(z.string().min(1)).optional(),
     waitsOn: z.array(waitOnSchema).optional(),
     deferred: z.array(deferredSchema).optional(),
+    landedAt: z.string().optional(),
   })
   .superRefine((task, context) => {
     if (task.status === "landed" && task.commit === undefined) {

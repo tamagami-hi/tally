@@ -1,6 +1,7 @@
 import { waitsOf } from "../ledger/waits.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { readReviews, reviewsOf } from "../records/reviews.ts";
 import { TallyError } from "../errors.ts";
 import { findMilestone, findTask } from "../ledger/items.ts";
 import { listEvidence, type RunRecord } from "../records/evidence.ts";
@@ -121,7 +122,8 @@ async function milestone(repo: Repo, m: Milestone, claims: Claim[]): Promise<Pac
 async function task(repo: Repo, m: Milestone, t: Task, claims: Claim[]): Promise<Pack> {
   const evidence: RunRecord[] = await listEvidence(repo, m.id, t.id);
   const handoff = await readHandoff(repo, t.track);
-  const parts = { milestone: { id: m.id, name: m.name, stage: m.stage }, task: t, evidence, handoff: handoff.current ?? null, claim: claims.find((c) => c.milestone === m.id && c.task === t.id) ?? null };
+  const reviews = reviewsOf((await readReviews(repo)).reviews, m.id, t.id).map(({ id, verdict, blocking }) => ({ id, verdict, blocking }));
+  const parts = { milestone: { id: m.id, name: m.name, stage: m.stage }, task: t, evidence, reviews, handoff: handoff.current ?? null, claim: claims.find((c) => c.milestone === m.id && c.task === t.id) ?? null };
   const text = [
     `# ${m.id} / ${t.id} (track ${t.track})`,
     "",
@@ -129,6 +131,9 @@ async function task(repo: Repo, m: Milestone, t: Task, claims: Claim[]): Promise
     "",
     "## Evidence",
     ...(evidence.length === 0 ? ["(none yet)"] : evidence.map((e) => `- ${e.kind} exit ${e.exit} in ${e.seconds}s at ${e.started}: ${e.command.join(" ")}${e.summary === undefined ? "" : ` ${JSON.stringify(e.summary)}`}`)),
+    "",
+    "## Reviews",
+    ...(reviews.length === 0 ? ["(none yet)"] : reviews.map((r) => `- ${r.id}: ${r.verdict}${r.blocking === 0 ? "" : `, ${r.blocking} blocking`}`)),
     "",
     "## Hand-off",
     handoff.current === undefined ? "(none)" : handoff.current.lines.join("\n"),

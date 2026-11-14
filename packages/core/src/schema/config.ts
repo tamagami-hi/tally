@@ -75,6 +75,7 @@ export const configSchema = z.object({
   sessions: z.object({ idleMinutes: z.number().positive() }).optional(),
   worktrees: z.object({ idleMinutes: z.number().positive().optional(), keep: z.boolean().optional() }).optional(),
   context: z.literal(CONTEXT_AS_RECORDS).optional(),
+  reviews: z.object({ required: z.boolean(), from: z.string().optional() }).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

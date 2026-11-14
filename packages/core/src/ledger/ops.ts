@@ -25,6 +25,7 @@ export interface LandInput {
   track?: string;
   also?: readonly string[];
   deferred?: readonly Deferred[] | undefined;
+  at?: string | undefined;
 }
 
 export interface WaitInput {
@@ -132,7 +133,8 @@ export async function land(ledger: Ledger, input: LandInput, resolve: ResolveCom
   const landed = tasks.map((task): Task => {
     if (task.id !== input.task) return task;
     const merged = [...new Set([...task.also, ...also])].sort();
-    return withDeferred({ ...withoutWaits(task), status: "landed", commit, also: merged }, input.deferred);
+    const at = task.status === "landed" ? task.landedAt : input.at;
+    return withDeferred({ ...withoutWaits(task), status: "landed", commit, also: merged, ...(at === undefined ? {} : { landedAt: at }) }, input.deferred);
   });
   const parts = landed.find((task) => task.id === input.task)?.deferred ?? [];
   const parked = parts.filter((part) => part.parked !== undefined).length;

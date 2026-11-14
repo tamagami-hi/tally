@@ -63,9 +63,10 @@ function tellingWaiters(repo: Repo, input: LandInput, waiters: readonly Waiter[]
   });
 }
 
-export async function recordTask(repo: Repo, input: LandInput, session?: Session): Promise<RecordedTask> {
+export async function recordTask(repo: Repo, input: LandInput, session?: Session, now = new Date()): Promise<RecordedTask> {
   const records = new Records(repo);
-  const allowed = session === undefined ? input : scoped(repo, session, await records.readLedger(), input);
+  const scopedInput = session === undefined ? input : scoped(repo, session, await records.readLedger(), input);
+  const allowed = { ...scopedInput, at: now.toISOString() };
   let waiters: Waiter[] = [];
   const message = await records.update((ledger) => {
     waiters = waitersOn(ledger, refOf(allowed.milestone, allowed.task));

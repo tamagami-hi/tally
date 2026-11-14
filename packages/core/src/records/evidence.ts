@@ -1,6 +1,6 @@
-import { createHash, randomUUID } from "node:crypto";
-import { readFile, readdir, realpath, stat } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { z } from "zod";
 import { TallyError, messageOf } from "../errors.ts";
 import { findMilestone, findTask } from "../ledger/items.ts";
@@ -10,6 +10,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { assertMayWrite, type Session } from "../state/sessions.ts";
 import { commitRecords } from "./commit.ts";
+import { keptFile } from "./kept-file.ts";
 import { safeName } from "./handoffs.ts";
 import { summarize } from "./totals.ts";
 
@@ -67,22 +68,10 @@ export interface EvidenceInput {
 
 const LOGS = ".temp/tally/logs";
 
-const within = (folder: string, path: string): boolean => !relative(folder, path).startsWith("..");
-
 async function hashLog(repo: Repo, session: Session, logPath: string): Promise<{ log: RunRecord["log"]; text: string }> {
-  const absolute = isAbsolute(logPath) ? logPath : resolve(session.worktree, logPath);
-  if (!within(session.worktree, absolute) && !within(join(repo.root, LOGS), absolute)) throw new TallyError(`the log must be inside the session's worktree: ${logPath}`);
-  let bytes: Buffer;
-  try {
-    bytes = await readFile(absolute);
-  } catch {
-    throw new TallyError(`the log does not exist: ${absolute}`);
-  }
-  const real = await realpath(absolute);
-  const allowed = await Promise.all([session.worktree, join(repo.root, LOGS)].map((folder) => realpath(folder).catch(() => folder)));
-  if (!allowed.some((folder) => within(folder, real))) throw new TallyError(`the log must be inside the session's worktree: ${logPath}`);
-  const log = { path: absolute, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: (await stat(absolute)).size };
-  return { log, text: bytes.toString("utf8") };
+  const outside = (given: string): string => `the log must be inside the session's worktree: ${given}`;
+  const { file, content } = await keptFile(logPath, { base: session.worktree, folders: [session.worktree, join(repo.root, LOGS)], outside, missing: (path) => `the log does not exist: ${path}` });
+  return { log: file, text: content.toString("utf8") };
 }
 
 function notRed(exit: number, summary: EvidenceInput["summary"]): string | null {

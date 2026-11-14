@@ -13,6 +13,7 @@ import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerPhaseTools } from "./tools/phases.ts";
 import { registerRulebookTools } from "./tools/rulebook.ts";
 import { registerRecordTools } from "./tools/records.ts";
+import { registerReviewTools } from "./tools/reviews.ts";
 import { registerSessionTools } from "./tools/session.ts";
 import { registerTrackTools } from "./tools/tracks.ts";
 import { DECORATORS, decorating, type Decorator } from "./decorate.ts";
@@ -28,6 +29,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   registerSessionTools(tools, source);
   registerLedgerTools(tools, source);
   registerDeferredTools(tools, source);
+  registerReviewTools(tools, source);
   registerRecordTools(tools, source);
   registerCommandTools(tools, source, place);
   registerLandTools(tools, source);

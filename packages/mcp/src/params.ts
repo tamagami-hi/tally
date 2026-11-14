@@ -93,6 +93,17 @@ const OWN: Readonly<Record<string, string>> = {
   "deferred_set.part": "the part's place in the task's list, from 1, as deferred_list shows it",
   "deferred_set.to": "the MILESTONE:TASK that will finish it, instead of parked",
   "deferred_set.parked": "why the part is left on purpose, instead of to",
+  "review_record.commit": "the commit the reviewer read, as a hash or a ref",
+  "review_record.reviewer": "who reviewed: a model, an account or a person",
+  "review_record.verdict": "land, fix, stop, or waived (an operator session's)",
+  "review_record.blocking": "how many findings must be fixed: 0 for land and waived",
+  "review_record.findings": "counts in your words, such as {medium: 1, low: 7}; at most 8",
+  "review_record.summary": "what it found; for waived, why no review is needed",
+  "review_record.follows": "the review this one follows up, such as review-7",
+  "review_record.report": "the full review as a file in your worktree or under .temp/, kept by hash",
+  "review_list.state": "open or clear: the reviewed task's state",
+  "review_list.limit": "at most this many, the newest: 20 unless said, 200 at most",
+  "review_list.fields": "the keys of each review to keep, such as id and verdict",
   "activity_get.limit": "at most this many events, the latest: 100 unless said, 500 at most",
 };
 

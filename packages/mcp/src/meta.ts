@@ -83,6 +83,8 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   records_commit: addAgain("Commit the waiting records"),
   deferred_list: read("List deferred parts"),
   deferred_set: replace("Place a deferred part"),
+  review_record: add("Record a review"),
+  review_list: { title: "List reviews", effect: "read", newestFirst: true },
 };
 
 const AGENT_META: Readonly<Record<string, ToolMeta>> = {

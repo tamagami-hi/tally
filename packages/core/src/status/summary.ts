@@ -2,6 +2,7 @@ import { uncovered, unfinished } from "../ledger/gaps.ts";
 import { ownersOf } from "../ledger/items.ts";
 import type { Milestones } from "../ledger/refs.ts";
 import { waitsOf } from "../ledger/waits.ts";
+import type { Needing } from "../ledger/review-gaps.ts";
 import type { Stage } from "../schema/config.ts";
 import type { Ledger, Milestone, Task } from "../schema/ledger.ts";
 
@@ -41,6 +42,14 @@ function openNotes(tasks: readonly Task[]): string[] {
   return [...[...nextByTrack].map(([track, id]) => `${track} next: ${id}`), ...open.filter(isWaiting).map((task) => `${task.id}: waits for ${waitsOf(task).join(", ")}`)];
 }
 
+function reviewNotes(milestone: string, tasks: readonly Task[], needing: readonly Needing[]): string[] {
+  return tasks.flatMap((task) => {
+    const one = needing.find((need) => need.milestone === milestone && need.task === task.id);
+    if (one === undefined) return [];
+    return [one.latest === undefined ? `${task.id}: no review` : `${task.id}: ${one.latest.id} open, ${one.latest.blocking} blocking`];
+  });
+}
+
 function owedNotes(ledger: Milestones, milestone: Pick<Milestone, "delivers" | "tasks">, tasks: readonly Task[]): string[] {
   const partly = tasks.flatMap((task) => {
     const parts = unfinished(ledger, task);
@@ -51,8 +60,8 @@ function owedNotes(ledger: Milestones, milestone: Pick<Milestone, "delivers" | "
   return [...partly, ...(owed.length === 0 ? [] : [`no task covers ${owed.map((one) => one.id).join(", ")}`])];
 }
 
-async function row(ledger: Ledger, milestone: Milestone, onMain: OnMain, problems: string[]): Promise<MilestoneRow> {
-  const owed = owedNotes(ledger, milestone, milestone.tasks);
+async function row(ledger: Ledger, milestone: Milestone, onMain: OnMain, problems: string[], needing: readonly Needing[]): Promise<MilestoneRow> {
+  const owed = [...owedNotes(ledger, milestone, milestone.tasks), ...reviewNotes(milestone.id, milestone.tasks, needing)];
   if (milestone.built !== undefined) return { ...milestone, share: 1, count: null, notes: ["built", ...owed] };
   if (milestone.tasks.length === 0) {
     const note = milestone.waits === undefined ? "not started" : `waits for ${milestone.waits}`;
@@ -77,10 +86,10 @@ export function rowsOf(rows: readonly MilestoneRow[], track: string): MilestoneR
     });
 }
 
-export async function summarize(ledger: Ledger, stages: readonly Stage[], onMain: OnMain): Promise<Summary> {
+export async function summarize(ledger: Ledger, stages: readonly Stage[], onMain: OnMain, needing: readonly Needing[] = []): Promise<Summary> {
   const problems: string[] = [];
   const rows: MilestoneRow[] = [];
-  for (const milestone of ledger.milestones) rows.push({ ...(await row(ledger, milestone, onMain, problems)), track: ownersOf(milestone) });
+  for (const milestone of ledger.milestones) rows.push({ ...(await row(ledger, milestone, onMain, problems, needing)), track: ownersOf(milestone) });
   const stagePct: Record<string, number> = {};
   for (const stage of stages) {
     const inStage = rows.filter((r) => r.stage === stage.id);

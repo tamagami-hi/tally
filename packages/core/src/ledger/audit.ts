@@ -5,6 +5,8 @@ import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import { COVERED, unrecorded } from "./check.ts";
 import { deferredRows } from "./deferred.ts";
+import { readReviews } from "../records/reviews.ts";
+import { reviewGaps } from "./review-gaps.ts";
 import { findGaps, gapsOf } from "./gaps.ts";
 
 export interface LedgerCheck {
@@ -46,8 +48,9 @@ function answer(missing: string[], gaps: string[], parked: number, covers: strin
 export async function checkLedger(repo: Repo, ledger: Ledger, track?: string): Promise<Checked> {
   const { root, config } = repo;
   const missing = unrecorded(ledger, await logLines(root, `${ledger.baseline}..${config.mainBranch}`), config.records.commitPrefix);
-  if (track === undefined) return answer(missing, findGaps(ledger).map((gap) => gap.text), parkedIn(ledger), COVERED);
-  const gaps = gapsOf(ledger, track).map((gap) => gap.text);
+  const reviewed = reviewGaps(ledger, (await readReviews(repo)).reviews, config.reviews);
+  if (track === undefined) return answer(missing, [...findGaps(ledger), ...reviewed].map((gap) => gap.text), parkedIn(ledger), COVERED);
+  const gaps = [...gapsOf(ledger, track), ...reviewed.filter((gap) => gap.track === track)].map((gap) => gap.text);
   const paths = config.tracks.find((one) => one.name === track)?.paths;
   const parked = parkedIn(ledger, track);
   if (paths === undefined) return answer(missing, gaps, parked, COVERED, `track ${track} has no paths in the config, so missing lists every commit on main no record names, not only ${track}'s`);
