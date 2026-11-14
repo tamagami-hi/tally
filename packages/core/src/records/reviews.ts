@@ -2,7 +2,8 @@ import { join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { shortOf, verifyCommit } from "../git/refs.ts";
 import { findMilestone, findTask } from "../ledger/items.ts";
-import { reviewsFileSchema, type KeptFile, type Review, type ReviewState, type ReviewVerdict, type ReviewsFile } from "../schema/reviews.ts";
+import type { KeptFile } from "../schema/kept.ts";
+import { reviewsFileSchema, type Review, type ReviewState, type ReviewVerdict, type ReviewsFile } from "../schema/reviews.ts";
 import { assertMayWrite, isOperator, type Session } from "../state/sessions.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
@@ -81,18 +82,23 @@ function assertWaiver(repo: Repo, session: Session, input: ReviewInput): void {
   if (input.follows !== undefined) throw new TallyError("a waiver follows no review; record it without follows");
 }
 
+export async function reviewsWhenRequired(repo: Repo): Promise<Review[]> {
+  return repo.config.reviews?.required === true ? (await readReviews(repo)).reviews : [];
+}
+
 function assertFollows(reviews: readonly Review[], input: ReviewInput): void {
   if (input.follows === undefined) return;
   const own = reviewsOf(reviews, input.milestone, input.task);
+  if (own.some((review) => review.id === input.follows && review.verdict === "waived")) throw new TallyError(`${input.follows} is a waiver, and a waiver is not followed up; record the review without follows`);
   if (own.some((review) => review.id === input.follows && review.verdict !== "waived")) return;
   const named = own.filter((review) => review.verdict !== "waived").map((review) => review.id).join(", ");
   throw new TallyError(`${input.follows} is not a review of ${input.milestone} '${input.task}'; its reviews: ${named === "" ? "none yet" : named}`);
 }
 
-async function shortCommit(repo: Repo, commit: string): Promise<string> {
-  const full = await verifyCommit(repo.root, commit);
+async function shortCommit(session: Session, commit: string): Promise<string> {
+  const full = await verifyCommit(session.worktree, commit);
   if (full === null) throw new TallyError(`${commit}: no such commit in the repository; give the commit the reviewer read`);
-  return shortOf(repo.root, full);
+  return shortOf(session.worktree, full);
 }
 
 async function reportOf(repo: Repo, session: Session, report: string | undefined): Promise<KeptFile | undefined> {
@@ -109,7 +115,7 @@ export async function recordReview(repo: Repo, session: Session, input: ReviewIn
   assertMayWrite(repo, session, task.track);
   assertFits(input);
   assertWaiver(repo, session, input);
-  const commit = await shortCommit(repo, input.commit);
+  const commit = await shortCommit(session, input.commit);
   const report = await reportOf(repo, session, input.report);
   const path = reviewsPath(repo);
   const { review, reviews } = await withLock(path, async () => {

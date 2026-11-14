@@ -49,5 +49,5 @@ export function reviewNote(reviews: readonly Review[], setting: ReviewSetting | 
   const { state, latest } = reviewStateOf(reviews, milestone, task);
   if (state === "clear") return undefined;
   const now = latest === undefined ? "has no review yet" : `has ${latest.id} with ${findings(latest.blocking)} and no later review`;
-  return `this repository requires reviews, and ${milestone} '${task}' ${now}; ledger_check will list it once it lands until review_record clears it`;
+  return `this repository requires reviews, and ${milestone} '${task}' ${now}; once landed, ledger_check lists it until review_record clears it`;
 }

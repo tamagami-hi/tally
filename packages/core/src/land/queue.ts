@@ -4,7 +4,7 @@ import { z } from "zod";
 import { TallyError } from "../errors.ts";
 import { assertMayPark } from "../ledger/deferred.ts";
 import { reviewNote } from "../ledger/review-gaps.ts";
-import { readReviews } from "../records/reviews.ts";
+import { reviewsWhenRequired } from "../records/reviews.ts";
 import { assertDeferred, copyPart } from "../ledger/waits.ts";
 import { deferredSchema, type Deferred } from "../schema/ledger.ts";
 import { StateFile } from "../state/file.ts";
@@ -120,7 +120,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
   assertDeferred(deferred);
   await assertMayPark(repo, session, deferred);
   await checkCheckout(repo, [...input.files, ...(await branchChanges(repo, track.branch))]);
-  const note = input.target === undefined ? undefined : reviewNote((await readReviews(repo)).reviews, repo.config.reviews, input.target.milestone, input.target.task);
+  const note = input.target === undefined ? undefined : reviewNote(await reviewsWhenRequired(repo), repo.config.reviews, input.target.milestone, input.target.task);
   const ticket: Ticket = {
     id: randomUUID().slice(0, TICKET_LENGTH),
     sessionId: session.id,

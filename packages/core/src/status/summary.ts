@@ -77,12 +77,12 @@ async function row(ledger: Ledger, milestone: Milestone, onMain: OnMain, problem
   return { ...milestone, share: landed / milestone.tasks.length, count: [landed, milestone.tasks.length], notes: [...openNotes(milestone.tasks), ...owed] };
 }
 
-export function rowsOf(rows: readonly MilestoneRow[], track: string): MilestoneRow[] {
+export function rowsOf(rows: readonly MilestoneRow[], track: string, needing: readonly Needing[] = []): MilestoneRow[] {
   return rows
     .filter((row) => row.track.split("+").includes(track) || row.tasks.some((task) => task.track === track))
     .map((row) => {
       const tasks = row.tasks.filter((task) => task.track === track);
-      return { ...row, tasks, notes: row.count === null ? row.notes : [...openNotes(tasks), ...owedNotes({ milestones: rows }, row, tasks)] };
+      return { ...row, tasks, notes: row.count === null ? row.notes : [...openNotes(tasks), ...owedNotes({ milestones: rows }, row, tasks), ...reviewNotes(row.id, tasks, needing)] };
     });
 }
 

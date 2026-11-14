@@ -81,6 +81,22 @@ describe("review_list", () => {
   });
 });
 
+describe("the board and the needing list, by track", () => {
+  test("board_get with scope mine keeps the track's own review notes", async () => {
+    const { call, data } = await serving();
+
+    const rows = (await call("board_get", { scope: "mine", sessionId: data })).structured["rows"] as { notes: string[] }[];
+
+    expect(rows[0]?.notes).toEqual(expect.arrayContaining(["done: no review", "5 transcoder: no review"]));
+  });
+
+  test("needing keeps to the milestone and track asked for", async () => {
+    const { call } = await serving();
+
+    expect((await call("review_list", { track: "engine" })).structured["needing"]).toEqual({ tasks: [], total: 0 });
+  });
+});
+
 describe("ledger_check where reviews are required", () => {
   test("lists a landed task with no review as a gap", async () => {
     const { call } = await serving();

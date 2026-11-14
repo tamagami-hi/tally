@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { TallyError } from "../errors.ts";
-import type { KeptFile } from "../schema/reviews.ts";
+import type { KeptFile } from "../schema/kept.ts";
 
 export interface Allowed {
   base: string;

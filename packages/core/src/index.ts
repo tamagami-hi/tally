@@ -21,7 +21,7 @@ export type { Gap } from "./ledger/gaps.ts";
 export { checkLedger } from "./ledger/audit.ts";
 export { needingReview, needingText, reviewGaps, reviewNote } from "./ledger/review-gaps.ts";
 export type { Needing, ReviewSetting } from "./ledger/review-gaps.ts";
-export { readReviews, recordReview, reviewStateOf, reviewsOf } from "./records/reviews.ts";
+export { MOST_FINDINGS, MOST_REVIEWER, MOST_REVIEW_SUMMARY, readReviews, recordReview, reviewStateOf, reviewsOf, reviewsWhenRequired } from "./records/reviews.ts";
 export type { ReviewInput, ReviewRecorded, TaskReviews } from "./records/reviews.ts";
 export { reviewSchema, reviewStates, reviewVerdicts, reviewsFileSchema } from "./schema/reviews.ts";
 export type { Review, ReviewState, ReviewVerdict, ReviewsFile } from "./schema/reviews.ts";

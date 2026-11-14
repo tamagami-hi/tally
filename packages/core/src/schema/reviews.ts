@@ -1,9 +1,8 @@
 import { z } from "zod";
+import { keptFileSchema } from "./kept.ts";
 
 export const reviewVerdicts = ["land", "fix", "stop", "waived"] as const;
 export const reviewStates = ["none", "clear", "open"] as const;
-
-export const keptFileSchema = z.object({ path: z.string(), sha256: z.string().length(64), bytes: z.number().int().nonnegative() });
 
 export const reviewSchema = z.object({
   id: z.string().min(1),
@@ -32,4 +31,3 @@ export type Review = z.infer<typeof reviewSchema>;
 export type ReviewVerdict = (typeof reviewVerdicts)[number];
 export type ReviewState = (typeof reviewStates)[number];
 export type ReviewsFile = z.infer<typeof reviewsFileSchema>;
-export type KeptFile = z.infer<typeof keptFileSchema>;

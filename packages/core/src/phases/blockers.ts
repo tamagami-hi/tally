@@ -3,7 +3,7 @@ import { findGaps, type Gap } from "../ledger/gaps.ts";
 import { ownersOf } from "../ledger/items.ts";
 import { checkLedger } from "../ledger/audit.ts";
 import { reviewGaps } from "../ledger/review-gaps.ts";
-import { readReviews } from "../records/reviews.ts";
+import { reviewsWhenRequired } from "../records/reviews.ts";
 import { isActive, queueFile, type Ticket } from "../land/queue.ts";
 import type { Ledger, Milestone } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
@@ -35,7 +35,7 @@ export function tasksOf(ledger: Ledger, phase: string): PhaseTasks {
 
 export async function contextOf(repo: Repo, ledger: Ledger): Promise<Context> {
   const { check } = await checkLedger(repo, ledger);
-  const reviewed = reviewGaps(ledger, (await readReviews(repo)).reviews, repo.config.reviews);
+  const reviewed = reviewGaps(ledger, await reviewsWhenRequired(repo), repo.config.reviews);
   return { missing: check.missing, gaps: [...findGaps(ledger), ...reviewed], tickets: (await queueFile(repo).read()).tickets.filter(isActive) };
 }
 

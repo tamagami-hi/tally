@@ -63,7 +63,7 @@ describe("where a review gap shows", () => {
 
     const ticket = await joinQueue(repo, q.session, landing(["src/a.rs"], { target: { milestone: "A1", task: "t1" } }));
 
-    expect(ticket.note).toBe("this repository requires reviews, and A1 't1' has no review yet; ledger_check will list it once it lands until review_record clears it");
+    expect(ticket.note).toBe("this repository requires reviews, and A1 't1' has no review yet; once landed, ledger_check lists it until review_record clears it");
   });
 
   test("land_start adds no note where reviews are not required", async () => {
