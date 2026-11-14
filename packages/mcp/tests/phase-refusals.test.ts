@@ -36,6 +36,10 @@ describe("phase_close's description", () => {
       expect(description, says).toContain(says);
     }
     expect(description).toContain("phase_list's `left`");
+    const listed = (await client.listTools()).tools.find((tool) => tool.name === "phase_list")?.description ?? "";
+    const order = ["tasks not landed", "commits the ledger lacks", "gaps ledger_check lists", "landings in the queue"].map((words) => listed.indexOf(words));
+    expect(order.every((at) => at >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(description).toContain("`withoutBuildLog`");
   });
 });

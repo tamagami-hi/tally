@@ -109,14 +109,14 @@ const NEWEST_VERSIONS = 2;
 
 const versionKey = (version: string): number[] => version.split(".").map(Number);
 
-const isNewer = (a: string, b: string): number => {
+const compareVersions = (a: string, b: string): number => {
   const [left, right] = [versionKey(a), versionKey(b)];
   const at = left.findIndex((part, index) => part !== right[index]);
   return at === -1 ? 0 : (left[at] ?? 0) - (right[at] ?? 0);
 };
 
 export function newestTools(): string[] {
-  const versions = [...new Set(Object.values(TOOL_META).flatMap((meta) => (meta.since === undefined ? [] : [meta.since])))].sort(isNewer).slice(-NEWEST_VERSIONS);
+  const versions = [...new Set(Object.values(TOOL_META).flatMap((meta) => (meta.since === undefined ? [] : [meta.since])))].sort(compareVersions).slice(-NEWEST_VERSIONS);
   return Object.entries(TOOL_META).filter(([, meta]) => meta.since !== undefined && versions.includes(meta.since)).map(([name]) => name);
 }
 

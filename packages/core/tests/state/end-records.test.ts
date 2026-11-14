@@ -21,7 +21,7 @@ describe("session_close says what happened to the records", () => {
   test("where each record is committed as it is written", async () => {
     const { repo, data } = await closing({ commit: true });
 
-    expect((await endSession(repo, data.id)).records).toBe("records are committed as each is written");
+    expect((await endSession(repo, data.id)).records).toBe("records are committed as each is written (one written during a landing's turn goes in when that landing ends)");
   });
 
   test("where the last session to close commits them, with the hash, or that they wait for it", async () => {
@@ -44,5 +44,16 @@ describe("session_close says what happened to the records", () => {
     const { repo, data } = await closing({ commit: false });
 
     expect((await endSession(repo, data.id)).records).toBe("this repository commits its records by hand (records.commit is false)");
+  });
+});
+
+describe("session_close in the rest mode with nothing waiting", () => {
+  test("says no record was waiting", async () => {
+    const tracked = await makeTracked({ commit: true, batch: true });
+    await sh(tracked.root, ["add", "-A", "docs/records"]);
+    await sh(tracked.root, ["commit", "-q", "--allow-empty", "-m", "records: settle"]);
+    const data = await openSession(tracked.repo, { worktree: tracked.trees["data"]!, agent: "claude" });
+
+    expect((await endSession(tracked.repo, data.id)).records).toBe("no record was waiting to be committed");
   });
 });

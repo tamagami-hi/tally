@@ -43,3 +43,28 @@ describe("a records commit with a long subject", () => {
     expect(unrecorded(ledger, await logLines(root, `${ledger.baseline}..main`), PREFIX)).toEqual([]);
   });
 });
+
+describe("a records commit's subject at its edges", () => {
+  test("keeps exactly 70 characters, cuts 71, and uses a ', ' that starts right at the limit", () => {
+    const seventy = `x${"y".repeat(60)}`;
+    expect(fittedSubject(PREFIX, seventy).subject).toHaveLength(MOST_SUBJECT);
+    expect(fittedSubject(PREFIX, `${seventy}z`).subject.length).toBeLessThanOrEqual(MOST_SUBJECT);
+    expect(fittedSubject(PREFIX, `${"a".repeat(30)} ${"b".repeat(30)}, then more`).subject).toBe(`records: ${"a".repeat(30)} ${"b".repeat(30)}`);
+  });
+
+  test("never cuts into the prefix, and never splits a character in two", () => {
+    expect(fittedSubject(PREFIX, "z".repeat(90)).subject.startsWith(`${PREFIX} `)).toBe(true);
+    expect(fittedSubject("p".repeat(75), "word").subject).toBe("p".repeat(75));
+    const cut = fittedSubject(PREFIX, `${"a".repeat(60)}😀😀😀`).subject;
+    expect(cut.isWellFormed()).toBe(true);
+  });
+
+  test("folds the subject's line breaks, and keeps the whole sentence as it was for the body", () => {
+    const text = "Q-1 answered: yes\n\nbecause a, b and c hold for every segment we have, and more besides";
+
+    const fitted = fittedSubject(PREFIX, text);
+
+    expect(fitted.subject).not.toContain("\n");
+    expect(fitted.moved).toBe(text);
+  });
+});

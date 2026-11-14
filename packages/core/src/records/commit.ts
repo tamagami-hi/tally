@@ -29,17 +29,20 @@ export interface Fitted {
   moved?: string;
 }
 
+const HIGH_SURROGATE = /[\uD800-\uDBFF]$/;
+
 function cutAt(line: string, after: number): number {
-  const room = line.slice(0, MOST_SUBJECT + 1);
-  const phrase = Math.max(...BREAKS.map((mark) => room.lastIndexOf(mark)));
+  const phrase = Math.max(...BREAKS.map((mark) => line.lastIndexOf(mark, MOST_SUBJECT)));
   if (phrase > after) return phrase;
-  const space = room.lastIndexOf(" ");
-  return space > after ? space : MOST_SUBJECT;
+  const space = line.lastIndexOf(" ", MOST_SUBJECT);
+  if (space > after) return space;
+  return HIGH_SURROGATE.test(line.slice(0, MOST_SUBJECT)) ? MOST_SUBJECT - 1 : MOST_SUBJECT;
 }
 
 export function fittedSubject(prefix: string, text: string): Fitted {
-  const line = `${prefix} ${text}`;
+  const line = `${prefix} ${text.replaceAll(/\s+/g, " ").trim()}`;
   if (line.length <= MOST_SUBJECT) return { subject: line };
+  if (prefix.length + 1 >= MOST_SUBJECT) return { subject: prefix, moved: text };
   return { subject: line.slice(0, cutAt(line, prefix.length)).trimEnd(), moved: text };
 }
 

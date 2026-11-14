@@ -20,7 +20,7 @@ export interface Cleaned {
   what?: string;
 }
 
-const CLEANED = "files git ignores under these top-level folders were deleted with the worktree (build output and installed packages); notes under .temp/ were kept, and `kept` says where";
+const CLEANED = "files git ignores under these top-level folders were deleted with the worktree (build output and installed packages); notes under .temp/ were kept, and `kept` says where when there were any";
 
 export interface TrackClosed {
   track: OpenedTrack;

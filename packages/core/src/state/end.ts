@@ -19,7 +19,7 @@ const files = (count: number): string => (count === 1 ? "1 record file waits" : 
 async function recordsSaid(repo: Repo, commit: string | null, othersOpen: boolean): Promise<string> {
   const mode = recordsMode(repo.config);
   if (mode === "never") return "this repository commits its records by hand (records.commit is false)";
-  if (mode === "each") return "records are committed as each is written";
+  if (mode === "each") return "records are committed as each is written (one written during a landing's turn goes in when that landing ends)";
   const waiting = (await recordsWaiting(repo)).files;
   if (mode === "phase") return `${files(waiting)} for the close of the phase (phase_close), or for records_commit`;
   if (commit !== null) return `this was the last session, so the waiting records were committed as ${commit}`;
