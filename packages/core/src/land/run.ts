@@ -7,7 +7,7 @@ import type { Repo } from "../store/records.ts";
 import { LANDING_RETRIES, withLock } from "../store/lock.ts";
 import { checkArguments, checkTrackPaths, checkWorktree, type LandOptions } from "./checks.ts";
 import { testCommits, undoCommit } from "./clean.ts";
-import { checkCheckout, filesChanged } from "./operator.ts";
+import { branchChanges, checkCheckout } from "./operator.ts";
 import { fingerprint, statePath, trackOf, worktreeOf } from "./paths.ts";
 import { spawnTests, type RunTests } from "./run-tests.ts";
 
@@ -115,7 +115,7 @@ export async function landTrack(repo: Repo, options: LandOptions, deps: LandDeps
   checkTrackPaths(track, options.files);
   const tree = worktreeOf(repo, track);
   return withLock(statePath(repo, "locks", "landing.lock"), async () => {
-    await checkCheckout(repo, [...options.files, ...(await filesChanged(root, `${config.mainBranch}...${track.branch}`))]);
+    await checkCheckout(repo, [...options.files, ...(await branchChanges(repo, track.branch))]);
     await checkWorktree(tree, track.branch, options, config);
     if (options.verifiedCode !== undefined && (await fingerprint(root, config)) !== options.verifiedCode) {
       throw new TallyError("main code differs from the verification; task preserved, recheck changed code");

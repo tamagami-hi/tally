@@ -85,6 +85,14 @@ describe("the landing's refusals", () => {
     await expect(landTrack(f.repo, { track: "data", files: [] }, f.deps)).rejects.toThrow(`the operator checkout at ${f.root} is on elsewhere, not main`);
   });
 
+  test("counts the commits the track already has among the files it changes", async () => {
+    const f = await fixture();
+    await edit(f.tree, "src/lib.rs", "fn b() {}\n");
+    await sh(f.tree, ["commit", "-qam", "feat: b"]);
+    await writeFile(join(f.root, "src", "lib.rs"), "fn edited() {}\n");
+    await expect(landTrack(f.repo, { track: "data", files: [] }, f.deps)).rejects.toThrow("1 file this landing changes: src/lib.rs");
+  });
+
   test("an uncommitted file the landing does not change is left as it was", async () => {
     const f = await fixture();
     await writeFile(join(f.root, "stray.txt"), "x");
