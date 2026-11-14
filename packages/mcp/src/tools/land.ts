@@ -23,7 +23,7 @@ export function registerLandTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "land_start",
     {
-      description: "Join the landing queue with the session's track. It never blocks: the answer is a ticket with its state, its position and who is ahead. When the state is `turn`, tally has committed the named files, rebased the track onto main in a clean checkout and written a script: run the `run` command in your own shell (in the background if it is long), then call land_wait. With milestone and task, the landing records that task; `deferred` then lists the parts that did not land, each {what} with `to` the MILESTONE:TASK that will finish it or `parked`, and they are recorded on the task. Without files and a message it lands the commits the track already has. Refused at once while the operator checkout is off main or has an uncommitted change in a file this landing changes; the refusal names them.",
+      description: "Join the landing queue with the session's track; it never blocks. The answer is a ticket: its state, its position and who is ahead. At `turn`, tally has committed the named files, rebased the track onto main in a clean checkout and written a script: run `run` in your own shell (in the background if long), then call land_wait. Without files and a message it lands the commits the track has. With milestone and task it records that task, and `deferred` the parts that did not land, each {what} with `to` (MILESTONE:TASK) or `parked`. Refused at once, naming the files, while the operator checkout is off main or has uncommitted changes in a file this landing changes.",
       inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), message: z.string().optional().describe("the commit message"), messageFile: z.string().optional().describe("a file in the worktree that holds the commit message"), milestone: z.string().optional(), task: z.string().optional(), deferred: z.array(deferredInput).optional().describe("the parts this landing leaves undone") },
     },
     ({ sessionId, files, message, messageFile, milestone, task, deferred }) => inSession(source, sessionId, async (repo, session) => {
@@ -37,7 +37,7 @@ export function registerLandTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "land_wait",
     {
-      description: "Wait for a landing ticket to change, for up to 30 seconds: the call answers as soon as the ticket leaves the state given in `after`, or when the time is up. `turn` means run the `run` command now; `landed` and `failed` end the ticket, and a failure carries `problem` with the commit, the exit and the log. Call it again while the state is `queued`, or `turn` with the script still running.",
+      description: "Wait up to 30 seconds for a landing ticket to leave the state given in `after`. `turn`: run the `run` command now; `landed` and `failed` end the ticket, and a failure's `problem` names the commit, the exit and the log. Call again while it is `queued`, or at `turn` while the script runs.",
       inputSchema: { sessionId: z.string(), ticket: z.string(), after: z.enum(ticketStates).optional().describe("the state you last saw"), seconds: z.number().int().positive().max(MAX_WAIT_SECONDS).default(MAX_WAIT_SECONDS) },
     },
     ({ sessionId, ticket, after, seconds }) => inSession(source, sessionId, async (repo) => ok(await waitForTicket(repo, ticket, after, seconds))),

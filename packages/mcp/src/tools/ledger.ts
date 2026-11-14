@@ -41,7 +41,7 @@ const plannedTask = z.object({
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "board_get",
-    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, plus the live claims and locks. scope 'mine' keeps only the session's track: its rows, their tasks and notes, its branch beside main, and its claims. `fields` keeps only those top-level keys.", inputSchema: { scope: SCOPE, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
+    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, and the live claims and locks. scope 'mine' keeps the session's track: its rows, their tasks and notes, its branch beside main, its claims. `fields` keeps only those top-level keys.", inputSchema: { scope: SCOPE, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
     ({ scope, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const status = await collect(repo, await new Records(repo).readLedger());
       const board = { ...status, claims: await listClaims(repo), locks: await listLocks(repo) };
@@ -53,7 +53,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "ledger_check",
-    { description: "The commits on main the ledger does not account for, in `missing`; empty when every commit is recorded. `gaps` lists, each as a sentence, a deliverable no task covers, a wait on a task that is not in the ledger, and a deferred part with no task there to finish it. scope 'mine' (with sessionId) keeps only the gaps of the session's track, and, when the track has paths in the config, only the commits whose files are all under them; without paths `missing` is unchanged and `note` says so. `checkout` lists what is uncommitted in the operator checkout outside the records; `parked` counts parked parts.", inputSchema: { scope: SCOPE, ...WHERE } },
+    { description: "The commits on main the ledger does not record (`missing`, empty when it covers them all) and the `gaps`, each a sentence: a deliverable no task covers, a wait on a task not in the ledger, a deferred part neither left to a task nor parked, and, where reviews are required, a landed task with no clear review. scope 'mine' (with sessionId) keeps the track's gaps and, when the track has paths, only commits wholly under them (else `note` says so). `checkout`: what is uncommitted in the operator checkout outside the records; `parked`: how many parts are parked.", inputSchema: { scope: SCOPE, ...WHERE } },
     ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const track = scope === "all" ? undefined : (await own(repo, sessionId)).track;
       const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), track);
@@ -85,7 +85,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_plan",
-    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's. A task is its name, or {id, brief?, paths?, covers?}: what to do, the files it expects to touch, and the ids of the milestone's deliverables it covers. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: z.array(z.union([z.string(), plannedTask])).min(1) } },
+    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's. A task is its name, or {id, brief?, paths?, covers?}: what to do, the files it should touch, and the ids of the deliverables it covers. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: z.array(z.union([z.string(), plannedTask])).min(1) } },
     ({ sessionId, milestone, track, tasks }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       const scoped = scopedTrack(repo, session, track);
@@ -122,7 +122,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   server.registerTool(
     "task_remove",
     {
-      description: "Remove a planned task that will not be done: planned by mistake, split into others, or dropped. A landed task stays, since it is the record of its commit. Refused while another session holds the task or a landing in the queue is to record it; your own claim on it is released. Its run records stay in the milestone's evidence, and the tracks whose tasks wait on it are told. The answer's message says what the removal leaves: a deliverable nothing covers now, or a deferred part with no task to finish it.",
+      description: "Remove a planned task that will not be done (planned by mistake, split, or dropped); a landed task stays as the record of its commit. Refused while another session holds it or a queued landing would record it; your own claim is released. Its run records stay, and the tracks whose tasks wait on it are told. The message says what the removal leaves: a deliverable no task covers, or a deferred part with no task.",
       inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), why: z.string() },
     },
     ({ sessionId, milestone, task, why }) => inSession(source, sessionId, async (repo, session) => {
@@ -142,7 +142,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_land",
-    { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be. `deferred` lists the parts that did not land, each {what} with `to` the MILESTONE:TASK that will finish it, or `parked` (an operator's, or under a decision): the board shows the task as landed in part until those tasks land. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional() } },
+    { description: "Record the commit on main that landed a task (land_start and land_run can do it for you); follow-up commits go in `also`. The task's claim is released, whoever holds it (`problem` when it could not be). `deferred` lists the parts that did not land, each {what} with `to` (MILESTONE:TASK) or `parked` (an operator session's, or under a decision); until those tasks land the board shows it landed in part. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional() } },
     ({ sessionId, milestone, task, commit, also, track, deferred }) => inSession(source, sessionId, async (repo, session) => {
       await assertMayPark(repo, session, deferred ?? []);
       const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, deferred, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);

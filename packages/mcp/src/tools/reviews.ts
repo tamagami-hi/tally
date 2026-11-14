@@ -21,7 +21,7 @@ export function registerReviewTools(server: ToolHost, source: RepoSource): void 
   server.registerTool(
     "review_record",
     {
-      description: "Record a review of a task's work: the commit the reviewer read, who reviewed (not the builder), the verdict (land: nothing blocks; fix: land once the blocking findings are fixed; stop: not as built; waived: needs no review, an operator session's) and how many findings block. A follow-up names the review it follows. Answers the review, the task's state after it (none, open or clear) and the records commit.",
+      description: "Record a review of a task's work: the commit the reviewer read, who reviewed (not the builder), the verdict (land: nothing blocks; fix: land once the blocking findings are fixed; stop: not as built; waived: needs none, an operator session's) and how many findings block. A follow-up names the review it follows. Answers the review and the task's state after it (none, open or clear).",
       inputSchema: {
         sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), reviewer: z.string().min(1).max(MOST_REVIEWER), verdict: z.enum(reviewVerdicts),
         blocking: z.number().int().min(0).max(MOST_BLOCKING), findings: z.record(z.string(), z.number().int().nonnegative()).optional(), summary: z.string().min(1).max(MOST_SUMMARY), follows: z.string().optional(), report: z.string().optional(),
@@ -32,7 +32,7 @@ export function registerReviewTools(server: ToolHost, source: RepoSource): void 
   server.registerTool(
     "review_list",
     {
-      description: "Reviews, newest first: 20 unless `limit` says, with `matched`. Filters: milestone, task, track, and `state`, the reviewed task's (open: its newest review has blocking findings). Where the repository requires reviews, `needing` names up to 20 landed tasks without a clear review, and the total.",
+      description: "Reviews, newest first: 20 unless `limit` says, with `matched`. Filters: milestone, task, track, and `state`, the reviewed task's (open: its newest review has blocking findings). Where reviews are required, `needing` names up to 20 landed tasks without a clear review, and the total.",
       inputSchema: { milestone: z.string().optional(), task: z.string().optional(), track: z.string().optional(), state: z.enum(["open", "clear"]).optional(), limit: z.number().int().positive().max(MOST_REVIEWS).optional(), fields: FIELDS, ...WHERE },
     },
     ({ milestone, task, track, state, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {

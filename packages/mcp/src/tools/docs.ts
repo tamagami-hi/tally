@@ -61,7 +61,7 @@ export function registerDocTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "context_pack",
-    { description: "Exactly what a session at a level reads at its start, assembled now from the records: project (rules, milestones, sessions, locks), track (its tasks and hand-off), milestone (its tasks and evidence counts), task (the task, its evidence, the hand-off).", inputSchema: { level: z.enum(["project", "track", "milestone", "task"]), track: z.string().optional(), milestone: z.string().optional(), task: z.string().optional(), ...WHERE } },
+    { description: "What a session at a level reads at its start, assembled now from the records: project (rules, milestones, sessions, locks), track (its tasks and hand-off), milestone (its tasks and evidence counts), task (the task, its evidence and reviews, the hand-off).", inputSchema: { level: z.enum(["project", "track", "milestone", "task"]), track: z.string().optional(), milestone: z.string().optional(), task: z.string().optional(), ...WHERE } },
     ({ level, track, milestone, task, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const pack = await contextPack(repo, { level, ...(track === undefined ? {} : { track }), ...(milestone === undefined ? {} : { milestone }), ...(task === undefined ? {} : { task }) });
       return ok(pack, pack.text);

@@ -36,7 +36,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
       inputSchema: {
         sessionId: z.string(),
         phase: z.string().describe("the phase's id, as phase_list shows it, for example G"),
-        summary: z.string().describe("what the phase delivered, 1 to 500 characters; it is the body of the records commit and goes to every open session"),
+        summary: z.string().describe("what the phase delivered, 1 to 500 characters: the records commit's body, sent to every open session"),
       },
     },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await closePhase(repo, session, input))),
@@ -45,7 +45,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
     "records_commit",
     {
       description: "Commit the record changes that wait on disk (operator session only), with `why` in the commit's subject. A repository that commits its records at each phase's end needs this only before the operator pushes in the middle of a phase.",
-      inputSchema: { sessionId: z.string(), why: z.string().describe("why the records are committed now, in a line of 1 to 200 characters, for example before the operator pushes") },
+      inputSchema: { sessionId: z.string(), why: z.string().describe("why now, one line of 1 to 200 characters, such as before the operator pushes") },
     },
     ({ sessionId, why }) => inSession(source, sessionId, async (repo, session) => ok(await commitWaitingRecords(repo, session, why))),
   );

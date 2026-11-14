@@ -24,7 +24,7 @@ const FILTER = {
 export function registerContextTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "context_get",
-    { description: "What a session needs to know about this repository, as entries: its rules, conventions, areas, interfaces, how-tos and findings. With no argument, every entry in force, the newest first. An entry with no paths applies everywhere, so `paths` always answers those too. `matched` says how many there were before `limit`.", inputSchema: { ...FILTER, ...WHERE } },
+    { description: "What a session needs to know here, as entries: rules, conventions, areas, interfaces, how-tos and findings. With no argument, every entry in force, newest first. An entry with no paths applies everywhere, so `paths` always answers those too. `matched` counts them before `limit`.", inputSchema: { ...FILTER, ...WHERE } },
     ({ fields, sessionId, repo: name, ...filter }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const keep = keeping(fields);
       const found = await findEntries(repo, defined(filter));
@@ -40,11 +40,11 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
         kind: z.enum(ENTRY_KINDS),
         title: z.string(),
         text: z.string(),
-        paths: z.array(z.string()).optional().describe("files, folders or globs from the repository's root (* within one folder, ** at any depth); leave out for an entry that applies everywhere"),
+        paths: z.array(z.string()).optional().describe("files, folders or globs from the root (* in one folder, ** at any depth); none: it applies everywhere"),
         tags: z.array(z.string()).optional(),
         refs: z.array(z.string()).optional().describe("other records this one rests on: a decision, a question, a task, another entry"),
         replaces: z.string().optional().describe("the id of the entry this one takes the place of"),
-        section: z.enum(RULE_SECTIONS).optional().describe("for a rule only, and required of one unless it replaces a rule that has one: authority, safety, working or once"),
+        section: z.enum(RULE_SECTIONS).optional().describe("a rule's section, needed unless it replaces one that has it: authority, safety, working or once"),
         source: z.string().max(MAX_SOURCE).optional().describe(`for a rule only, and required of one: whose word it is and when, or the id of the decision it rests on, one line, for example "the operator, 2026-11-14"`),
       },
     },
@@ -71,13 +71,13 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
   );
   server.registerTool(
     "repo_configure",
-    { description: "Change the repository's config record (operator session only). `config` holds the keys to set: a top-level key replaces what was there, and `commands` merges one level deep, so setting `commands.test` keeps the rest. The result must fit the config's schema, and a key the schema does not have is refused by name; nothing is written then.", inputSchema: { sessionId: z.string(), config: z.record(z.string(), z.unknown()) } },
+    { description: "Change the repository's config (operator session only). `config` holds the keys to set: a top-level key replaces its value, and `commands` merges one level deep, so setting `commands.test` keeps the rest. The result must fit the schema; a key it lacks is refused by name, and then nothing is written.", inputSchema: { sessionId: z.string(), config: z.record(z.string(), z.unknown()) } },
     ({ sessionId, config }) => inSession(source, sessionId, async (repo, session) => ok(await configureRepo(repo, session, config))),
   );
   server.registerTool(
     "activity_get",
     {
-      description: "What sessions did in this repository, the oldest first: one event for each write a tool made, with when, the session, its track and agent, the tool (`verb`) and what it was aimed at (`target`). Ask with the time you last looked to read what happened while you were away. `matched` says how many there were before `limit`, which keeps the latest. The log is kept only by a repository whose config says `context: \"records\"`.",
+      description: "What sessions did here, oldest first: one event per write a tool made, with when, the session, its track and agent, the tool (`verb`) and its `target`. Pass the time you last looked to read what happened since. `matched` counts them before `limit`, which keeps the latest. Kept only where the config says `context: \"records\"`.",
       inputSchema: {
         since: z.string().optional().describe("an ISO time: only what came after it"),
         track: z.string().optional().describe("only this track's events"),

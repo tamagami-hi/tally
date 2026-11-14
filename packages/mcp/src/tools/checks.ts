@@ -30,7 +30,7 @@ export function registerCheckTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "buildlog_append",
     {
-      description: "Add a dated section to a group's build log: what was built, verified, decided and corrected; one section per milestone and group. Give it as fields (`built`, `verified`, `decided`, `corrected`, `open`), as Markdown, or as both; `markdown` may be left out when a field is given.",
+      description: "Add a dated section to a group's build log: what was built, verified, decided and corrected; one section per milestone and group. Give it as fields (`built`, `verified`, `decided`, `corrected`, `open`), as Markdown (`markdown`), or both.",
       inputSchema: {
         sessionId: z.string(),
         group: z.string(),
@@ -40,7 +40,7 @@ export function registerCheckTools(server: ToolHost, source: RepoSource): void {
         markdown: z.string().optional(),
         commits: z.array(z.string()).optional(),
         built: z.string().optional().describe("what was built, in a sentence or two"),
-        verified: z.array(verifiedSchema).optional().describe("each thing verified: what, the check that showed it, and the check's totals such as {passed: 101, failed: 0}"),
+        verified: z.array(verifiedSchema).optional().describe("each thing verified: what, the check, and its totals such as {passed: 101, failed: 0}"),
         decided: z.array(z.string()).optional(),
         corrected: z.array(z.string()).optional(),
         open: z.array(z.string()).optional().describe("what is left open"),

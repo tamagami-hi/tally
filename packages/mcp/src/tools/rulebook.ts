@@ -10,7 +10,7 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
   server.registerTool(
     "rulebook_get",
     {
-      description: "The repository's rules in force, in rulebook order: authority, safety, working, then doing each thing once. Breaking a `safety` rule fails the work whatever the tests say. `waiting: true` keeps only the rules that still carry `tailor`, a question this project has to answer. `template.notAdopted` names the rules of tally's template this repository has never had.",
+      description: "The rules in force, in rulebook order: authority, safety, working, then doing each thing once; breaking a `safety` rule fails the work whatever the tests say. `waiting: true` keeps the rules that still carry `tailor`, a question this project has to answer. `template.notAdopted` names the template's rules this repository never had.",
       inputSchema: {
         section: z.enum(RULE_SECTIONS).optional().describe("only this section's rules: authority, safety, working or once"),
         waiting: z.boolean().optional().describe("true keeps only the rules that still carry a question for the project"),
@@ -27,7 +27,7 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
   server.registerTool(
     "rulebook_adopt",
     {
-      description: "Bring tally's rulebook template into this repository (operator session only, and only on the operator's word: every rule it adds is in force for every session at once). It adds each rule of the template this repository has never had, and answers them. A rule adopted before is not added again, tailored or retired. A rule that carries `tailor` waits for this project's own answer: go through those with the operator and settle each with rule_tailor or context_retire.",
+      description: "Bring tally's rulebook template into this repository (operator session, on the operator's word: each rule it adds binds every session at once). It adds each template rule the repository never had and answers them; one adopted before, tailored or retired is not added again. A rule with `tailor` waits for this project's own answer: settle each with the operator through rule_tailor or context_retire.",
       inputSchema: { sessionId: z.string() },
     },
     ({ sessionId }) => inSession(source, sessionId, async (repo, session) => ok(await adoptRulebook(repo, session))),
@@ -35,7 +35,7 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
   server.registerTool(
     "rule_tailor",
     {
-      description: "Write a rule's successor (operator session only): the rule as this project needs it. `source` says whose word it is and when. What is left out stays as the old rule had it, so `source` alone keeps the rule as written and settles it. The old rule is retired and stays readable by its id.",
+      description: "Write a rule's successor (operator session only): the rule as this project needs it, with `source`, whose word it is and when. What is left out stays as the old rule had it, so `source` alone keeps the rule as written and settles it. The old rule is retired and still read by its id.",
       inputSchema: {
         sessionId: z.string(),
         id: z.string().describe("the rule's id, for example rule-9"),
