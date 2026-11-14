@@ -5,6 +5,7 @@ import { commandsRunIn, type CommandPlace, type Repo } from "@tally/core";
 import { registerCheckTools } from "./tools/checks.ts";
 import { registerCommandTools } from "./tools/commands.ts";
 import { registerContextTools } from "./tools/context.ts";
+import { registerDeferredTools } from "./tools/deferred.ts";
 import { registerDocTools } from "./tools/docs.ts";
 import { registerLandTools } from "./tools/land.ts";
 import { registerNoteTools } from "./tools/notes.ts";
@@ -26,6 +27,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   const tools = decorating(server, source, decorators, place);
   registerSessionTools(tools, source);
   registerLedgerTools(tools, source);
+  registerDeferredTools(tools, source);
   registerRecordTools(tools, source);
   registerCommandTools(tools, source, place);
   registerLandTools(tools, source);

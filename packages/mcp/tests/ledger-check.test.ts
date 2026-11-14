@@ -8,7 +8,7 @@ import { serving, sessionOn } from "./support/calling.ts";
 const COVERED = "the ledger covers every commit on main";
 const OWED = "B2 delivers 'index' (the index), and no task covers it: plan a task that covers it with task_plan";
 const WAIT = "B2 'T9 store' waits on B7:grid, which is not a task in the ledger: plan it with task_plan, or clear the wait with task_unwait";
-const ADRIFT = "B2 '4 manifest' landed without 'the docs' and names no task to finish it: record it again with task_land, the part left to a task";
+const ADRIFT = "B2 '4 manifest' landed without 'the docs' and names no task to finish it: leave it to a task, or park it, with deferred_set";
 const NOWHERE = "B2 '4 manifest' left 'the cache' to B2:9 cache, which is not a task in the ledger: plan it with task_plan";
 
 async function commitOnMain(root: string, files: string[], subject: string): Promise<string> {
@@ -39,7 +39,7 @@ async function gapped() {
   return { ...made, call, data, engine, operator, lines: { mine, theirs, shared } };
 }
 
-const ADDED = new Set(["recordsWaiting", "checkout"]);
+const ADDED = new Set(["recordsWaiting", "checkout", "parked"]);
 
 const answered = (call: { structured: Record<string, unknown> }): Record<string, unknown> => Object.fromEntries(Object.entries(call.structured).filter(([key]) => !ADDED.has(key)));
 

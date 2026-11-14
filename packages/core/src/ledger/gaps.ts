@@ -18,7 +18,7 @@ export function uncovered(milestone: Pick<Milestone, "delivers" | "tasks">): Del
 
 export function unfinished(ledger: Milestones, task: Task): Deferred[] {
   if (task.status !== "landed") return [];
-  return (task.deferred ?? []).filter((part) => part.to === undefined || taskAt(ledger, part.to)?.status !== "landed");
+  return (task.deferred ?? []).filter((part) => part.parked === undefined && (part.to === undefined || taskAt(ledger, part.to)?.status !== "landed"));
 }
 
 function waitGaps(ledger: Milestones, name: string, task: Task): string[] {
@@ -27,8 +27,9 @@ function waitGaps(ledger: Milestones, name: string, task: Task): string[] {
 }
 
 function deferredGaps(ledger: Milestones, name: string, task: Task): string[] {
-  return (task.deferred ?? []).flatMap(({ what, to }) => {
-    if (to === undefined) return [`${name} landed without '${what}' and names no task to finish it: record it again with task_land, the part left to a task`];
+  return (task.deferred ?? []).flatMap(({ what, to, parked }) => {
+    if (parked !== undefined) return [];
+    if (to === undefined) return [`${name} landed without '${what}' and names no task to finish it: leave it to a task, or park it, with deferred_set`];
     return taskAt(ledger, to) === undefined ? [`${name} left '${what}' to ${to}, ${NOT_THERE}: plan it with task_plan`] : [];
   });
 }

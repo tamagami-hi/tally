@@ -31,8 +31,8 @@ export interface RepoSource {
 }
 
 export const WHERE = {
-  sessionId: z.string().optional().describe("your session: the tool reads that session's repository"),
-  repo: z.string().optional().describe("a repository's name from repo_list; with neither this nor a session, the default repository"),
+  sessionId: z.string().optional().describe("your session; the tool reads its repository"),
+  repo: z.string().optional().describe("a name from repo_list; without it or a session, the default repository"),
 };
 
 export const isSource = (from: Repo | RepoSource): from is RepoSource => "forSession" in from;

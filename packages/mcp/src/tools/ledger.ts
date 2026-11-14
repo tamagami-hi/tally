@@ -1,8 +1,9 @@
 import { z } from "zod";
 import {
-  addMilestone, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  addMilestone, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
+import { deferredInput } from "../deferred-input.ts";
 import { FIELDS, pickKnown } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -141,7 +142,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_land",
-    { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be. `deferred` lists the parts that did not land, each {what, to?} with `to` the MILESTONE:TASK that will finish it: the board shows the task as landed in part until those tasks land. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredSchema).optional() } },
+    { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be. `deferred` lists the parts that did not land, each {what} with `to` the MILESTONE:TASK that will finish it, or `parked` (an operator's, or under a decision): the board shows the task as landed in part until those tasks land. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional() } },
     ({ sessionId, milestone, task, commit, also, track, deferred }) => inSession(source, sessionId, async (repo, session) => {
       const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, deferred, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
       return ok({ ...(await recorded(repo, message)), ...outcome });

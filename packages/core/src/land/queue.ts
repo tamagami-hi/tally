@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
-import { assertDeferred } from "../ledger/waits.ts";
+import { assertMayPark } from "../ledger/deferred.ts";
+import { assertDeferred, copyPart } from "../ledger/waits.ts";
 import { deferredSchema, type Deferred } from "../schema/ledger.ts";
 import { StateFile } from "../state/file.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
@@ -115,6 +116,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
   const deferred = input.deferred ?? [];
   if (deferred.length > 0 && input.target === undefined) throw new TallyError("deferred parts are recorded on a task: give the landing its milestone and task");
   assertDeferred(deferred);
+  await assertMayPark(repo, session, deferred);
   await checkCheckout(repo, [...input.files, ...(await branchChanges(repo, track.branch))]);
   const ticket: Ticket = {
     id: randomUUID().slice(0, TICKET_LENGTH),
@@ -126,7 +128,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     ...(input.message === undefined ? {} : { message: input.message }),
     ...(input.target === undefined ? {} : { target: input.target }),
     ...(input.verified === undefined ? {} : { verified: input.verified }),
-    ...(deferred.length === 0 ? {} : { deferred: deferred.map((part) => ({ ...part })) }),
+    ...(deferred.length === 0 ? {} : { deferred: deferred.map(copyPart) }),
     state: "queued",
     since: now.toISOString(),
     attempts: 0,

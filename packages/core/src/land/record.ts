@@ -1,5 +1,6 @@
 import { TallyError, messageOf } from "../errors.ts";
 import { resolveOnMain } from "../git/refs.ts";
+import { assertMayPark } from "../ledger/deferred.ts";
 import { findMilestone, findTask } from "../ledger/items.ts";
 import { land, type LandInput } from "../ledger/ops.ts";
 import { refOf } from "../ledger/refs.ts";
@@ -66,6 +67,7 @@ function tellingWaiters(repo: Repo, input: LandInput, waiters: readonly Waiter[]
 export async function recordTask(repo: Repo, input: LandInput, session?: Session): Promise<RecordedTask> {
   const records = new Records(repo);
   const allowed = session === undefined ? input : scoped(repo, session, await records.readLedger(), input);
+  if (session !== undefined) await assertMayPark(repo, session, input.deferred ?? []);
   let waiters: Waiter[] = [];
   const message = await records.update((ledger) => {
     waiters = waitersOn(ledger, refOf(allowed.milestone, allowed.task));

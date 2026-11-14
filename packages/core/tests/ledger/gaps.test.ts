@@ -38,7 +38,7 @@ const ledger: Ledger = {
 
 const GAPS = {
   index: "B2 delivers 'index' (the index), and no task covers it: plan a task that covers it with task_plan",
-  docs: "B2 '4 manifest' landed without 'the docs' and names no task to finish it: record it again with task_land, the part left to a task",
+  docs: "B2 '4 manifest' landed without 'the docs' and names no task to finish it: leave it to a task, or park it, with deferred_set",
   cache: "B2 '4 manifest' left 'the cache' to B2:nowhere, which is not a task in the ledger: plan it with task_plan",
   fills: "B4 delivers 'fills' (the fill model), and no task covers it: plan a task that covers it with task_plan",
   grid: "B4 'T1 fills' waits on B2:6 grid, which is not a task in the ledger: plan it with task_plan, or clear the wait with task_unwait",

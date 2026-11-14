@@ -3,7 +3,7 @@ export { CONTEXT_AS_RECORDS, checkSchema, configSchema, keepsContextAsRecords, s
 export type { Check, Config, Stage, Track } from "./schema/config.ts";
 export { DEFAULT_WORKTREE_ROOT, TRACKS_FILE, TRACK_BRANCH_PREFIX, openedTrackSchema, tracksFileSchema } from "./schema/tracks.ts";
 export type { OpenedTrack, TracksFile } from "./schema/tracks.ts";
-export { deferredSchema, deliverableSchema, ledgerSchema, milestoneSchema, taskSchema, taskStatuses, waitOnSchema } from "./schema/ledger.ts";
+export { deferredSchema, parkedSchema, deliverableSchema, ledgerSchema, milestoneSchema, taskSchema, taskStatuses, waitOnSchema } from "./schema/ledger.ts";
 export type { Deferred, Deliverable, Ledger, Milestone, OtherCommit, Task, TaskStatus, WaitOn } from "./schema/ledger.ts";
 export { addTask, findMilestone, findTask, isClose, isOwnedBy, keepCloseLast, knownCommits, replaceMilestone } from "./ledger/items.ts";
 export { addMilestone, deliver, land, other, plan, unwait, wait } from "./ledger/ops.ts";
@@ -19,6 +19,9 @@ export { COVERED, unrecorded } from "./ledger/check.ts";
 export { findGaps, gapsOf, uncovered, unfinished } from "./ledger/gaps.ts";
 export type { Gap } from "./ledger/gaps.ts";
 export { checkLedger } from "./ledger/audit.ts";
+export { MOST_OWNER, MOST_PARKED_WHY } from "./ledger/waits.ts";
+export { assertMayPark, countParts, deferredRows, deferredStates, matchingRows, partState, placePart, setDeferred } from "./ledger/deferred.ts";
+export type { DeferredCounts, DeferredFilter, DeferredRow, DeferredState, PlaceInput, Placed } from "./ledger/deferred.ts";
 export type { Checked, LedgerCheck } from "./ledger/audit.ts";
 export { boardSchema, fromBoard } from "./ledger/import.ts";
 export type { Board } from "./ledger/import.ts";

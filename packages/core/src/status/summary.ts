@@ -44,7 +44,8 @@ function openNotes(tasks: readonly Task[]): string[] {
 function owedNotes(ledger: Milestones, milestone: Pick<Milestone, "delivers" | "tasks">, tasks: readonly Task[]): string[] {
   const partly = tasks.flatMap((task) => {
     const parts = unfinished(ledger, task);
-    return parts.length === 0 ? [] : [`${task.id} landed in part: ${parts.map((part) => part.what).join(", ")}`];
+    const parked = (task.deferred ?? []).filter((part) => part.parked !== undefined).length;
+    return [...(parts.length === 0 ? [] : [`${task.id} landed in part: ${parts.map((part) => part.what).join(", ")}`]), ...(parked === 0 ? [] : [`${task.id}: ${parked} parked`])];
   });
   const owed = uncovered(milestone);
   return [...partly, ...(owed.length === 0 ? [] : [`no task covers ${owed.map((one) => one.id).join(", ")}`])];

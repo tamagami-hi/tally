@@ -1,5 +1,5 @@
 const COMMON: Readonly<Record<string, string>> = {
-  sessionId: "the id session_open answered",
+  sessionId: "the id from session_open",
   milestone: "the milestone's id, for example B2",
   task: "the task's id, exactly as planned",
   track: "a track's name, as track_list shows it",
@@ -30,7 +30,7 @@ const OWN: Readonly<Record<string, string>> = {
   "task_land.commit": "the commit on main that landed the task",
   "task_land.also": "follow-up commits of the same task",
   "task_land.track": "the task's track, needed only when the task was never planned",
-  "task_land.deferred": "the parts that did not land, each {what, to?} with `to` the MILESTONE:TASK that will finish it; an empty list clears them",
+  "task_land.deferred": "the parts that did not land, each {what} with `to` the MILESTONE:TASK that will finish it or `parked`; an empty list clears them",
   "task_other.commit": "a commit on main that belongs to no task",
   "task_other.note": "what the commit is, in a line",
   "land_run.messageFile": "a file that holds the commit message",
@@ -84,6 +84,15 @@ const OWN: Readonly<Record<string, string>> = {
   "project_set.stack": "the languages and main tools, one per item",
   "project_set.glossary": "the project's own words, each {term, means}",
   "repo_configure.config": "the config keys to set, as an object; `commands` merges one level deep",
+  "deferred_list.state": "only parts in this state: unplaced, waiting, done or parked",
+  "deferred_list.milestone": "only the parts of this milestone's tasks, for example B2",
+  "deferred_list.decision": "only the parts parked under this decision, for example DEC-14",
+  "deferred_list.owner": "only the parts parked for this owner",
+  "deferred_list.limit": "at most this many parts, the first in ledger order: 50 unless said, 200 at most",
+  "deferred_list.fields": "the keys of each part to keep, such as what and state",
+  "deferred_set.part": "the part's place in the task's list, from 1, as deferred_list shows it",
+  "deferred_set.to": "the MILESTONE:TASK that will finish it, instead of parked",
+  "deferred_set.parked": "why the part is left on purpose, instead of to",
   "activity_get.limit": "at most this many events, the latest: 100 unless said, 500 at most",
 };
 

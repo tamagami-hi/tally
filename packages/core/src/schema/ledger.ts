@@ -14,9 +14,16 @@ export const waitOnSchema = z.object({
   what: z.string(),
 });
 
+export const parkedSchema = z.object({
+  why: z.string().min(1),
+  decision: z.string().min(1).optional(),
+  owner: z.string().min(1).optional(),
+});
+
 export const deferredSchema = z.object({
   what: z.string().min(1),
   to: z.string().min(1).optional(),
+  parked: parkedSchema.optional(),
 });
 
 export const taskSchema = z
@@ -72,5 +79,6 @@ export type Milestone = z.infer<typeof milestoneSchema>;
 export type Deliverable = z.infer<typeof deliverableSchema>;
 export type WaitOn = z.infer<typeof waitOnSchema>;
 export type Deferred = z.infer<typeof deferredSchema>;
+export type Parked = z.infer<typeof parkedSchema>;
 export type OtherCommit = z.infer<typeof otherCommitSchema>;
 export type Ledger = z.infer<typeof ledgerSchema>;

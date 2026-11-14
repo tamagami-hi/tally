@@ -49,15 +49,27 @@ export function stopWaitingOn(ledger: Ledger, ref: string): { ledger: Ledger; fr
   return { ledger: { ...ledger, milestones }, freed };
 }
 
+export const MOST_PARKED_WHY = 200;
+export const MOST_OWNER = 60;
+
+function assertShort(text: string | undefined, most: number, what: string): void {
+  if (text !== undefined && text.length > most) throw new TallyError(`a parked part's ${what} holds at most ${most} characters; this one has ${text.length}`);
+}
+
 export function assertDeferred(deferred: readonly Deferred[]): void {
   for (const part of deferred) {
+    if (part.to !== undefined && part.parked !== undefined) throw new TallyError(`a part is left to a task or parked, not both: '${part.what}'`);
     if (part.to !== undefined) parseRef(part.to, "a deferred part's to");
+    assertShort(part.parked?.why, MOST_PARKED_WHY, "why");
+    assertShort(part.parked?.owner, MOST_OWNER, "owner");
   }
 }
+
+export const copyPart = (part: Deferred): Deferred => (part.parked === undefined ? { ...part } : { ...part, parked: { ...part.parked } });
 
 export function withDeferred(task: Task, deferred: readonly Deferred[] | undefined): Task {
   if (deferred === undefined) return task;
   assertDeferred(deferred);
   const { deferred: _held, ...rest } = task;
-  return deferred.length === 0 ? rest : { ...rest, deferred: deferred.map((part) => ({ ...part })) };
+  return deferred.length === 0 ? rest : { ...rest, deferred: deferred.map(copyPart) };
 }

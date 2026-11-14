@@ -8,7 +8,7 @@ import { makeTracked } from "../support/tracked.ts";
 
 const WAIT_GAP = "B2 'T9 store' waits on B7:grid, which is not a task in the ledger: plan it with task_plan, or clear the wait with task_unwait";
 const OWED_GAP = "B2 delivers 'manifest' (the manifest file), and no task covers it: plan a task that covers it with task_plan";
-const DEFERRED_GAP = "B2 'done' landed without 'the docs' and names no task to finish it: record it again with task_land, the part left to a task";
+const DEFERRED_GAP = "B2 'done' landed without 'the docs' and names no task to finish it: leave it to a task, or park it, with deferred_set";
 
 async function commit(root: string, files: string[], subject: string): Promise<string> {
   for (const file of files) {
@@ -48,7 +48,7 @@ describe("checking the ledger", () => {
 
     const { check, text } = await checkLedger(repo, await new Records(repo).readLedger());
 
-    expect(check).toStrictEqual({ missing: [], covered: true, gaps: [] });
+    expect(check).toStrictEqual({ missing: [], covered: true, gaps: [], parked: 0 });
     expect(text).toBe("the ledger covers every commit on main");
   });
 
@@ -57,7 +57,7 @@ describe("checking the ledger", () => {
 
     const { check, text } = await checkLedger(repo, await records.readLedger());
 
-    expect(check).toStrictEqual({ missing: [lines.near, lines.both, lines.engine, lines.data], covered: false, gaps: [OWED_GAP, WAIT_GAP, DEFERRED_GAP] });
+    expect(check).toStrictEqual({ missing: [lines.near, lines.both, lines.engine, lines.data], covered: false, gaps: [OWED_GAP, WAIT_GAP, DEFERRED_GAP], parked: 0 });
     expect(text).toBe([lines.near, lines.both, lines.engine, lines.data, OWED_GAP, WAIT_GAP, DEFERRED_GAP].join("\n"));
   });
 
@@ -79,7 +79,7 @@ describe("checking only what is one track's", () => {
 
     const { check, text } = await checkLedger(repo, await records.readLedger(), "data");
 
-    expect(check).toStrictEqual({ missing: [lines.data], covered: false, gaps: [OWED_GAP, DEFERRED_GAP] });
+    expect(check).toStrictEqual({ missing: [lines.data], covered: false, gaps: [OWED_GAP, DEFERRED_GAP], parked: 0 });
     expect(text).toBe([lines.data, OWED_GAP, DEFERRED_GAP].join("\n"));
   });
 
@@ -89,7 +89,7 @@ describe("checking only what is one track's", () => {
 
     const { check, text } = await checkLedger(repo, await records.readLedger(), "engine");
 
-    expect(check).toStrictEqual({ missing: [lines.near, lines.both, lines.engine, lines.data], covered: false, gaps: [OWED_GAP, WAIT_GAP], note });
+    expect(check).toStrictEqual({ missing: [lines.near, lines.both, lines.engine, lines.data], covered: false, gaps: [OWED_GAP, WAIT_GAP], parked: 0, note });
     expect(text.split("\n").at(-1)).toBe(note);
   });
 
@@ -100,7 +100,7 @@ describe("checking only what is one track's", () => {
 
     const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), "data");
 
-    expect(check).toStrictEqual({ missing: [], covered: true, gaps: [] });
+    expect(check).toStrictEqual({ missing: [], covered: true, gaps: [], parked: 0 });
     expect(text).toBe("the ledger covers every commit on main that changes only src/data, docs/data.md");
   });
 });

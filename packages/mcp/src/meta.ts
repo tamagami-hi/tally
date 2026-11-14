@@ -81,6 +81,8 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   phase_list: read("List phases"),
   phase_close: { title: "Close a phase", effect: "remove" },
   records_commit: addAgain("Commit the waiting records"),
+  deferred_list: read("List deferred parts"),
+  deferred_set: replace("Place a deferred part"),
 };
 
 const AGENT_META: Readonly<Record<string, ToolMeta>> = {
