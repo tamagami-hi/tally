@@ -144,7 +144,8 @@ Sections 1 to 9 describe one server for one repository, started with `--repo`. T
 - `repo` and `track`: where the session is bound.
 - `runner`: the path of a script in your worktree (10.2).
 - `scratch`: your own folder, `.temp/<track>/` in your worktree, made for you. Plans, notes, logs and throwaway scripts go there, never in `/tmp` and never in another hidden folder (10.10).
-- `brief`, in a repository that keeps its context as records (10.8): the project, every rule, your track's unlanded tasks and its hand-off, the context entries that apply to your track's paths, who else is working, how many questions are open, and what the repository's context still lacks.
+- `brief`, in a repository that keeps its context as records (10.8): the project, every rule, your track's unlanded tasks and its hand-off, the context entries that apply to your track's paths, who else is working, how many questions are open, and what the repository's context still lacks. Ask for less with `brief: "work"` or `brief: "land"` (10.14).
+- `server`: the service's `version`, how many `tools` it has, and `newest`, the tools of its two latest versions. A client reads the tool list once, when it connects. If a tool named in `newest` is not in your list, your client connected before the service was upgraded: reconnect it. `repo_list` answers the same.
 
 `repo_list` lists the repositories the service tracks. A reading tool called with neither a `sessionId` nor a `repo` goes to the default repository: the first one added, unless the operator picked another.
 
@@ -161,7 +162,17 @@ The service has git and no toolchain, so you run every command yourself, in your
 - The command runs with the repository's configured environment. Its output is shown live and kept in a log under the repository's `.temp/tally/logs/<track>/`.
 - The script exits with the command's exit code.
 
-Within two seconds the service takes the result in as a run record with the log's hash, and your next tool answer says so under `inbox`. A result it can't accept is set aside, and the inbox says why. `evidence_list` reads the records as before.
+Within two seconds the service takes the result in as a run record with the log's hash, and your next tool answer says so under `inbox`. A result it can't accept is set aside under `results/refused/`, and tally leaves your track a note saying which run, why, and where the result is kept. `evidence_list` reads the records as before.
+
+**The service runs no project command.** Its image has node, git and a shell, and sets `TALLY_COMMANDS=agent`. There, `evidence_run` checks that you may record for the task, runs nothing, records nothing, and answers `ran: false` with `run`, the exact line to run instead:
+
+```bash
+cd /path/to/your/worktree && sh .temp/tally/run sweep --task 'B2:4 manifest' -- tools/run.sh 'npm test'
+```
+
+Run that line in your own shell; the runner records it. `land_run` is refused there too: land with `land_start` (10.3). A server started on the host (the CLI, `tally mcp`, a service run outside Docker) has `TALLY_COMMANDS` unset, which means `service`: `evidence_run` and `land_run` run the command as before.
+
+**A run that could not start is never evidence.** An exit of 127 means the shell did not find a program, and 126 that it could not run it. The runner leaves no result for either, prints why and exits with that code; `evidence_record` refuses them; and `evidence_run` on the host answers `recorded: false` with the log's last line and the runner line.
 
 ### 10.3 Land
 
@@ -179,6 +190,18 @@ Landings take turns in one queue per repository, first come, first served.
 A turn is lost when its script isn't started within 2 minutes, stops for 1 minute without a result, or runs past 1 hour. The next ticket then gets its turn. If `main` moved while the checks ran, the turn is prepared again and the ticket's `note` says to run the new script.
 
 A landing refuses a commit that changes `docs/records/`: records change only through the tools.
+
+**The operator checkout and a landing.** A landing is stopped by an uncommitted file in the operator checkout (the repository's own folder, on `main`) only when the landing changes that file. Any other uncommitted file, a plan the coordinator is editing for example, is left as it is and stops nothing. The check is made three times, and each refusal names the files and the folder:
+
+- at `land_start`, against the files you name and the commits your track already has, so no ticket is made;
+- when the ticket gets its turn, after the rebase, before any script is written;
+- after the checks pass, right before the fast-forward: the refusal says the checks passed, so land again once those files are committed or stashed.
+
+`land_start` is also refused at once while the operator checkout is off `main`, naming the branch it is on, or in the middle of a merge or a rebase. `ledger_check` and an operator's brief answer `checkout: { branch, changed, total }`: what is uncommitted there, the records left out, twenty names at most. In a terminal the same is:
+
+```bash
+git status -- . ':(exclude)docs/records'
+```
 
 ### 10.4 What the other tracks are doing
 
@@ -203,7 +226,7 @@ A track is a branch and a worktree. The config names the standing ones, and an a
   - An operator session opens any track. A track's session opens only a child of its own track, and may then write that child's tasks, evidence and hand-offs.
   - `paths` limits what the track may land. A child takes its parent's `paths` when it names none, and can't go wider.
 - **Every track lands on `main`** through `land_start`, child or not. Nothing lands into a parent's branch.
-- **`track_close({ sessionId, name })`** removes the track's landing checkout, worktree and branch, and marks its record closed. Build output in the worktree (`node_modules`, `dist`, caches, logs) is deleted with it, and the answer names it in `cleaned` (at most twenty names, and `total`). What the agent kept under the worktree's `.temp/` is moved to `<repo>/.temp/closed/<track>/` and the answer says where in `kept`; a second track of the same name gets the close time in its folder's name. It is refused, with nothing removed, while the track has an open session, an open child, a claimed task, a landing in the queue, uncommitted work (a changed tracked file, or a file git neither tracks nor ignores), or commits not on `main`. The refusal names them.
+- **`track_close({ sessionId, name })`** removes the track's landing checkout, worktree and branch, and marks its record closed. Build output in the worktree (`node_modules`, `dist`, caches, logs) is deleted with it, and the answer names it in `cleaned` (at most twenty names, and `total`). What the agent kept under the worktree's `.temp/` is moved to `<repo>/.temp/closed/<track>/` and the answer says where in `kept`; `cleaned.what` says in a sentence what was deleted and what was kept; a second track of the same name gets the close time in its folder's name. It is refused, with nothing removed, while the track has an open session, an open child, a claimed task, a landing in the queue, uncommitted work (a changed tracked file, or a file git neither tracks nor ignores), or commits not on `main`. The refusal names them.
 - **A landed track that sits idle is closed by the service.** When tally opened the track, its ledger has at least one task of it and every one is landed, its branch is not ahead of `main`, its worktree is clean, and it has no session, claim, queued landing or open child, then once it has rested for `worktrees.idleMinutes` (60 unless the config says) it is closed the way `track_close` closes it. The rest is counted from the later of its last landing and its last session ending. The parent track, or `main`, gets one note saying where the notes went. If uncommitted files block it, the same reader is told once, naming them. `worktrees: { keep: true }` in the config turns this off. A track listed in `config.json` is never closed this way. A session that opens in the folder of a closed track is told the track was closed, when, and that new work needs a new track.
 - **`track_list`** lists every track: its branch, worktree, parent and purpose, where it comes from, and whether a session is open on it.
 
@@ -233,10 +256,11 @@ With `commands.checks` in the config, a landing runs only the checks its changed
 - **What a milestone owes.** `milestone_add` takes `delivers: [{ id, what, paths? }]`, and `milestone_deliver` adds to a milestone that exists. Both are the operator's.
 - **What a task covers.** In `task_plan`, a task is its name or `{ id, brief?, paths?, covers? }`: what to do, the files it expects to touch, and the deliverables it covers.
 - **A wait on a task.** `task_wait` with `on: "MILESTONE:TASK"` waits on that task. The wait clears itself when the task lands, and the track that waited is told in its inbox.
-- **Landed in part.** `land_start` and `task_land` take `deferred: [{ what, to? }]`: the parts that didn't land, and the task that will finish each. The board shows the task as landed in part until those tasks land.
+- **Landed in part.** `land_start` and `task_land` take `deferred: [{ what, to? }]`: the parts that didn't land, and the task that will finish each. The board shows the task as landed in part until those tasks land. A part can be parked instead (10.13).
 - **The check.** `ledger_check` answers two lists. `scope: "mine"` keeps only your track's.
   - `missing`: the commits on `main` no record names.
-  - `gaps`, each a sentence: a deliverable no task covers, a wait on a task that isn't in the ledger, or a deferred part with no task to finish it.
+  - `gaps`, each a sentence: a deliverable no task covers, a wait on a task that isn't in the ledger, a deferred part neither left to a task nor parked, and, where reviews are required, a landed task without a clear review (10.12).
+  - `parked`: how many parts are parked, so the number shows without being a gap.
 
 A writing tool's answer carries `done: true` and `records`: the records commit, or `"waiting"` when the change is on disk and goes in with the next records commit.
 
@@ -244,7 +268,10 @@ The list tools take filters, so an answer stays small:
 
 | tool | filters |
 | --- | --- |
-| `question_list`, `decision_list` | `ids`, `group`, `limit` |
+| `question_list` | `ids` (`Q-24`, `Q-024` or `24`), `group`, `limit`, `history` |
+| `decision_list` | `ids`, `group`, `limit` |
+| `review_list` | `milestone`, `task`, `track`, `state`, `limit`, `fields` |
+| `deferred_list` | `state`, `milestone`, `track`, `decision`, `owner`, `limit`, `fields` |
 | `evidence_list` | `kind`, `since`, `limit`, `fields` |
 | `board_get` | `scope`, `fields` |
 | `note_list` | `state`, `since`, `limit`, `everyTrack` |
@@ -310,11 +337,11 @@ The service keeps its live state in its own data volume, outside every repositor
 A phase is a stage: a stretch of work with one goal, closed as a whole. The tools say `phase`; the config's `stages` and a milestone's `stage` keep their names.
 
 - **`phase_add({ sessionId, id, name, goal, weight, decision? })`** (operator session) adds a phase to `docs/records/phases.json`. It joins the repository's stages at once, so `milestone_add` takes its id as `stage`. `goal` is a sentence; `decision` is the id of the decision that approved its plan.
-- **`phase_list({ state?, sessionId?, repo? })`** answers each phase with its goal, decision, state (`open` or `closed`), how many of its tasks are landed, and `left`: up to ten sentences saying what still stops an open phase from closing. It runs the checks `phase_close` runs and writes nothing. Report `left` to the operator before asking to close a phase.
-- **`phase_close({ sessionId, phase, summary })`** (operator session, and only on the operator's word: a phase's end is their gate) refuses, with nothing written, while a task of the phase is not landed, while `ledger_check` lists a commit on `main` no record names or a gap in one of the phase's milestones, or while a landing for one of its tracks is in the queue. Otherwise it closes each track tally opened whose tasks all belong to the phase (the way `track_close` does; one that cannot close is named in `tracksLeft` with the reason and does not stop the phase), writes the phase's closing fields, tells every open session in one line (`phase G was closed by <agent>: <summary>`), and commits everything waiting under `docs/records/` as one commit: `records: phase G closed, <n> record files`, with the summary as its body. The answer carries `missing`, the phase's milestones with no build-log section: told, not refused. If a landing has its turn the commit waits (`waits`) and is made after it. If the commit fails the phase stays closed and `problem` carries git's words.
+- **`phase_list({ state?, sessionId?, repo? })`** answers each phase with its goal, decision, state (`open` or `closed`), how many of its tasks are landed, and `left`: up to ten sentences saying what still stops an open phase from closing, the four kinds in this order: tasks not landed, commits on `main` the ledger does not record, gaps `ledger_check` lists in the phase's milestones, and landings in the queue. It runs the checks `phase_close` runs and writes nothing. Report `left` to the operator before asking to close a phase.
+- **`phase_close({ sessionId, phase, summary })`** (operator session, and only on the operator's word: a phase's end is their gate) refuses, with nothing written, while a task of the phase is not landed, while `ledger_check` lists a commit on `main` no record names, while it lists a gap in one of the phase's milestones (a deliverable no task covers, a wait on a task not in the ledger, a deferred part neither left to a task nor parked, or, where reviews are required, a landed task without a clear review), or while a landing for one of its tracks is in the queue. Otherwise it closes each track tally opened whose tasks all belong to the phase (the way `track_close` does; one that cannot close is named in `tracksLeft` with the reason and does not stop the phase), writes the phase's closing fields, tells every open session in one line (`phase G was closed by <agent>: <summary>`), and commits everything waiting under `docs/records/` as one commit: `records: phase G closed, <n> record files`, with the summary as its body. The answer carries `withoutBuildLog`, the phase's milestones with no build-log section, for a project that keeps one: told, never refused, and left out when every milestone has one. Whether a project records a phase's close in its build log or in its plan is that project's rule. If a landing has its turn the commit waits (`waits`) and is made after it. If the commit fails the phase stays closed and `problem` carries git's words.
 - **A closed phase stays closed.** `milestone_add` and `task_plan` refuse it: later work goes in a new phase.
-- **`records_commit({ sessionId, why })`** (operator session) commits what waits now, for the day the operator pushes in the middle of a phase. Its subject says how many files and why. With nothing waiting it answers `{ commit: null, files: 0 }`. It is refused where `records.commit` is false.
-- **What waits is visible:** `ledger_check` and an operator session's brief answer `recordsWaiting: { files, since }`.
+- **`records_commit({ sessionId, why })`** (operator session) commits what waits now, for the day the operator pushes in the middle of a phase. Its subject says how many files and why, when that fits in 70 characters; a longer one is cut at a phrase, and the whole sentence goes first in the commit's body. Every records commit keeps its subject to 70 characters this way. With nothing waiting it answers `{ commit: null, files: 0 }`. It is refused where `records.commit` is false.
+- **What waits is visible:** `ledger_check` and an operator session's brief answer `recordsWaiting: { files, since }`, and `session_close` answers `records`, a sentence saying what happened to the records under the repository's mode.
 
 **When records are committed** is one of four modes, read from `records.commit`, `records.batch` and the new `records.commitAt`:
 
@@ -326,3 +353,48 @@ A phase is a stage: a stretch of work with one goal, closed as a whole. The tool
 | `true` | `true` | `"phase"` | `phase` | only by `phase_close` and `records_commit` |
 
 A repository added in the sidebar starts in `phase` mode. A repository already tracked keeps its setting until its own operator session changes it with `repo_configure`. A records commit still waits while a landing has its turn and is made under the landing lock.
+
+### 10.12 Reviews
+
+A review is a record of its own, in `docs/records/reviews.json`, not a run of kind `evidence`.
+
+- **`review_record({ sessionId, milestone, task, commit, reviewer, verdict, blocking, findings?, summary, follows?, report? })`** records one. `commit` is what the reviewer read (a hash or a ref, read in your worktree). `reviewer` is who reviewed, not the agent that built the work. `verdict` is `land` (nothing blocks), `fix` (land once the blocking findings are fixed), `stop` (not as built) or `waived` (this task needs no review; an operator session's alone). `blocking` is 0 for `land` and `waived`, at least 1 for `fix` and `stop`. `findings` counts in your own words, such as `{ medium: 1, low: 7 }`. `follows` names the review this one follows up, for the same task. `report` is a file in your worktree or under `.temp/`, kept by its path and hash.
+- **A task's state** is its newest review's: `none`, `clear` (`land` or `waived`) or `open` (`fix` or `stop`).
+- **`review_list`** answers reviews newest first, and, where reviews are required, `needing`: the landed tasks without a clear review.
+- **Turning reviews on** is the operator's: `repo_configure({ config: { reviews: { required: true } } })`. `from` is filled with the present time, so only tasks landed from then on count. With reviews required, a landed task without a clear review is a gap in `ledger_check`, shows in the board's notes, and stops `phase_close`. A landing is never refused for it; `land_start` only says so in the ticket's `note`.
+
+### 10.13 Parked parts
+
+A deferred part is left to a task (`to`), or parked: `{ what, parked: { why, decision?, owner? } }`. Parking says "not now, on purpose". A parked part is no gap, does not make its task landed in part, and does not stop `phase_close`; the board's notes say `<task>: <n> parked`.
+
+- **Who parks:** an operator session, or a session that may write the task and names a decision in the record. A lane with a leftover it cannot place sends `{ what }` alone, and the operator places it.
+- **`deferred_list`** answers every part with its place in its task's list (`part`, from 1) and its state: `unplaced`, `waiting` (its task has not landed), `done` or `parked`. `counts` is over the whole ledger.
+- **`deferred_set({ sessionId, milestone, task, part, to | parked })`** moves one part to a task or parks it, and answers it as it was and as it is.
+
+### 10.14 Brief levels
+
+`session_open` takes `brief`: `full` (the default), `work` or `land`.
+
+| | `full` | `work` | `land` |
+| --- | --- | --- | --- |
+| for | the first session of a conversation | reopening to keep building | opening only to land or to record |
+| project | whole | name and purpose | left out |
+| rules | id, section, title and text | id, section and title | left out |
+| `rulebook` | `{ rules, changedAt }` | the same | the same |
+| your tasks | with their briefs and paths | the same | milestone, id, claim and wait |
+| hand-off, entries that apply | yes | yes | left out |
+| who else is working | yes | yes | yes |
+| open questions | yes | yes | left out |
+| what the context lacks | yes | left out | left out |
+| operator: rules to tailor | yes | left out | left out |
+| operator: records waiting, checkout | yes | yes | yes |
+
+A level below `full` leaves the rules' text out. Ask for one only when this conversation already holds the full brief, and read `rulebook_get` again when `rulebook.changedAt` is later than the one you hold.
+
+### 10.15 Question ids
+
+A question's id is `Q-<number>` (`Q-24`), computed from its row. `question_add` answers it, `question_list` puts it on every row, and an id is read as `Q-24`, `Q-024` or `24` wherever one is taken; `tally question answer 24` works as before.
+
+- **A plan's own numbering.** An operator session's `question_add` may give `number`, at or above the next one, so tally's ids line up with a plan's. The numbering may jump forward, never back.
+- **`question_edit({ sessionId, id, question?, meanwhile?, why })`** corrects an open question. It is for an operator session, or the agent that asked it on the same track. The question keeps what it said before in `edits`; `question_list` says `edited` and, with `history: true`, gives the edits. An answered question is refused: ask a new one that names it. From a shell: `tally question edit Q-24 --question T --why W`.
+

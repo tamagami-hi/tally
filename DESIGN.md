@@ -166,7 +166,7 @@ One page, routed, served by `tally serve` at `http://127.0.0.1:47560/` (a free p
 5. Every generated block is marked and never edited by hand; the harness overwrites it whole.
 6. Records commits are docs-only, prefixed `records:`, made by the harness with the configured identity, after each verb that changes a record and at each landing. `ledger check` and the status pass over them by their prefix, so the ledger never has to record its own commits (built in Phase 1, 2026-11-03, in place of "recorded in `other[]`", which would have needed a commit to record each commit).
 7. Schemas change additively. A reader refuses a schema it does not know and names it.
-8. The harness never pushes, deploys, reads a `.env`, runs `sudo`, touches an archive, removes a worktree or deletes anything under `.temp/`. The landing refuses a dirty operator checkout outside `docs/records/`, a track not on its branch, unrelated staged files, and `main` moving inside the lock, as `land.py` does today.
+8. The harness never pushes, deploys, reads a `.env`, runs `sudo`, touches an archive, removes a worktree or deletes anything under `.temp/`. The landing refuses an operator checkout off main or holding an uncommitted change in a file the landing changes (until 0.3.0: any change outside `docs/records/`; §19.1), a track not on its branch, unrelated staged files, and `main` moving inside the lock, as `land.py` does today.
 9. Loopback only. The one trust is the worktree binding; the machine is the operator's.
 10. Small files (under 400 lines), tests first, no comments in source: the tracked repository's rules 11, 12 and 14 apply to the harness too, since the same agents build it.
 
@@ -655,3 +655,49 @@ The morning's five answers stand (the first repository's cut-over at a quiet mom
 | 9 | **The records commit rides with a landing** for every repository (§15.3), which makes `records.batch` the only behaviour. | yes |
 | 10 | **`evidence_run` and `land_run` go at the cut-over** (§17.2), so the tracks' standing instructions change that day. | yes; it follows from decision 1 |
 | 11 | **A call that names no repository, once a second one is listed.** The morning's answer was to refuse it. With a sidebar, adding a second repository would then break the first one's callers at that moment. | change it: such a call goes to a default repository, the first one added, until the operator picks another |
+
+## 19. Landings refused early, commands in the agent's shell, reviews, parked parts, brief levels and question ids (0.3.0, built 2026-11-14)
+
+Built from `docs/plans/2026-11-14-1150-landing-evidence-reviews-parked-plan.md`, which answers the review the coordinator of the second tracked repository wrote after its first phase on the upgraded tally. The operator took every recommended answer of the plan's §3, and added three points (19.8).
+
+### 19.1 A landing and the operator checkout (decision 1)
+
+A landing is stopped by an uncommitted file in the operator checkout only when the landing changes that file, and the refusal names the files and the folder. `operatorChanges` reads `git status -z` (a rename by both its paths, the records folder left out); `blockingChanges` is the one function that decides, so the operator can return to "any uncommitted file stops a landing" by changing it alone. The check runs at `land_start` (the named files and the track's own commits, three-dot from main: no ticket is made), at a ticket's turn after the rebase (before any script), after the checks pass (the refusal says they passed), and in `land_run`. An operator checkout off main, or in the middle of a merge, rebase, cherry-pick or revert, is refused at `land_start`. `ledger_check` and an operator's brief answer `checkout: {branch, changed, total}`. Rule 9 is reworded to match.
+
+### 19.2 Commands run in the agent's shell (decision 2)
+
+`TALLY_COMMANDS`, read by one function in core, is `service` (the default: the CLI, stdio and a service on the host, unchanged) or `agent`, which the image sets. With `agent`, `evidence_run` checks the task, runs nothing, records nothing and answers `ran: false` with the runner line (`cd <worktree> && sh .temp/tally/run …`, each word quoted only when it needs it); it is registered as a read. `land_run` is refused there and names `land_start`. Each has a description for each value. A run that exited 126 or 127 is never evidence by any path: one guard serves `evidence_run`, `evidence_record` and the runner's results, and the runner catches it first. A runner result the service refuses leaves a note for its track. The image gains no docker, socket or project tool.
+
+### 19.3 A review is a record (decision 3)
+
+`docs/records/reviews.json` keeps `{id, milestone, task, track, commit, reviewer, verdict, blocking, findings?, summary, follows?, report?, by, at}`; the verdict is `land`, `fix`, `stop` or `waived` (an operator session's). A task's state is its newest review's: none, clear or open. A task gains `landedAt`, stamped when first recorded as landed. With `config.reviews: {required, from}`, a task landed at or after `from` without a clear review is a gap in `ledger_check`, in the board's notes and in `phase_close`'s blockers. A landing is never refused for it. `review_record`, `review_list`.
+
+### 19.4 A deferred part can be parked (decision 4)
+
+A part is `{what, to}` or `{what, parked: {why, decision?, owner?}}`. Parking is an operator session's, or a writing session's that names a decision in the record; who may park is checked where the parts are given, not again when a queued landing is recorded. A parked part is no gap, leaves its task whole and stops no phase. Each part has a state: unplaced, waiting, done or parked. `deferred_list`, `deferred_set`; `ledger_check` answers `parked`.
+
+### 19.5 The brief has levels (decision 5)
+
+`session_open` takes `brief`: `full` (the default, as before), `work` (no rules' text; the project's name and purpose) or `land` (the tasks by id, who works and the rulebook; it reads nothing else). Every level answers `rulebook: {rules, changedAt}` and names its level. An operator keeps the records waiting and the checkout at every level.
+
+### 19.6 Question ids (decision 6)
+
+A question's id is `Q-<row>`, computed; `Q-24`, `Q-024` and `24` are read alike. An operator session may give `question_add` a `number` at or above the next (at most 999 ahead). `question_edit` keeps the old words in `edits`; it is the operator's or the asking agent's on its own track, and a question now keeps the track that asked it. Commit subjects and the inbox say `Q-24`; the CLI's `question answer <row>` and its printed lines are unchanged.
+
+### 19.7 The smaller points (decisions 7 and 8)
+
+Every package is at 0.3.0, and the handshake carries it. Each tool added from 0.2.0 on has `since`; `session_open` and `repo_list` answer `server: {version, tools, newest}`, so a client whose list predates an upgrade can tell. `session_close` answers `records`, a sentence for the records mode; `track_close`'s `cleaned` answers `what`. Waiting records stay in the working tree (decision 7).
+
+### 19.8 What the operator added to the plan
+
+1. `phase_close`'s description names all four of its refusals in `blockersOf`'s order (tasks not landed, unrecorded commits, gaps, queued landings), and a test keeps it so; `phase_list` names them too.
+2. `phase_close` answers `withoutBuildLog`, not `missing`, and leaves it out when every milestone has a build-log section. It stops nothing.
+3. A records commit's subject is at most 70 characters with its prefix; a longer one is cut at the last ": " or ", " within the limit (else the last space), and the whole sentence goes first in the body. Rule 7 says so.
+
+### 19.9 Stored formats
+
+Every change is an optional field or a new file: a task's `landedAt`, a part's `parked`, a question's `track` and `edits`, `config.reviews`, `reviews.json`. The previous release reads all of them; frozen copies of its ledger and questions schemas are test fixtures. A previous release that writes such a record drops the new fields, so the service and the CLI should run the same release.
+
+### 19.10 The tool list
+
+67 tools, every one with a title, four hints and a strict input. `tools/list` is held under 77,000 characters (compact JSON) by shorter shared parameter texts, and a test guards it.

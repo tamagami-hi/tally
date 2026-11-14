@@ -16,20 +16,20 @@
     <answer>3</answer>
   </qa_pair>
   <qa_pair>
-    <question>How many of the rules that tally's rulebook template asks a question of are still waiting for Lumen's own answer? Answer with the number only.</question>
-    <answer>7</answer>
+    <question>Lumen requires a review of every landed task. One landed task's newest review still has blocking findings that no later review follows up. Which task is it? Give it as MILESTONE / TASK.</question>
+    <answer>A1 / 2 snapshots</answer>
   </qa_pair>
   <qa_pair>
-    <question>In Lumen's context, a finding about fsync on tmpfs was retired because a newer entry replaced it. What is the title of the entry that replaced it?</question>
-    <answer>fsync on tmpfs is a no-op</answer>
+    <question>Some of the parts Lumen's landed tasks left undone are parked on purpose. How many are parked under the decision WEB-1, and who owns them? Answer as the number, a comma, and the owner, for example: 3, the operator</question>
+    <answer>2, the design lead</answer>
   </qa_pair>
   <qa_pair>
     <question>Most of Lumen's rules apply everywhere. Which one rule was written for the folder crates/engine alone? Give its title.</question>
     <answer>Never block the scheduler's thread</answer>
   </qa_pair>
   <qa_pair>
-    <question>Lumen adopted tally's rulebook and tailored its test-first rule with new words. Which rule, by id, now stands in force where that template rule was first adopted?</question>
-    <answer>rule-32</answer>
+    <question>One of Lumen's open questions was edited after it was asked. What did that question say before the edit? Give its first wording exactly.</question>
+    <answer>How many segments are kept before compaction?</answer>
   </qa_pair>
   <qa_pair>
     <question>Lumen's phase named imports cannot close yet. Of the tasks that stop it, which is named first? Give it as MILESTONE / TASK.</question>

@@ -4,7 +4,9 @@
 
 It makes a small git repository with fixed commit dates, starts tally's records in it, and fills
 them through the MCP tools: milestones, tasks, waits, landings, run records, questions, decisions,
-context entries, the rulebook (adopted, two rules tailored, one retired), two phases (the first closed) and a hand-off. Run it again on a fresh folder and the answers are the same.
+context entries, the rulebook (adopted, two rules tailored, one retired), two phases (the first closed), a hand-off,
+reviews (one left open), parked parts, an edited question and a question given its number. Run it again on a fresh
+folder and the answers are the same.
 """
 import json, os, subprocess, sys
 from pathlib import Path
@@ -133,6 +135,8 @@ m.call("context_put", sessionId=data, kind="finding", title="fsync on tmpfs is a
 m.call("context_put", sessionId=data, kind="convention", title="Offsets are u64", text="A position in the log is a u64 byte offset, never a record count.", paths=["crates/store"])
 m.call("question_add", sessionId=data, group="store", question="Should snapshot files be compressed?", meanwhile="They are written uncompressed.")
 m.call("question_add", sessionId=data, group="store", question="How many segments are kept before compaction?", meanwhile="Every segment is kept.")
+m.call("question_edit", sessionId=data, id="Q-2", question="How many segments are kept before compaction runs?", why="say when it runs")
+m.call("question_add", sessionId=op, group="exports", question="Which export format comes after csv?", meanwhile="Csv only.", number=7)
 m.call("handoff_write", sessionId=data, task="3 recovery", lines=["The segment index lives in crates/store/src/index.rs.", "Recovery reads the newest snapshot first, then the log from its position."])
 exports = commit("exports/csv.py", "# csv\n", "feat(exports): csv export")
 m.call("phase_add", sessionId=op, id="X1", name="exports", goal="Lumen exports a stream as csv.", weight=3, decision="STO-1")
@@ -143,6 +147,12 @@ m.call("task_plan", sessionId=op, milestone="X1a", track="data", tasks=["1 write
 m.call("task_plan", sessionId=op, milestone="X2a", track="data", tasks=["1 read csv", "2 validate rows"])
 m.call("task_land", sessionId=op, milestone="X1a", task="1 write csv", commit=exports)
 m.call("phase_close", sessionId=op, phase="X1", summary="Csv export ships.")
+m.call("repo_configure", sessionId=op, config={"reviews": {"required": True, "from": "2026-03-01T00:00:00Z"}})
+first = m.call("review_record", sessionId=op, milestone="A1", task="1 log format", commit=log_format, reviewer="a second model", verdict="fix", blocking=2, findings={"high": 2}, summary="Two records can share an offset.")["review"]["id"]
+m.call("review_record", sessionId=op, milestone="A1", task="1 log format", commit=log_format, reviewer="a second model", verdict="land", blocking=0, summary="Offsets are unique now.", follows=first)
+m.call("review_record", sessionId=op, milestone="A1", task="2 snapshots", commit=snapshots, reviewer="a second model", verdict="stop", blocking=1, findings={"high": 1, "low": 3}, summary="A torn write leaves a snapshot that reads as whole.")
+m.call("review_record", sessionId=op, milestone="B1", task="1 shell", commit=shell, reviewer="the design lead", verdict="land", blocking=0, summary="Fine as built.")
+m.call("review_record", sessionId=op, milestone="X1a", task="1 write csv", commit=exports, reviewer="the operator", verdict="waived", blocking=0, summary="A script, reviewed with the phase.")
 m.call("session_close", sessionId=data)
 m.call("session_close", sessionId=op)
 m.proc.stdin.close(); m.proc.wait(timeout=20)
@@ -151,5 +161,14 @@ tally("question", "answer", "1", "Yes: zstd at level 3.")
 tally("decision", "add", "STO-1", "--group", "store", "--text", "Snapshots are compressed with zstd at level 3.", "--since", "2026-03-02", "--status", "decided, not built", "--operator")
 tally("decision", "add", "ENG-1", "--group", "engine", "--text", "One worker pool serves every queue.", "--since", "2026-03-01", "--status", "built in A2", "--operator")
 tally("decision", "add", "ENG-2", "--group", "engine", "--text", "A failed job is retried with exponential backoff, capped at one hour.", "--since", "2026-03-02", "--status", "decided, not built", "--operator")
+tally("decision", "add", "WEB-1", "--group", "web", "--text", "The web shell ships with one theme and no extras first.", "--since", "2026-03-02", "--status", "in force", "--operator")
+m = Mcp()
+op = m.call("session_open", worktree=str(REPO), agent="operator", brief="land")["id"]
+m.call("task_land", sessionId=op, milestone="B1", task="1 shell", commit=shell, deferred=[
+    {"what": "a dark theme", "parked": {"why": "after the first release", "decision": "WEB-1", "owner": "the design lead"}},
+    {"what": "keyboard shortcuts", "parked": {"why": "after the first release", "decision": "WEB-1", "owner": "the design lead"}},
+    {"what": "a print view", "parked": {"why": "nobody has asked for it", "owner": "the operator"}}])
+m.call("session_close", sessionId=op)
+m.proc.stdin.close(); m.proc.wait(timeout=20)
 print(f"the evaluation repository is {REPO}")
 print(f"serve it with: node {CLI} --repo {REPO} mcp")
