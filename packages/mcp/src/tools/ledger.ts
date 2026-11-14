@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  addMilestone, assertMayWrite, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  addMilestone, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deferredSchema, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { FIELDS, pickKnown } from "../filters.ts";
@@ -52,11 +52,13 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "ledger_check",
-    { description: "The commits on main the ledger does not account for, in `missing`; empty when every commit is recorded. `gaps` lists, each as a sentence, a deliverable no task covers, a wait on a task that is not in the ledger, and a deferred part with no task there to finish it. scope 'mine' (with sessionId) keeps only the gaps of the session's track, and, when the track has paths in the config, only the commits whose files are all under them; without paths `missing` is unchanged and `note` says so.", inputSchema: { scope: SCOPE, ...WHERE } },
+    { description: "The commits on main the ledger does not account for, in `missing`; empty when every commit is recorded. `gaps` lists, each as a sentence, a deliverable no task covers, a wait on a task that is not in the ledger, and a deferred part with no task there to finish it. scope 'mine' (with sessionId) keeps only the gaps of the session's track, and, when the track has paths in the config, only the commits whose files are all under them; without paths `missing` is unchanged and `note` says so. `checkout` lists what is uncommitted in the operator checkout outside the records.", inputSchema: { scope: SCOPE, ...WHERE } },
     ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const track = scope === "all" ? undefined : (await own(repo, sessionId)).track;
       const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), track);
-      return ok({ ...check, recordsWaiting: await recordsWaiting(repo) }, text);
+      const checkout = await checkoutState(repo);
+      const line = checkoutLine(repo, checkout);
+      return ok({ ...check, recordsWaiting: await recordsWaiting(repo), checkout }, line === undefined ? text : `${text}\n${line}`);
     }),
   );
   server.registerTool(

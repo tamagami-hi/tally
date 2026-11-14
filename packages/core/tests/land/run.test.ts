@@ -75,12 +75,23 @@ describe("the landing's refusals", () => {
       .rejects.toThrow("--verified-code is only for documentation/evidence on already checked code");
   });
 
-  test("the operator checkout must be on main and clean outside the records", async () => {
+  test("the operator checkout must be on main, with no uncommitted change in a file the landing changes", async () => {
+    const f = await fixture();
+    await writeFile(join(f.root, "src", "lib.rs"), "fn edited() {}\n");
+    await edit(f.tree, "src/lib.rs", "fn b() {}\n");
+    await expect(landTrack(f.repo, { track: "data", files: ["src/lib.rs"], messageFile: f.message }, f.deps))
+      .rejects.toThrow(`the operator checkout at ${f.root} has uncommitted changes in 1 file this landing changes: src/lib.rs; commit or stash them there, then land again`);
+    await sh(f.root, ["checkout", "-q", "-b", "elsewhere"]);
+    await expect(landTrack(f.repo, { track: "data", files: [] }, f.deps)).rejects.toThrow(`the operator checkout at ${f.root} is on elsewhere, not main`);
+  });
+
+  test("an uncommitted file the landing does not change is left as it was", async () => {
     const f = await fixture();
     await writeFile(join(f.root, "stray.txt"), "x");
-    await expect(landTrack(f.repo, { track: "data", files: [] }, f.deps)).rejects.toThrow("operator checkout has changes; left untouched");
-    await sh(f.root, ["checkout", "-q", "-b", "elsewhere"]);
-    await expect(landTrack(f.repo, { track: "data", files: [] }, f.deps)).rejects.toThrow("operator checkout is not on main");
+    await edit(f.tree, "src/new.rs");
+    await landTrack(f.repo, { track: "data", files: ["src/new.rs"], messageFile: f.message }, f.deps);
+    expect(await sh(f.root, ["log", "-1", "--format=%s"])).toBe("feat(data): the task");
+    expect(await sh(f.root, ["status", "--porcelain"])).toBe("?? stray.txt");
   });
 
   test("a change under the records folder does not count as a dirty checkout", async () => {

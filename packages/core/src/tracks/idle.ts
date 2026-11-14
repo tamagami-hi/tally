@@ -1,5 +1,6 @@
 import { messageOf, namedList } from "../errors.ts";
 import { gitMust } from "../git/run.ts";
+import { statusEntries } from "../git/status.ts";
 import { worktreeOf } from "../land/paths.ts";
 import { isActive, queueFile } from "../land/queue.ts";
 import { noteFrom } from "../records/notes.ts";
@@ -8,7 +9,7 @@ import { listClaims } from "../state/claims.ts";
 import { markTold, readRest } from "../state/rest.ts";
 import { listSessions } from "../state/sessions.ts";
 import { Records, type Repo } from "../store/records.ts";
-import { closeOpened, entriesOf, type CloseBy } from "./close.ts";
+import { closeOpened, type CloseBy } from "./close.ts";
 import { isOpen, isPresent, readTracks } from "./file.ts";
 
 export interface IdleResult {
@@ -42,8 +43,7 @@ async function restedSince(repo: Repo, track: OpenedTrack): Promise<number> {
 }
 
 async function uncommitted(tree: string): Promise<string[]> {
-  const status = await gitMust(tree, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
-  return entriesOf(status).map((entry) => entry.path);
+  return (await statusEntries(tree)).map((entry) => entry.path);
 }
 
 async function tell(repo: Repo, track: OpenedTrack, text: string, now: Date): Promise<void> {

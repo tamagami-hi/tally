@@ -39,7 +39,9 @@ async function gapped() {
   return { ...made, call, data, engine, operator, lines: { mine, theirs, shared } };
 }
 
-const answered = (call: { structured: Record<string, unknown> }): Record<string, unknown> => Object.fromEntries(Object.entries(call.structured).filter(([key]) => key !== "recordsWaiting"));
+const ADDED = new Set(["recordsWaiting", "checkout"]);
+
+const answered = (call: { structured: Record<string, unknown> }): Record<string, unknown> => Object.fromEntries(Object.entries(call.structured).filter(([key]) => !ADDED.has(key)));
 
 describe("ledger_check and the gaps", () => {
   test("a ledger with none answers as before, with an empty list of gaps", async () => {
@@ -106,5 +108,30 @@ describe("ledger_check with scope mine", () => {
     const { call, data } = await gapped();
 
     expect((await call("ledger_check", { scope: "all", sessionId: data })).structured).toStrictEqual((await call("ledger_check")).structured);
+  });
+});
+
+describe("ledger_check and the operator checkout", () => {
+  test("answers what is uncommitted there with the records left out, and says it in one more line", async () => {
+    const { repo, root } = await makeTracked();
+    const call = await serving(repo);
+    await mkdir(join(root, "notes"), { recursive: true });
+    await writeFile(join(root, "notes", "plan.md"), "draft\n");
+    await writeFile(join(root, "docs", "records", "stray.json"), "{}\n");
+
+    const check = await call("ledger_check");
+
+    expect(check.structured["checkout"]).toStrictEqual({ branch: "main", changed: ["notes/plan.md"], total: 1 });
+    expect(check.text).toBe(`${COVERED}\nthe operator checkout has 1 uncommitted file outside docs/records: notes/plan.md`);
+  });
+
+  test("adds no line while nothing outside the records is uncommitted", async () => {
+    const { repo } = await makeTracked();
+    const call = await serving(repo);
+
+    const check = await call("ledger_check");
+
+    expect(check.structured["checkout"]).toStrictEqual({ branch: "main", changed: [], total: 0 });
+    expect(check.text).toBe(COVERED);
   });
 });

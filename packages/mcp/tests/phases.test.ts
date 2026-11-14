@@ -186,6 +186,18 @@ describe("what waits, and the board", () => {
     expect(track.structured["brief"]).not.toHaveProperty("recordsWaiting");
   });
 
+  test("an operator's brief answers what is uncommitted in its checkout, the records left out, and a track's brief does not", async () => {
+    const tracked = await makeTracked(PHASE);
+    await writeFile(join(tracked.root, "plan.md"), "draft\n");
+    const { call } = await connect(keepingContextAsRecords(tracked.repo));
+
+    const operator = await call("session_open", { worktree: tracked.root, agent: "operator" });
+    const track = await call("session_open", { worktree: tracked.trees["data"]!, agent: "claude" });
+
+    expect((operator.structured["brief"] as { checkout: unknown }).checkout).toStrictEqual({ branch: "main", changed: ["plan.md"], total: 1 });
+    expect(track.structured["brief"]).not.toHaveProperty("checkout");
+  });
+
   test("board_get carries each phase's goal and state", async () => {
     const { call, operator } = await serving();
     await call("phase_add", { sessionId: operator, ...G });

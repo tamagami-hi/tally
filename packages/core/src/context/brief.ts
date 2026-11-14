@@ -12,6 +12,7 @@ import { overlaps } from "./match.ts";
 import { readProject, type Project } from "./project.ts";
 import { inRulebookOrder, waitingRules } from "./rulebook.ts";
 import { recordsWaiting, type Waiting } from "../records/waiting.ts";
+import { checkoutState, type CheckoutState } from "../land/operator.ts";
 
 export interface BriefTask {
   milestone: string;
@@ -47,6 +48,7 @@ export interface Brief {
   rules: BriefRule[];
   tailoring?: Tailoring[];
   recordsWaiting?: Waiting;
+  checkout?: CheckoutState;
   track: { name: string; tasks: BriefTask[]; handoff: HandoffNote | null };
   entries: { id: string; kind: EntryKind; title: string }[];
   working: Working[];
@@ -121,7 +123,7 @@ export async function sessionBrief(repo: Repo, session: Session): Promise<Brief>
     project,
     rules: inRulebookOrder(rules).map(slim),
     ...tailoringOf(repo, session, rules),
-    ...(isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo) } : {}),
+    ...(isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo) } : {}),
     track: { name: session.track, tasks: unlandedTasks(await new Records(repo).readLedger(), session.track, claims), handoff: handoff.current ?? null },
     entries: applying(repo, session.track, inForce).map(({ id, kind, title }) => ({ id, kind, title })),
     working: working(await listSessions(repo), claims, session),

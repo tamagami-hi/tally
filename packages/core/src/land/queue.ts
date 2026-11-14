@@ -8,6 +8,7 @@ import { StateFile } from "../state/file.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
 import { checkTrackPaths } from "./checks.ts";
+import { checkCheckout, filesChanged } from "./operator.ts";
 import { isDocumentation, statePath, trackOf, worktreeOf } from "./paths.ts";
 
 export const ticketStates = ["queued", "turn", "landed", "failed", "cancelled"] as const;
@@ -114,6 +115,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
   const deferred = input.deferred ?? [];
   if (deferred.length > 0 && input.target === undefined) throw new TallyError("deferred parts are recorded on a task: give the landing its milestone and task");
   assertDeferred(deferred);
+  await checkCheckout(repo, [...input.files, ...(await filesChanged(repo.root, `${repo.config.mainBranch}...${track.branch}`))]);
   const ticket: Ticket = {
     id: randomUUID().slice(0, TICKET_LENGTH),
     sessionId: session.id,

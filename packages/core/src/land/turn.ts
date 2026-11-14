@@ -7,10 +7,10 @@ import { flushWhenFree } from "../records/commit.ts";
 import { listSessions } from "../state/sessions.ts";
 import { LockBusy, withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
-import { checkCheckout } from "./checks.ts";
 import { openLandingCheckout } from "./checkout.ts";
 import { undoCommit } from "./clean.ts";
 import { landScript } from "./land-script.ts";
+import { CHECKS_PASSED, checkCheckout, checkOnMain, filesChanged } from "./operator.ts";
 import { turnChecks } from "./path-checks.ts";
 import { fingerprint, statePath, trackOf } from "./paths.ts";
 import { isActive, putTicket, queueFile, swapTicket, ticketView, type Ticket, type TicketView } from "./queue.ts";
@@ -101,7 +101,7 @@ async function prepare(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket> {
   try {
     const track = trackOf(config, ticket.track);
     if ((track.test ?? config.commands.test).length === 0) throw new TallyError(`the config names no check for track ${track.name}`);
-    await checkCheckout(repo);
+    await checkOnMain(repo);
     if ((await currentBranch(ticket.worktree)) !== track.branch) throw new TallyError("worktree is not on its track branch");
     if (made === undefined) {
       made = await commitNamed(repo, ticket);
@@ -112,6 +112,7 @@ async function prepare(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket> {
     const top = await rebased(repo, checkout, track.name, made.tip);
     const commits = (await gitMust(checkout, ["rev-list", "--reverse", `${base}..${top}`])).split("\n").filter((line) => line !== "");
     await refuseRecordChanges(repo, checkout, base, top);
+    await checkCheckout(repo, await filesChanged(root, `${base}..${top}`));
     if (ticket.verified !== undefined && commits.length > 0) return await landVerified(repo, ticket, made, checkout, top, commits, now);
     if (commits.length === 0) return ended(ticket, "landed", now, { committed: made, landed: { head: short(base), commits: [] }, note: "nothing new to land" });
     const checks = await turnChecks(repo, track, checkout, `${base}..${top}`);
@@ -192,7 +193,7 @@ async function settle(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket | u
       const again = await prepare(repo, { ...waiting, state: "queued" }, now);
       return again.state === "turn" ? { ...again, note: MAIN_MOVED } : again;
     }
-    await checkCheckout(repo);
+    await checkCheckout(repo, await filesChanged(repo.root, `${turn.base}..${turn.rebased}`), CHECKS_PASSED);
     await gitMust(repo.root, ["merge", "--quiet", "--ff-only", turn.rebased]);
     return landedNow(await follow(ticket, made, turn.rebased));
   } catch (error: unknown) {

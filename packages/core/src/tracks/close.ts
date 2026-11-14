@@ -1,5 +1,6 @@
 import { TallyError, namedList } from "../errors.ts";
 import { gitMust, gitOut } from "../git/run.ts";
+import { statusEntries } from "../git/status.ts";
 import { landingCheckoutPath } from "../land/checkout.ts";
 import { worktreeOf } from "../land/paths.ts";
 import { isActive, queueFile } from "../land/queue.ts";
@@ -37,11 +38,6 @@ export interface CloseOptions {
   check?: (track: OpenedTrack) => void;
 }
 
-interface Entry {
-  code: string;
-  path: string;
-}
-
 const IGNORED = "!!";
 const MOST_NAMED_CLEANED = 20;
 
@@ -52,18 +48,6 @@ const named = (paths: readonly string[]): string => namedList([...paths].sort())
 const revCount = async (cwd: string, range: string): Promise<number> => Number(await gitMust(cwd, ["rev-list", "--count", range]));
 
 const isScratch = (path: string): boolean => path === SCRATCH_ROOT || path.startsWith(`${SCRATCH_ROOT}/`);
-
-export function entriesOf(status: string): Entry[] {
-  const tokens = status.split("\0").filter((token) => token !== "");
-  const entries: Entry[] = [];
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index] ?? "";
-    const code = token.slice(0, 2);
-    entries.push({ code, path: token.slice(3) });
-    if (code.includes("R") || code.includes("C")) index += 1;
-  }
-  return entries;
-}
 
 function openTrackNamed(repo: Repo, file: TracksFile, name: string): OpenedTrack {
   const track = file.tracks.find((one) => one.name === name && isOpen(one));
@@ -92,7 +76,7 @@ async function assertIdle(repo: Repo, file: TracksFile, name: string): Promise<v
 
 async function assertNothingToLose(repo: Repo, track: OpenedTrack, tree: string): Promise<Cleaned> {
   const main = repo.config.mainBranch;
-  const entries = entriesOf(await gitMust(tree, ["status", "--porcelain=v1", "-z", "--ignored", "--untracked-files=all"]));
+  const entries = await statusEntries(tree, ["--ignored"]);
   const dirty = entries.filter((entry) => entry.code !== IGNORED).map((entry) => entry.path);
   if (dirty.length > 0) throw new TallyError(`track ${track.name} has uncommitted work in ${tree}: ${named(dirty)}; commit it or delete it first`);
   const ahead = await revCount(tree, `${main}..HEAD`);

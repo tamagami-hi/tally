@@ -3,7 +3,6 @@ import { TallyError } from "../errors.ts";
 import { currentBranch, porcelain } from "../git/refs.ts";
 import { gitMust } from "../git/run.ts";
 import type { Config, Track } from "../schema/config.ts";
-import type { Repo } from "../store/records.ts";
 import { isDocumentation, isUnder } from "./paths.ts";
 
 export interface LandOptions {
@@ -30,18 +29,6 @@ export function checkTrackPaths(track: Track, files: readonly string[]): void {
   if (paths === undefined) return;
   const outside = files.filter((file) => !isUnder(paths, file));
   if (outside.length > 0) throw new TallyError(`${name} lands only ${paths.join(", ")}: ${outside.join(", ")} is outside them`);
-}
-
-function pathOf(line: string): string {
-  const path = line.slice(3);
-  return path.includes(" -> ") ? (path.split(" -> ", 2)[1] ?? path) : path;
-}
-
-export async function checkCheckout(repo: Repo): Promise<void> {
-  if ((await currentBranch(repo.root)) !== repo.config.mainBranch) throw new TallyError("operator checkout is not on main");
-  const records = `${repo.config.records.dir}/`;
-  const dirty = (await porcelain(repo.root)).filter((line) => !pathOf(line).startsWith(records));
-  if (dirty.length > 0) throw new TallyError("operator checkout has changes; left untouched");
 }
 
 export async function checkWorktree(tree: string, branch: string, options: LandOptions, config: Config): Promise<void> {
