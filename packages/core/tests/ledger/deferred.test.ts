@@ -8,7 +8,7 @@ import { Records } from "../../src/store/records.ts";
 import { ledgerSchema as previousLedgerSchema } from "../fixtures/ledger-0.1.ts";
 import { parking, withParts } from "../support/deferred.ts";
 
-const PARKED = { why: "polish later", decision: "DEC-14", owner: "the design lead" };
+const PARKED = { why: "polish later", decision: "DEC-12", owner: "the design lead" };
 
 describe("a parked part", () => {
   test("is no gap, does not make its task landed in part, and the milestone says how many are parked", async () => {
@@ -55,7 +55,7 @@ describe("placing a deferred part", () => {
     expect(parked.before).toEqual({ what: "the docs", to: "B2:4 manifest" });
     expect(parked.after).toEqual({ what: "the docs", parked: PARKED });
     expect(back.after).toEqual({ what: "the docs", to: "B2:5 transcoder" });
-    expect(parked.message).toBe("B2 'done': part 1 (the docs) parked, under DEC-14");
+    expect(parked.message).toBe("B2 'done': part 1 (the docs) parked, under DEC-12");
   });
 
   test("leaves the same record when the same call is made twice", async () => {
@@ -77,9 +77,9 @@ describe("placing a deferred part", () => {
   test("lets a session that may write the task park it under a decision", async () => {
     const { repo, data } = await parking();
 
-    const placed = await setDeferred(repo, data, { milestone: "B2", task: "done", part: 2, parked: { why: "later", decision: "DEC-14" } });
+    const placed = await setDeferred(repo, data, { milestone: "B2", task: "done", part: 2, parked: { why: "later", decision: "DEC-12" } });
 
-    expect(placed.after).toEqual({ what: "the cache", parked: { why: "later", decision: "DEC-14" } });
+    expect(placed.after).toEqual({ what: "the cache", parked: { why: "later", decision: "DEC-12" } });
   });
 
   test("refuses a session of another track", async () => {
@@ -115,7 +115,7 @@ describe("listing deferred parts", () => {
     await withParts(repo, "B2", "done", [{ what: "the docs", to: "B2:4 manifest" }, { what: "the cache" }, { what: "the icons", parked: PARKED }, { what: "the old api", to: "B2:done" }]);
     const rows = deferredRows(await new Records(repo).readLedger());
 
-    const parked = matchingRows(rows, { decision: "DEC-14" });
+    const parked = matchingRows(rows, { decision: "DEC-12" });
 
     expect(rows.map((row) => [row.part, row.state])).toEqual([[1, "waiting"], [2, "unplaced"], [3, "parked"], [4, "done"]]);
     expect(parked).toEqual([{ milestone: "B2", task: "done", track: "data", part: 3, what: "the icons", state: "parked", parked: PARKED }]);

@@ -15,11 +15,11 @@ import { milestoneIn, phased } from "../support/phased.ts";
 import { landing, ready, runHead } from "../support/queue.ts";
 import { sh } from "../support/repo.ts";
 
-const PARKED = { why: "polish later", decision: "DEC-14" };
+const PARKED = { why: "polish later", decision: "DEC-12" };
 
 async function planned() {
   const q = await ready();
-  await addDecision(q.repo, { id: "DEC-14", group: "platform", text: "Leftovers wait.", since: "2026-11-10", status: "in force" }, { operator: true });
+  await addDecision(q.repo, { id: "DEC-12", group: "platform", text: "Leftovers wait.", since: "2026-11-10", status: "in force" }, { operator: true });
   await new Records(q.repo).update((ledger) => ({ ledger: { ...ledger, milestones: [{ id: "A1", stage: "A", name: "reader", track: "data", weight: 1, tasks: [{ id: "t1", track: "data", status: "planned", also: [] }] }] }, message: "planned" }));
   await sh(q.root, ["add", "-A"]);
   await sh(q.root, ["commit", "-q", "-m", "records: plan"]);

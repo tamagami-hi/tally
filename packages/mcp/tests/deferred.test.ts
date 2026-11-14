@@ -5,11 +5,11 @@ import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import { connect, opened } from "./support/connect.ts";
 
-const PARKED = { why: "polish later", decision: "DEC-14", owner: "the design lead" };
+const PARKED = { why: "polish later", decision: "DEC-12", owner: "the design lead" };
 
 async function serving() {
   const tracked = await makeTracked();
-  await addDecision(tracked.repo, { id: "DEC-14", group: "platform", text: "Leftovers wait for polish.", since: "2026-11-10", status: "in force" }, { operator: true });
+  await addDecision(tracked.repo, { id: "DEC-12", group: "platform", text: "Leftovers wait for polish.", since: "2026-11-10", status: "in force" }, { operator: true });
   await withParts(tracked.repo, "B2", "done", [{ what: "the docs", to: "B2:4 manifest" }, { what: "the cache" }, { what: "the icons", parked: PARKED }]);
   const { call, client } = await connect(tracked.repo);
   return { ...tracked, call, client, operator: await opened(call, tracked.root, "operator"), data: await opened(call, tracked.trees["data"]!, "claude") };
@@ -19,7 +19,7 @@ describe("deferred_list", () => {
   test("answers each part with its place and state, how many matched, and the counts of the whole ledger", async () => {
     const { call } = await serving();
 
-    const listed = await call("deferred_list", { decision: "DEC-14" });
+    const listed = await call("deferred_list", { decision: "DEC-12" });
 
     expect(listed.structured).toEqual({
       parts: [{ milestone: "B2", task: "done", track: "data", part: 3, what: "the icons", state: "parked", parked: PARKED }],
@@ -81,7 +81,7 @@ describe("parking where a task lands", () => {
     const { call, data, root } = await serving();
     const commit = await sh(root, ["rev-parse", "--short=7", "HEAD"]);
 
-    const landed = await call("task_land", { sessionId: data, milestone: "B2", task: "4 manifest", commit, deferred: [{ what: "the guide", parked: { why: "after review", decision: "DEC-14" } }] });
+    const landed = await call("task_land", { sessionId: data, milestone: "B2", task: "4 manifest", commit, deferred: [{ what: "the guide", parked: { why: "after review", decision: "DEC-12" } }] });
 
     expect(landed.isError).toBe(false);
     expect((await call("deferred_list", { state: "parked" })).structured["matched"]).toBe(2);

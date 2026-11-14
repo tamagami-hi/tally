@@ -19,7 +19,7 @@ export async function withParts(repo: Repo, milestone: string, task: string, def
 
 export async function parking(): Promise<Parking> {
   const tracked = await makeTracked();
-  await addDecision(tracked.repo, { id: "DEC-14", group: "platform", text: "Small leftovers wait for the polish phase.", since: "2026-11-10", status: "in force" }, { operator: true });
+  await addDecision(tracked.repo, { id: "DEC-12", group: "platform", text: "Small leftovers wait for the polish phase.", since: "2026-11-10", status: "in force" }, { operator: true });
   await withParts(tracked.repo, "B2", "done", [{ what: "the docs", to: "B2:4 manifest" }, { what: "the cache" }]);
   return {
     ...tracked,

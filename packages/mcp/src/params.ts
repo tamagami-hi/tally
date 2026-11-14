@@ -92,7 +92,7 @@ const OWN: Readonly<Record<string, string>> = {
   "repo_configure.config": "the config keys to set, as an object; `commands` merges one level deep",
   "deferred_list.state": "only parts in this state: unplaced, waiting, done or parked",
   "deferred_list.milestone": "only the parts of this milestone's tasks, for example B2",
-  "deferred_list.decision": "only the parts parked under this decision, for example DEC-14",
+  "deferred_list.decision": "only the parts parked under this decision, for example DEC-12",
   "deferred_list.owner": "only the parts parked for this owner",
   "deferred_list.limit": "at most this many parts, the first in ledger order: 50 unless said, 200 at most",
   "deferred_list.fields": "the keys of each part to keep, such as what and state",

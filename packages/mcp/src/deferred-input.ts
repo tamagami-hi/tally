@@ -6,7 +6,7 @@ const owner = z.string().min(1).max(MOST_OWNER);
 
 export const parkedInput = z.strictObject({
   why: why.describe("why it is left on purpose, in a line"),
-  decision: z.string().min(1).optional().describe("the decision that covers it, such as DEC-14"),
+  decision: z.string().min(1).optional().describe("the decision that covers it, such as DEC-12"),
   owner: owner.optional().describe("who will pick it up"),
 });
 

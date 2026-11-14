@@ -21,6 +21,28 @@ const ATTEMPTS = 5;
 const NOTHING: Staged = { commit: null, files: 0 };
 const WAITS: Staged = { commit: null, files: 0, waits: true };
 
+export const MOST_SUBJECT = 70;
+const BREAKS: readonly string[] = [": ", ", "];
+
+export interface Fitted {
+  subject: string;
+  moved?: string;
+}
+
+function cutAt(line: string, after: number): number {
+  const room = line.slice(0, MOST_SUBJECT + 1);
+  const phrase = Math.max(...BREAKS.map((mark) => room.lastIndexOf(mark)));
+  if (phrase > after) return phrase;
+  const space = room.lastIndexOf(" ");
+  return space > after ? space : MOST_SUBJECT;
+}
+
+export function fittedSubject(prefix: string, text: string): Fitted {
+  const line = `${prefix} ${text}`;
+  if (line.length <= MOST_SUBJECT) return { subject: line };
+  return { subject: line.slice(0, cutAt(line, prefix.length)).trimEnd(), moved: text };
+}
+
 export function recordsMode(config: Pick<Config, "records">): RecordsMode {
   const { commit, batch, commitAt } = config.records;
   if (!commit) return "never";
@@ -46,7 +68,8 @@ export async function commitStaged(repo: Repo, subject: Subject, body?: string):
     const files = staged.stdout.split("\n").filter((line) => line !== "").length;
     if (files === 0) return NOTHING;
     const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
-    const message = ["-m", `${config.records.commitPrefix} ${subject(files, head)}`, ...(body === undefined ? [] : ["-m", body])];
+    const fitted = fittedSubject(config.records.commitPrefix, subject(files, head));
+    const message = ["-m", fitted.subject, ...[fitted.moved, body].flatMap((part) => (part === undefined ? [] : ["-m", part]))];
     const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", ...message, "--", config.records.dir]);
     if (committed.code !== 0) throw new TallyError(`git commit failed in ${root}:\n${committed.stderr.trim()}`);
     return { commit: await gitMust(root, ["rev-parse", "--short=7", "HEAD"]), files };

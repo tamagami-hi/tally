@@ -44,7 +44,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "records_commit",
     {
-      description: "Commit the record changes that wait on disk (operator session only), with `why` in the commit's subject. A repository that commits its records at each phase's end needs this only before the operator pushes in the middle of a phase.",
+      description: "Commit the record changes that wait on disk (operator session only), with `why` in the subject when it fits in 70 characters and in the body when it does not. A repository that commits its records at each phase's end needs this only before the operator pushes in the middle of a phase.",
       inputSchema: { sessionId: z.string(), why: z.string().describe("why now, one line of 1 to 200 characters, such as before the operator pushes") },
     },
     ({ sessionId, why }) => inSession(source, sessionId, async (repo, session) => ok(await commitWaitingRecords(repo, session, why))),
