@@ -94,9 +94,17 @@ function placement(input: PlaceInput, what: string): Deferred {
   return placed;
 }
 
+const SHOWN = "deferred_list shows the parts there are";
+
+function plannedTask(ledger: Ledger, milestone: string, id: string): Task {
+  const task = findTask(findMilestone(ledger, milestone), id);
+  if (task === undefined) throw new TallyError(`'${id}' is not planned in ${milestone}; ${SHOWN}`);
+  return task;
+}
+
 function partOf(milestone: string, task: Task, part: number): Deferred {
   const parts = task.deferred ?? [];
-  if (parts.length === 0) throw new TallyError(`${milestone} '${task.id}' has no deferred parts`);
+  if (parts.length === 0) throw new TallyError(`${milestone} '${task.id}' has no deferred parts; ${SHOWN}`);
   const found = Number.isInteger(part) ? parts[part - 1] : undefined;
   if (found === undefined) throw new TallyError(`${milestone} '${task.id}' has ${parts.length} deferred part${parts.length === 1 ? "" : "s"}; part is a number from 1 to ${parts.length}, as deferred_list shows it`);
   return found;
@@ -104,11 +112,11 @@ function partOf(milestone: string, task: Task, part: number): Deferred {
 
 const said = (part: Deferred): string => (part.parked === undefined ? `left to ${part.to ?? "no task"}` : `parked${part.parked.decision === undefined ? "" : `, under ${part.parked.decision}`}`);
 
-export function placePart(ledger: Ledger, input: PlaceInput): { ledger: Ledger; placed: Placed } {
+export function placePart(ledger: Ledger, input: PlaceInput, read?: string): { ledger: Ledger; placed: Placed } {
   const milestone = findMilestone(ledger, input.milestone);
-  const task = findTask(milestone, input.task);
-  if (task === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
+  const task = plannedTask(ledger, input.milestone, input.task);
   const before = partOf(milestone.id, task, input.part);
+  if (read !== undefined && before.what !== read) throw new TallyError(`part ${input.part} of ${milestone.id} '${task.id}' is now '${before.what}', not '${read}': the parts changed meanwhile; read deferred_list again`);
   const after = placement(input, before.what);
   const deferred = (task.deferred ?? []).map((part, index) => (index === input.part - 1 ? after : copyPart(part)));
   const tasks = milestone.tasks.map((one) => (one === task ? { ...task, deferred } : one));
@@ -118,14 +126,14 @@ export function placePart(ledger: Ledger, input: PlaceInput): { ledger: Ledger; 
 
 export async function setDeferred(repo: Repo, session: Session, input: PlaceInput): Promise<Placed> {
   const records = new Records(repo);
-  const current = await records.readLedger();
-  const task = findTask(findMilestone(current, input.milestone), input.task);
-  if (task === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
+  const task = plannedTask(await records.readLedger(), input.milestone, input.task);
+  const seen = partOf(input.milestone, task, input.part);
+  const after = placement(input, seen.what);
   assertMayWrite(repo, session, task.track);
-  if (input.parked !== undefined) await assertMayPark(repo, session, [{ what: "", parked: input.parked }]);
+  await assertMayPark(repo, session, [after]);
   let placed: Placed | undefined;
   await records.update((ledger) => {
-    const done = placePart(ledger, input);
+    const done = placePart(ledger, input, seen.what);
     placed = done.placed;
     return { ledger: done.ledger, message: done.placed.message };
   });

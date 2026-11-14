@@ -39,6 +39,12 @@ describe("deferred_list", () => {
     expect(mistyped.isError).toBe(true);
     expect(mistyped.text).toContain("colour");
   });
+
+  test("refuses a field a part does not have, and names the ones it has", async () => {
+    const { call } = await serving();
+
+    expect(await call("deferred_list", { fields: ["whta"] })).toMatchObject({ isError: true, text: "a part has no 'whta'; its keys: milestone, task, track, part, what, state, to, parked" });
+  });
 });
 
 describe("deferred_set", () => {

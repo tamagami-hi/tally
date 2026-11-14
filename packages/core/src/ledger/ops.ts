@@ -134,9 +134,11 @@ export async function land(ledger: Ledger, input: LandInput, resolve: ResolveCom
     const merged = [...new Set([...task.also, ...also])].sort();
     return withDeferred({ ...withoutWaits(task), status: "landed", commit, also: merged }, input.deferred);
   });
-  const parts = landed.find((task) => task.id === input.task)?.deferred?.length ?? 0;
+  const parts = landed.find((task) => task.id === input.task)?.deferred ?? [];
+  const parked = parts.filter((part) => part.parked !== undefined).length;
+  const left = parts.length - parked;
   const stopped = stopWaitingOn(replaceMilestone(ledger, { ...milestone, tasks: landed }), refOf(input.milestone, input.task));
-  const inPart = parts === 0 ? "" : `, in part: ${parts} deferred`;
+  const inPart = `${left === 0 ? "" : `, in part: ${left} deferred`}${parked === 0 ? "" : `, ${parked} parked`}`;
   const freed = stopped.freed.length === 0 ? "" : `; no longer waiting on it: ${stopped.freed.join(", ")}`;
   return {
     ledger: stopped.ledger,

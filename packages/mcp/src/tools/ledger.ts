@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  addMilestone, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  addMilestone, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
@@ -53,7 +53,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "ledger_check",
-    { description: "The commits on main the ledger does not account for, in `missing`; empty when every commit is recorded. `gaps` lists, each as a sentence, a deliverable no task covers, a wait on a task that is not in the ledger, and a deferred part with no task there to finish it. scope 'mine' (with sessionId) keeps only the gaps of the session's track, and, when the track has paths in the config, only the commits whose files are all under them; without paths `missing` is unchanged and `note` says so. `checkout` lists what is uncommitted in the operator checkout outside the records.", inputSchema: { scope: SCOPE, ...WHERE } },
+    { description: "The commits on main the ledger does not account for, in `missing`; empty when every commit is recorded. `gaps` lists, each as a sentence, a deliverable no task covers, a wait on a task that is not in the ledger, and a deferred part with no task there to finish it. scope 'mine' (with sessionId) keeps only the gaps of the session's track, and, when the track has paths in the config, only the commits whose files are all under them; without paths `missing` is unchanged and `note` says so. `checkout` lists what is uncommitted in the operator checkout outside the records; `parked` counts parked parts.", inputSchema: { scope: SCOPE, ...WHERE } },
     ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const track = scope === "all" ? undefined : (await own(repo, sessionId)).track;
       const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), track);
@@ -144,6 +144,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
     "task_land",
     { description: "Record the commit on main that landed a task (the landing itself is land_run, which can do this for you). Follow-up commits go in `also`. The task's claim is released, whoever holds it; `problem` says when it could not be. `deferred` lists the parts that did not land, each {what} with `to` the MILESTONE:TASK that will finish it, or `parked` (an operator's, or under a decision): the board shows the task as landed in part until those tasks land. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional() } },
     ({ sessionId, milestone, task, commit, also, track, deferred }) => inSession(source, sessionId, async (repo, session) => {
+      await assertMayPark(repo, session, deferred ?? []);
       const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, deferred, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
       return ok({ ...(await recorded(repo, message)), ...outcome });
     }),

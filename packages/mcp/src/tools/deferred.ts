@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Records, commitRecords, countParts, deferredRows, deferredStates, matchingRows, setDeferred } from "@tally/core";
+import { Records, TallyError, commitRecords, countParts, deferredRows, deferredStates, matchingRows, setDeferred } from "@tally/core";
 import { parkedInput } from "../deferred-input.ts";
 import { FIELDS, pick } from "../filters.ts";
 import { ok } from "../respond.ts";
@@ -8,16 +8,19 @@ import type { ToolHost } from "../decorate.ts";
 
 const DEFAULT_PARTS = 50;
 const MOST_PARTS = 200;
+const ROW_KEYS: readonly string[] = ["milestone", "task", "track", "part", "what", "state", "to", "parked"];
 
 export function registerDeferredTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "deferred_list",
     {
-      description: "The parts that landed tasks left undone, in ledger order: each with its `part` number (from 1), `state` (unplaced, waiting for its task, done, or parked) and its `to` or `parked`. Filters narrow it; `counts` covers the whole ledger and `matched` says how many fit. An unplaced part is a gap: place it with deferred_set.",
+      description: "The parts that landed tasks left undone, in ledger order: each with its `part` number (from 1), `state` (unplaced, waiting for its task, done, or parked) and its `to` or `parked`. Filters narrow it; `counts` covers the whole ledger and `matched` says how many fit. An unplaced part, or one left to a task not in the ledger, is a gap: place it with deferred_set.",
       inputSchema: { state: z.enum(deferredStates).optional(), milestone: z.string().optional(), track: z.string().optional(), decision: z.string().optional(), owner: z.string().optional(), limit: z.number().int().positive().max(MOST_PARTS).optional(), fields: FIELDS, ...WHERE },
     },
     ({ state, milestone, track, decision, owner, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const rows = deferredRows(await new Records(repo).readLedger());
+      const unknown = (fields ?? []).filter((key) => !ROW_KEYS.includes(key));
+      if (unknown.length > 0) throw new TallyError(`a part has no '${unknown.join("', '")}'; its keys: ${ROW_KEYS.join(", ")}`);
       const found = matchingRows(rows, { state, milestone, track, decision, owner });
       return ok({ parts: found.slice(0, limit ?? DEFAULT_PARTS).map((row) => pick({ ...row }, fields)), matched: found.length, counts: countParts(rows) });
     }),
