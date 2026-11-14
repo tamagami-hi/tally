@@ -2,7 +2,7 @@
 
 **Written:** 2026-11-14 11:50 IST (2026-11-14 06:20 UTC)
 **Base:** `main` at `9f92710` (1,301 tests, 62 MCP tools, version 0.1.0).
-**Status:** a plan. Nothing in it is built.
+**Status:** built on 2026-11-14 as version 0.3.0, in the seventeen commits from `d7a6029` to `e52280d` (1,473 tests, 67 MCP tools). Three things were added after this was written: `phase_close`'s description names every reason it refuses, its answer says `withoutBuildLog` where it said `missing`, and a records commit's subject is at most 70 characters. The text below is the plan as it was written before the build; where the build differs, the commit bodies say how and why.
 **Checked:** against the MCP builder skill on 2026-11-14; §11 is what that check added.
 **Follows:** `2026-11-14-0312-rulebook-phases-worktrees-plan.md`, which is built. This plan answers the review written after the first phase that ran on that build.
 **This repository is public.** This file names no private project. Keep it that way when you edit it: the private names and paths are in the local notes, which git ignores.
