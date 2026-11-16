@@ -743,3 +743,57 @@ A smaller `board_get` that answers only open work (the largest saving in sight f
 ### 20.7 The fix round (0.4.2)
 
 The planner's check found two flaws in the expiry of idle sessions, both fixed. A failed write of `session_expire` (or a failed read of the log before it) stopped the session from ending and, on the service, the rest of the watcher's pass; now the session is ended all the same, its claims and locks released, the pass goes on, and the failure is the repository's problem, one sentence naming the track and the agent, held for an hour. An end that failed before the session was removed wrote the event again on each pass; now tally looks for the session's event before writing, so a session has at most one. The version counts the two fixes: 0.4.2.
+
+## 21. Commits of records only, command-line writes on record, and an open board (0.5.0, built 2026-11-16)
+
+Built from `docs/plans/2026-11-16-1602-third-review-plan.md`, which answers the third review, written by the coordinating agent of the second tracked repository after two days of use since 0.3.0. Of its eight findings, two became fixes to how records behave (F1, F4), and two became small corrections to the Done build (F6 and F7, with a button's words beside them). Three more (F5, F2 and F3) became four optional parts, and the operator chose one: part D, the open board (F5). Parts E (commits the config tells the check to pass, F2), F (moving a milestone to another phase, F3) and G ("Phase" for "Stage" on the page, F3 too) are specified in the plan and not built, so that they can be later. The eighth finding, a tag for the release, was already done.
+
+### 21.1 The decisions
+
+1. **A commit that changes only files under the records folder is passed over by the check, whoever made it.** The review asked for the narrower rule, only files under the log folder. The wider one is chosen because in the `phase` mode every record waits on disk between commits, so a script that commits a dirty tree sweeps up the ledger or a decision as easily as the log. It weakens no protection: the check has only ever read a commit's subject, which anyone can write.
+2. **What the check passes over, it shows.** `ledger_check` lists those commits, so a script that commits records is visible and never silent.
+3. **Decisions stay on the command line, and `--operator` stays a declared flag.** No MCP tool is added for them: an operator session is declared in the same way, so a tool would add attribution and no authority, and the activity log gives the attribution without one.
+4. **A write made from the command line appears in the activity log under the session `cli`.** Done's sessions leave it out, because it is not a session.
+5. **The version is 0.5.0**, the operator's choice: `ledger_check` gains a field, the command line gains options and `board_get` an option.
+
+### 21.2 A commit of records only (F1)
+
+- **One answer for what main still owes.** `owedCommits` (`core/src/ledger/owed.ts`) answers `{ missing, passed }`. `unrecorded` stays the first step, so a commit a record names, or whose subject starts with the records prefix, is no candidate. A candidate that changes at least one file, every one of them under `records.dir`, is passed with the why `records only`. Its files are those changed against its first parent, so a merge is judged by what it brought to main. Git is asked about candidates only, so a clean ledger costs what it did.
+- **Every caller uses it:** the check, the status's problems, the inbox notice, `phase_close`'s blockers and `tally ledger check`. None of them names a passed commit. A track's check judges its paths by the same first-parent files.
+- **`ledger_check`** answers `passed: { total, shown }`, the newest ten with commit, subject and why. When the total is above zero its text gains one line, such as "the check passes over 3 commits on main that change only files under docs/records". `tally ledger check` prints the same line and keeps its exit code, which counts only what is missing.
+- **In the `phase` mode**, a session's close event that waits on disk and is swept up by another commit, a release script's say, now leaves the check clean, and shown.
+
+### 21.3 A decision or an answer on record (F4)
+
+- **The state is said, not guessed.** `tally decision add`, `replace` and `setStatus` take `--state`, one of the five states a decision already keeps: in force, built, partly built, decided, not built, and other. Without it the state is read from the status as before. When that reading gives `other`, the answer says so and names `--state`. Another value is refused, with the five named, and nothing is written.
+- **The write is logged.** Where the repository keeps an activity log, each write leaves one event after it succeeds: `decision_add`, `decision_replace` and `decision_status`, each aimed at `<group> / <id>: <state>`, and `question_add`, `question_answer` and `question_edit`, each aimed at the question's id. The event's session is `cli`, its track the main branch, its agent the `--by` value, or `cli`. `add` and `replace` gain `--by` for this, and the record's own `by` stays the operator's, whose decision it is.
+- **In the command line's layer.** The event is written by the command, not by core, because the MCP tools for questions are already logged by their decorator. After it, the waiting records are committed when no session is open, as the decorator does. A failed write is said, on the error stream, and the command still succeeds: the decision stands.
+- **On the service too.** A command carried out by the service runs the same code, so it leaves the same event.
+
+### 21.4 Three corrections to the Done build (F6, F7)
+
+- **A session's tasks** also come from its `review_record` and `evidence_record` events, a target cut at its first comma, so `<milestone> / <task>, <kind>` and `<milestone> / <task>` are one task. In the second tracked repository the session that ran both of its lanes, which showed no task, now shows two.
+- **The closed-phase line** says how many milestones it holds: "1 closed phase, with 1 finished milestone, is in Done". The two lines under the board then add up to the finished count above it.
+- **The button under the sessions** says how many it will load: "Show 7 more" when 7 remain.
+
+### 21.5 An open board for agents (F5)
+
+`board_get` takes `rows`: `all`, the default, as before, or `open`. With `open`, `rows` holds only the milestones that are not finished, and `finishedRows` counts the others. It works with either scope; with `fields`, `finishedRows` stays beside `rows`. Its description says that a whole board may be cut to fit and that a session wants `rows: "open"` unless it asks about finished work, and a cut board names `rows` among what narrows it. In the second tracked repository the whole board is about 55,000 characters and is cut at 25,000, losing open milestones; its open board is 7 rows in about 15,000, whole.
+
+### 21.6 The surface
+
+- **MCP tools:** 67 before and after.
+- **Descriptions that change:** `ledger_check` (`passed`), `activity_get` (command-line writes) and `board_get` (`rows`). They were tightened so that `tools/list` stays under the 77,000 characters its test holds on a host. It is 76,589 characters in the image (76,411 before) and 76,991 on a host.
+- **Stored formats:** nothing changes. A decision's `state` is a field it already has. The activity log gains six values of `verb` and the session `cli`, which the previous release reads as events like any other; its Done would list `cli` as a session.
+- **The command line:** three decision verbs gain `--state`, and two gain `--by`. Nothing is removed.
+
+### 21.7 Left out
+
+- **Parts E, F and G**, the operator's choice, specified in the plan.
+- **MCP tools for decisions**, and a history of a decision's earlier states beyond the activity log (decision 3).
+- **The dashboard's operator routes** that answer a question or add a decision write no event: they are not the command line.
+- **A filter in Done for sessions with tasks.**
+- **Not leaving the close event uncommitted in the `phase` mode.** Every record waits in that mode, by design; part A makes the wait harmless.
+- **Hiding the records from `git status`**, left out of the 0.3.0 plan for the same reason as then.
+- **Removing tools.**
+- **A tag as a condition** for a passed commit.

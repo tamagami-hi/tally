@@ -42,7 +42,7 @@ The image builds its own git (2.56.1) from kernel.org's source, because a reposi
 
 Without Docker, `tally serve` with no `--repo` serves the same list from `TALLY_HOME` (by default `~/.local/state/tally`), and `tally repo add PATH [--name NAME] | remove NAME | default NAME | list` manages it.
 
-**Phase 4 is built** (2026-11-04): the records. `docs/records/` now holds, beside the ledger and the config, `decisions.json` and `questions.json` (imported from the Markdown tables; `tally question add|answer`, `tally decision add|replace --operator`, `decision setStatus`), `checks.json` (the code-check record, imported from `code-checks.md` and replaced whole with `tally checks set`, refused unless its fingerprint is main's; `checks fingerprint` says whether it stands), `buildlog.json` (every group's build log as dated sections, imported, appended to and rendered back), `evidence/<milestone>.json` (run records, with `tally import evidence` indexing a track's existing `*.json` + `*.log` pairs, the logs hashed in place), `plans.json` and `reports/<date>/<name>.json` manifests that cite records by id and hash a bundle. Every import refuses a file that does not render back byte for byte. `tally views claude` writes CLAUDE.md's standing block between `tally:standing` markers. The MCP server has 35 tools, and the board's Evidence page lists each milestone's run records with their logs opened in place.
+**Phase 4 is built** (2026-11-04): the records. `docs/records/` now holds, beside the ledger and the config, `decisions.json` and `questions.json` (imported from the Markdown tables; `tally question add|answer`, `tally decision add|replace --operator`, `decision setStatus`, each with `--state`), `checks.json` (the code-check record, imported from `code-checks.md` and replaced whole with `tally checks set`, refused unless its fingerprint is main's; `checks fingerprint` says whether it stands), `buildlog.json` (every group's build log as dated sections, imported, appended to and rendered back), `evidence/<milestone>.json` (run records, with `tally import evidence` indexing a track's existing `*.json` + `*.log` pairs, the logs hashed in place), `plans.json` and `reports/<date>/<name>.json` manifests that cite records by id and hash a bundle. Every import refuses a file that does not render back byte for byte. `tally views claude` writes CLAUDE.md's standing block between `tally:standing` markers. The MCP server has 35 tools, and the board's Evidence page lists each milestone's run records with their logs opened in place.
 
 **Phase 3 is built:** the MCP server. `tally mcp` serves 25 tools on stdio and `tally serve` the same at `/mcp`: sessions bound to a worktree and a track (`session_open`), the board and the ledger verbs with scope (`board_get`, `task_plan|claim|release|wait|land|other`, `milestone_add`, `ledger_check`), the landing (`land_run`), evidence (`evidence_run|record|list`), hand-offs, named locks, the documents (`docs_list|read|search`) and `context_pack` at the project, track, milestone or task level. [GUIDE.md](GUIDE.md) says how to connect Claude Code or Kiro and how a session works; [RULES.md](RULES.md) is what the harness enforces. The board shows who is working, what they hold and which locks are taken.
 
@@ -57,7 +57,7 @@ tally task land B2 "4 manifest and atomic publication" <commit> [--also <commit>
 tally task wait B2 "B2 data close" "product transcode job"
 tally task remove B2 "9 planned by mistake" --why "it is covered by task 4"
 tally task other <commit> "docs: a note"
-tally ledger check                 # commits on main the ledger misses; exit 1 when any
+tally ledger check                 # commits on main the ledger misses; exit 1 when any (records-only commits are passed over, and counted)
 tally land data --message .temp/data/msg.txt crates/acme-core/src/store/manifest.rs
 tally import decisions docs/plans/decisions.md --group platform   # also questions, checks, buildlog --group G
 tally import evidence .temp/worktrees/data/.temp/data/B2/task3 --milestone B2 --task "3 source grid"
@@ -68,7 +68,7 @@ tally report manifest 2026-11-03 b4-data --group market_data --narrative docs/ma
 tally views claude --check         # CLAUDE.md's standing block; exit 1 when stale
 ```
 
-`task` verbs write `ledger.json` under a lock and, when `records.commit` is on, commit `docs/records/` as the configured identity with the prefix `records:`; `ledger check` and `status` pass over those commits by their prefix. `land` is `land.py`'s protocol: the operator checkout on `main` and clean outside `docs/records/`, the worktree on its branch, no unrelated staged files, rebase, the configured test command in the worktree, a commit as the configured identity, a fast-forward of `main`, all under `.temp/tally/state/locks/landing.lock`. With `commands.landing` in the config the tests see only what lands: the commit comes first, and every commit ahead of `main` is tested, oldest first, in a detached checkout at `<worktree>/.temp/<track>/landing`. A failure names the commit and the log, leaves `main` alone and undoes the landing's own commit with `git reset --soft`, its files left staged. [GUIDE.md](GUIDE.md), section 7, has `link` and `env`.
+`task` verbs write `ledger.json` under a lock and, when `records.commit` is on, commit `docs/records/` as the configured identity with the prefix `records:`; `ledger check` and `status` pass over those commits by their prefix, and over any commit that changes only files under `docs/records/`. `land` is `land.py`'s protocol: the operator checkout on `main` and clean outside `docs/records/`, the worktree on its branch, no unrelated staged files, rebase, the configured test command in the worktree, a commit as the configured identity, a fast-forward of `main`, all under `.temp/tally/state/locks/landing.lock`. With `commands.landing` in the config the tests see only what lands: the commit comes first, and every commit ahead of `main` is tested, oldest first, in a detached checkout at `<worktree>/.temp/<track>/landing`. A failure names the commit and the log, leaves `main` alone and undoes the landing's own commit with `git reset --soft`, its files left staged. [GUIDE.md](GUIDE.md), section 7, has `link` and `env`.
 
 ## Evaluating the MCP server
 
@@ -87,7 +87,7 @@ Then run an MCP evaluation harness over stdio against `node packages/cli/dist/ma
 | `packages/core/src/schema` | the Zod schemas: `config.json`, `ledger.json` |
 | `packages/core/src/store` | atomic JSON files, the lock, the records folder |
 | `packages/core/src/git` | the few git reads every verb needs |
-| `packages/core/src/ledger` | plan, land, wait, other, check, the board import |
+| `packages/core/src/ledger` | plan, land, wait, other, the check and what main still owes it, the board import |
 | `packages/core/src/status` | the summary (with each milestone's `finished`), tracks, questions, the tables |
 | `packages/core/src/done` | the Done answer: closed phases, finished milestones and landed tasks with their dates, and the ended sessions read back from the activity log |
 | `packages/core/src/land` | the landing protocol and its refusals, the clean checkout, the tests' log |
@@ -95,7 +95,7 @@ Then run an MCP evaluation harness over stdio against `node packages/cli/dist/ma
 | `packages/core/src/views` | the standing block CLAUDE.md carries between its markers |
 | `packages/server/src` | Hono: the API, the event stream, the git watcher, the commit graph layout, static serving of the web build |
 | `packages/web/src` | Vite + React, hand-written CSS: the board (`Shell`, `Header`, `Stats`, `Board` of open work, `Tracks`, `Graph`, `Done` with `DonePhases` and `DoneSessions`, `Evidence` with its logs, `Docs` with its reader), what the board shows (`open.ts`), the fork lanes (`lanes.ts`), the branch colours and ranks (`branches.ts`), the live hooks, the two layouts in `styles.css` and Done's in `done.css` |
-| `packages/cli/src` | `tally`: argument parsing and one file per command |
+| `packages/cli/src` | `tally`: argument parsing, one file per command, and the activity event a decision or question write leaves |
 | `packages/*/tests` | Vitest, mirroring `src`; temp git repositories as fixtures |
 | `examples/` | a config per tracked repository |
 
