@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   addMilestone, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
-  listLocks, other, plan, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type Repo, type Session,
+  listLocks, other, plan, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
 import { FIELDS, pickKnown } from "../filters.ts";
@@ -19,6 +19,15 @@ function assertMayWriteTask(repo: Repo, session: Session, ledger: Ledger, milest
 }
 
 const SCOPE = z.enum(["all", "mine"]).default("all");
+
+const ROWS = z.enum(["all", "open"]).optional().describe("'open': unfinished rows only; finishedRows counts the rest");
+
+function boardOf<B extends { rows: readonly MilestoneRow[] }>(board: B, rows: "all" | "open" | undefined, fields: readonly string[] | undefined): Readonly<Record<string, unknown>> {
+  if (rows !== "open") return pickKnown(board, fields, "the board");
+  const open = board.rows.filter((row) => !row.finished);
+  const picked = pickKnown({ ...board, rows: open, finishedRows: board.rows.length - open.length }, fields, "the board");
+  return Object.hasOwn(picked, "rows") ? { ...picked, finishedRows: board.rows.length - open.length } : picked;
+}
 
 async function own(repo: Repo, sessionId: string | undefined): Promise<Session> {
   if (sessionId === undefined) throw new TallyError("scope 'mine' needs the sessionId");
@@ -41,21 +50,21 @@ const plannedTask = z.object({
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "board_get",
-    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, and the live claims and locks. A row is `finished` when its tasks are all on main (or it is built) and ledger_check lists no gap for it. scope 'mine' keeps the session's track: its rows, their tasks and notes, its branch beside main, its claims. `fields` keeps only those top-level keys.", inputSchema: { scope: SCOPE, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
-    ({ scope, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, and the live claims and locks. A row is `finished` when its tasks are all on main (or it is built) and ledger_check lists no gap for it. A whole board may be cut to fit, so ask for rows 'open' unless you need finished work. scope 'mine' keeps the session's track: its rows, tasks and notes, its branch beside main, its claims.", inputSchema: { scope: SCOPE, rows: ROWS, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
+    ({ scope, rows, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const ledger = await new Records(repo).readLedger();
       const status = await collect(repo, ledger);
       const board = { ...status, claims: await listClaims(repo), locks: await listLocks(repo) };
-      if (scope === "all") return ok(pickKnown(board, fields, "the board"));
+      if (scope === "all") return ok(boardOf(board, rows, fields));
       const session = await own(repo, sessionId);
       const needing = needingReview(ledger, await reviewsWhenRequired(repo), repo.config.reviews);
       const mine = { ...board, rows: rowsOf(board.rows, session.track, needing), tracks: board.tracks.filter((t) => t.isMain || t.branch === session.branch), claims: board.claims.filter((c) => c.track === session.track) };
-      return ok(pickKnown(mine, fields, "the board"));
+      return ok(boardOf(mine, rows, fields));
     }),
   );
   server.registerTool(
     "ledger_check",
-    { description: "The commits on main no record names (`missing`) and the `gaps`, each a sentence: a deliverable no task covers, a wait on a task not in the ledger, a deferred part neither left to a task nor parked, and, where reviews are required, a landed task with no clear review. `passed`: commits not missing as they change only records (count, newest ten). scope 'mine' (with sessionId) keeps the track's gaps and, when it has paths, only commits wholly under them (else `note` says so). `checkout`: what is uncommitted in the operator checkout outside the records; `parked`: how many are parked.", inputSchema: { scope: SCOPE, ...WHERE } },
+    { description: "The commits on main no record names (`missing`) and the `gaps`, each a sentence: a deliverable no task covers, a wait on a task not in the ledger, a deferred part neither left to a task nor parked, and, where reviews are required, a landed task with no clear review. `passed`: commits not missing as they change only records (count, newest ten). scope 'mine' (with sessionId) keeps the track's gaps and, when it has paths, only commits wholly under them (else `note` says so). `checkout`: what is uncommitted in the operator checkout outside the records; `parked`: the parked count.", inputSchema: { scope: SCOPE, ...WHERE } },
     ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const track = scope === "all" ? undefined : (await own(repo, sessionId)).track;
       const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), track);
