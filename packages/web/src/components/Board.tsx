@@ -83,10 +83,11 @@ function NothingOpen({ onOpenDone }: { onOpenDone: (() => void) | undefined }) {
 
 export function Board({ status, claims = [], onOpenDone }: BoardProps) {
   const board = openBoard(status);
+  const nothingOpen = board.stages.length === 0 && board.closedOff > 0;
   return (
     <section className="board" aria-label="Board">
-      {board.stages.length === 0 ? <NothingOpen onOpenDone={onOpenDone} /> : board.stages.map((stage) => <Stage key={stage.id} stage={stage} claims={claims} onOpenDone={onOpenDone} />)}
-      {board.closedOff === 0 || board.stages.length === 0 ? null : <ToDone text={closedLine(board.closedOff)} onOpenDone={onOpenDone} />}
+      {nothingOpen ? <NothingOpen onOpenDone={onOpenDone} /> : board.stages.map((stage) => <Stage key={stage.id} stage={stage} claims={claims} onOpenDone={onOpenDone} />)}
+      {board.closedOff === 0 || nothingOpen ? null : <ToDone text={closedLine(board.closedOff)} onOpenDone={onOpenDone} />}
     </section>
   );
 }

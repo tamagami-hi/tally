@@ -67,6 +67,13 @@ describe("the board of open work", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open Done" }));
     expect(opened).toEqual(["done"]);
   });
+
+  test("says nothing of Done where the repository has no phase at all", () => {
+    drawn(statusOf([], []));
+
+    expect(screen.queryByText(/Nothing is open\./)).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
 });
 
 describe("the hero", () => {

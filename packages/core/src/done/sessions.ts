@@ -42,7 +42,11 @@ function checkedLimit(limit: number): number {
 
 function bySession(events: readonly ActivityEvent[]): ActivityEvent[][] {
   const groups = new Map<string, ActivityEvent[]>();
-  for (const event of events) groups.set(event.session, [...(groups.get(event.session) ?? []), event]);
+  for (const event of events) {
+    const group = groups.get(event.session);
+    if (group === undefined) groups.set(event.session, [event]);
+    else group.push(event);
+  }
   return [...groups.values()];
 }
 
