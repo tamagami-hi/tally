@@ -79,6 +79,7 @@ describe("board_get with rows open", () => {
     const open = await call("board_get", { rows: "open" });
 
     expect(whole.structured).toHaveProperty("truncated");
+    expect(whole.text).toContain("Narrow it with scope, rows or fields.");
     expect(open.structured).not.toHaveProperty("truncated");
     expect(rowsOf(open.structured)).toHaveLength(7);
     expect(open.structured["finishedRows"]).toBe(10);
