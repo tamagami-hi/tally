@@ -19,6 +19,8 @@ export { COVERED, unrecorded } from "./ledger/check.ts";
 export { findGaps, gapsOf, uncovered, unfinished } from "./ledger/gaps.ts";
 export type { Gap } from "./ledger/gaps.ts";
 export { checkLedger } from "./ledger/audit.ts";
+export { MOST_PASSED_SHOWN, RECORDS_ONLY, filesOn, owedCommits, passedLine } from "./ledger/owed.ts";
+export type { FilesOf, Owed, PassedCommit } from "./ledger/owed.ts";
 export { needingReview, needingText, reviewGaps, reviewNote } from "./ledger/review-gaps.ts";
 export type { Needing, ReviewSetting } from "./ledger/review-gaps.ts";
 export { MOST_FINDINGS, MOST_REVIEWER, MOST_REVIEW_SUMMARY, readReviews, recordReview, reviewStateOf, reviewsOf, reviewsWhenRequired } from "./records/reviews.ts";
@@ -28,7 +30,7 @@ export type { Review, ReviewState, ReviewVerdict, ReviewsFile } from "./schema/r
 export { MOST_OWNER, MOST_PARKED_WHY } from "./ledger/waits.ts";
 export { assertMayPark, countParts, deferredRows, deferredStates, matchingRows, partState, placePart, setDeferred } from "./ledger/deferred.ts";
 export type { DeferredCounts, DeferredFilter, DeferredRow, DeferredState, PlaceInput, Placed } from "./ledger/deferred.ts";
-export type { Checked, LedgerCheck } from "./ledger/audit.ts";
+export type { Checked, LedgerCheck, PassedCommits } from "./ledger/audit.ts";
 export { boardSchema, fromBoard } from "./ledger/import.ts";
 export type { Board } from "./ledger/import.ts";
 export { readJson, writeJsonAtomic } from "./store/json.ts";

@@ -149,6 +149,21 @@ describe("the command line", () => {
     expect(await sh(repo.root, ["status", "--porcelain"])).toBe("");
   });
 
+  test("ledger check passes over a commit of records only, and says so on a line of its own", async () => {
+    const repo = await initialised();
+    await writeFile(join(repo.root, "docs", "records", "ledger.json"), JSON.stringify({ schema: 1, baseline: (await repo.head()).slice(0, 7), other: [], milestones: [] }));
+    await sh(repo.root, ["commit", "-q", "-am", "records: baseline"]);
+    await repo.commit("docs/records/log/2026-11-12.json", "[]", "chore(main): update working tree");
+    const console = io(repo.root);
+    const passedOver = "the check passes over 1 commit on main that changes only files under docs/records";
+
+    expect(await run(["ledger", "check"], console)).toBe(0);
+    expect(console.lines).toEqual(["the ledger covers every commit on main", passedOver]);
+    const code = (await repo.commit("src/a.rs", "a", "feat: a")).slice(0, 7);
+    expect(await run(["ledger", "check"], console)).toBe(1);
+    expect(console.lines.slice(2)).toEqual([`${code} feat: a`, passedOver]);
+  });
+
   test("imports a board, reports the status as markdown and refuses a second import without --force", async () => {
     const repo = await initialised();
     const board = readFileSync(new URL("../../core/tests/fixtures/board.json", import.meta.url), "utf8");

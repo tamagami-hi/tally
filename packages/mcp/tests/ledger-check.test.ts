@@ -39,7 +39,7 @@ async function gapped() {
   return { ...made, call, data, engine, operator, lines: { mine, theirs, shared } };
 }
 
-const ADDED = new Set(["recordsWaiting", "checkout", "parked"]);
+const ADDED = new Set(["recordsWaiting", "checkout", "parked", "passed"]);
 
 const answered = (call: { structured: Record<string, unknown> }): Record<string, unknown> => Object.fromEntries(Object.entries(call.structured).filter(([key]) => !ADDED.has(key)));
 

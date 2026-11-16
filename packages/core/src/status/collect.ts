@@ -1,6 +1,6 @@
-import { isAncestor, logLines, verifyCommit } from "../git/refs.ts";
+import { isAncestor, verifyCommit } from "../git/refs.ts";
 import { gitOut } from "../git/run.ts";
-import { unrecorded } from "../ledger/check.ts";
+import { owedCommits } from "../ledger/owed.ts";
 import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import { openQuestions } from "./questions.ts";
@@ -51,7 +51,7 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
   const { root, config } = repo;
   const main = config.mainBranch;
   const summary = await summarize(ledger, config.stages, onMainOf(repo), needingReview(ledger, await reviewsWhenRequired(repo), config.reviews));
-  const missing = unrecorded(ledger, await logLines(root, `${ledger.baseline}..${main}`), config.records.commitPrefix);
+  const { missing } = await owedCommits(repo, ledger);
   const problems = [...summary.problems];
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);
   const origin = await gitOut(root, ["rev-parse", "--short", `origin/${main}`]);

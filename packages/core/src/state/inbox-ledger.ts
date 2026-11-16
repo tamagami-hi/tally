@@ -1,6 +1,5 @@
-import { logLines } from "../git/refs.ts";
 import { queueFile, type Ticket } from "../land/queue.ts";
-import { unrecorded } from "../ledger/check.ts";
+import { owedCommits } from "../ledger/owed.ts";
 import { SHORT } from "../ledger/items.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { listSessions, type Session } from "./sessions.ts";
@@ -37,8 +36,7 @@ export function markOf(main: string | undefined, standing: Standing): string {
 
 export async function unrecordedFor(repo: Repo, session: Session, standing: Standing): Promise<string[]> {
   const main = repo.config.mainBranch;
-  const ledger = await new Records(repo).readLedger();
-  const missing = unrecorded(ledger, await logLines(repo.root, `${ledger.baseline}..${main}`), repo.config.records.commitPrefix);
+  const { missing } = await owedCommits(repo, await new Records(repo).readLedger());
   return missing.filter((line) => {
     const landing = standing.tickets.find((ticket) => commitsOf(ticket).some((commit) => isSameCommit(commit, hashOf(line))));
     if (landing === undefined) return session.track === main || !standing.someoneIsOnMain;
