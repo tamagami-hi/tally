@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import type { Place } from "./place.ts";
-import type { DocsIndex, EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
+import { useCallback, useEffect, useState } from "react";
+import { here, type Place } from "./place.ts";
+import type { DocsIndex, DoneWork, EndedSessions, EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
 
 export const SNAPSHOT_KEY = ["snapshot"];
 
@@ -51,6 +51,61 @@ export function useDocs(version: string | undefined, api: string): DocsIndex | u
   const query = useQuery({ queryKey: ["docs", api, version], queryFn: () => fetchDocs(api), staleTime: Infinity, enabled: version !== undefined, placeholderData: keepPreviousData });
   return query.data;
 }
+
+export interface Loaded<T> {
+  data: T | undefined;
+  failed: string | undefined;
+  loading: boolean;
+  retry: () => void;
+}
+
+async function refusalOf(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: unknown };
+    return typeof body.error === "string" ? `: ${body.error}` : "";
+  } catch {
+    return "";
+  }
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`the server answered ${response.status}${await refusalOf(response)}`);
+  return (await response.json()) as T;
+}
+
+function useLoaded<T>(url: string | null, version: string): Loaded<T> {
+  const [held, setHeld] = useState<{ url: string; data: T } | undefined>(undefined);
+  const [failed, setFailed] = useState<string | undefined>(undefined);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (url === null) return undefined;
+    let current = true;
+    fetchJson<T>(url).then(
+      (data) => {
+        if (!current) return;
+        setHeld({ url, data });
+        setFailed(undefined);
+      },
+      (error: unknown) => {
+        if (current) setFailed(error instanceof Error ? error.message : String(error));
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [url, version, attempt]);
+  const retry = useCallback(() => {
+    setFailed(undefined);
+    setAttempt((count) => count + 1);
+  }, []);
+  return { data: held?.data, failed, loading: url !== null && held?.url !== url && failed === undefined, retry };
+}
+
+export const useDone = (version: string): Loaded<DoneWork> => useLoaded<DoneWork>(`${here().api}/done`, version);
+
+export const useEndedSessions = (version: string, shown: boolean, limit: number): Loaded<EndedSessions> =>
+  useLoaded<EndedSessions>(shown ? `${here().api}/done/sessions?limit=${limit}` : null, version);
 
 const PORTRAIT = "(orientation: portrait), (max-width: 1023px)";
 

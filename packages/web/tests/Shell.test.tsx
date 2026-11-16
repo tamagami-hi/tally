@@ -94,10 +94,10 @@ describe("the shell in landscape", () => {
     expect(screen.getByText("not pushed · 2")).toBeInTheDocument();
   });
 
-  test("offers the docs beside the board and the evidence, and keeps the document open across a switch", () => {
+  test("offers the docs beside the board, Done and the evidence, and keeps the document open across a switch", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ path: "docs/alpha/next/plan.md", text: "# A plan" })))));
     draw({ docs: { documents: [{ path: "docs/alpha/next/plan.md", group: "alpha", kind: "next", title: "A plan" }], records: [] } });
-    expect(screen.getAllByRole("radio").map((radio) => radio.textContent)).toEqual(["Board", "Evidence", "Docs"]);
+    expect(screen.getAllByRole("radio").map((radio) => radio.textContent)).toEqual(["Board", "Done", "Evidence", "Docs"]);
     fireEvent.click(screen.getByRole("radio", { name: "Docs" }));
     expect(screen.queryByLabelText("Overall progress")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /A plan/ }));

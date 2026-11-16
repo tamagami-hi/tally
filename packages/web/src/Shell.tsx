@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Board } from "./components/Board.tsx";
 import { Docs } from "./components/Docs.tsx";
+import { Done } from "./components/Done.tsx";
 import { Evidence } from "./components/Evidence.tsx";
 import { Graph, Legend } from "./components/Graph.tsx";
 import { Hero, TopBar } from "./components/Header.tsx";
@@ -29,6 +30,7 @@ const PAGES: { id: Page; label: string }[] = [
   { id: "board", label: "Board" },
   { id: "tracks", label: "Tracks" },
   { id: "graph", label: "Graph" },
+  { id: "done", label: "Done" },
   { id: "evidence", label: "Evidence" },
   { id: "docs", label: "Docs" },
 ];
@@ -52,10 +54,11 @@ function Failed({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-type MainView = "board" | "evidence" | "docs";
+type MainView = "board" | "done" | "evidence" | "docs";
 
 const MAIN_VIEWS: { id: MainView; label: string }[] = [
   { id: "board", label: "Board" },
+  { id: "done", label: "Done" },
   { id: "evidence", label: "Evidence" },
   { id: "docs", label: "Docs" },
 ];
@@ -75,10 +78,17 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
   const [main, setMain] = useState<MainView>("board");
   const [openDocument, setOpenDocument] = useState<string | null>(null);
   const graph = useGraph(snapshot);
+  const openDone = (): void => {
+    setMain("done");
+    setPage("done");
+  };
   if (snapshot === undefined) return error === null ? <Loading /> : <Failed error={error} onRetry={onRetry} />;
   const { status, state } = snapshot;
   const claims = state?.claims ?? [];
   const reader = <Docs index={docs} selected={openDocument} onSelect={setOpenDocument} />;
+  const board = <Board status={status} claims={claims} onOpenDone={openDone} />;
+  const done = <Done version={snapshot.takenAt} />;
+  const heroless = main === "docs" || main === "done";
   const top = <TopBar status={status} live={live} takenAt={snapshot.takenAt} scheme={scheme} onToggleScheme={onToggleScheme} />;
   if (layout === "landscape") {
     return (
@@ -89,9 +99,10 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
           <Problems problems={status.problems} />
         </div>
         <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} state={state} evidence={evidence} /></Panel></div>
-        <div className={main === "docs" ? "column-main reading" : "column-main"}>
-          {main === "docs" ? null : <Hero status={status} />}
-          {main === "board" ? <Panel title="Board" detail={<><span>{countsDetail(status)}</span> <MainSwitch view={main} onChange={setMain} /></>}><Board status={status} claims={claims} /></Panel> : null}
+        <div className={heroless ? "column-main reading" : "column-main"}>
+          {heroless ? null : <Hero status={status} />}
+          {main === "board" ? <Panel title="Board" detail={<><span>{countsDetail(status)}</span> <MainSwitch view={main} onChange={setMain} /></>}>{board}</Panel> : null}
+          {main === "done" ? <Panel title="Done" detail={<MainSwitch view={main} onChange={setMain} />}>{done}</Panel> : null}
           {main === "evidence" ? <Panel title="Evidence" detail={<MainSwitch view={main} onChange={setMain} />}><Evidence index={evidence} /></Panel> : null}
           {main === "docs" ? <Panel title="Docs" detail={<MainSwitch view={main} onChange={setMain} />}>{reader}</Panel> : null}
         </div>
@@ -104,11 +115,12 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
       {top}
       <Stats status={status} />
       <Problems problems={status.problems} />
-      <Hero status={status} />
+      {page === "done" ? null : <Hero status={status} />}
       <main className="page">
-        {page === "board" ? <Panel title="Board" detail={countsDetail(status)}><Board status={status} claims={claims} /></Panel> : null}
+        {page === "board" ? <Panel title="Board" detail={countsDetail(status)}>{board}</Panel> : null}
         {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} state={state} evidence={evidence} /></Panel> : null}
         {page === "graph" ? <Panel title="Graph" detail={<Legend commits={graph.commits} />}><Graph view={graph} /></Panel> : null}
+        {page === "done" ? <Panel title="Done">{done}</Panel> : null}
         {page === "evidence" ? <Panel title="Evidence"><Evidence index={evidence} /></Panel> : null}
         {page === "docs" ? <Panel title="Docs">{reader}</Panel> : null}
       </main>

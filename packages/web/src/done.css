@@ -1,0 +1,30 @@
+.done { display: grid; gap: var(--pad-s); align-content: start; min-width: 0; }
+.done-switch { justify-self: start; }
+.done-counts { font-weight: 600; padding: var(--gap-s) 0; }
+.done-phase > summary, .done-milestone summary { cursor: pointer; list-style: none; }
+.done-phase > summary::-webkit-details-marker, .done-milestone summary::-webkit-details-marker { display: none; }
+.done-phase > summary h3::before, .done-milestone summary::before { content: "▸"; display: inline-block; width: 1em; color: var(--faint); }
+.done-phase[open] > summary h3::before, .done-milestone details[open] > summary::before { content: "▾"; }
+.done-closing { display: grid; gap: 2px; padding: 0 0 var(--gap-s); }
+.done-milestone { border-bottom: 1px solid var(--line); padding: var(--gap-s) 0; }
+.done-milestone:last-child { border-bottom: 0; }
+.done-milestone summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--pad-s); }
+.done-milestone .id { font-family: var(--mono); font-size: 12.5px; font-weight: 700; }
+.done-milestone .label { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.done-milestone .tick { color: var(--done); }
+.done-tasks { display: grid; gap: var(--gap-s); margin: var(--gap-s) 0 0 1em; }
+.done-none { margin: var(--gap-s) 0 0 1em; }
+.done-task { padding: var(--gap-s) var(--pad-s); background: var(--hover); border-radius: var(--radius); min-width: 0; }
+.done-task-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--gap-s) var(--pad-s); font-size: 12.5px; }
+.done-task-head .label { font-weight: 600; overflow-wrap: anywhere; }
+.parts { display: grid; gap: 1px; margin-top: var(--gap-s); font-size: 12px; }
+.part { padding-left: var(--pad-s); border-left: 2px solid var(--idle); color: var(--muted); overflow-wrap: anywhere; }
+.part.waiting { border-color: var(--active); }
+.part.done { border-color: var(--done); }
+.part.unplaced { border-color: var(--warn); color: var(--warn); }
+.done-sessions { display: grid; gap: var(--gap-s); }
+.ended-list { display: grid; gap: var(--gap-s); }
+.ended { display: grid; gap: 2px; padding: var(--gap-s) var(--pad-s); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }
+.ended-head { display: flex; flex-wrap: wrap; gap: var(--gap-s); }
+.ended-time { display: flex; flex-wrap: wrap; gap: 0 var(--pad-s); }
+.ended-meta { color: var(--muted); overflow-wrap: anywhere; }

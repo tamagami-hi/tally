@@ -263,8 +263,8 @@ h1, h2, h3, p { margin: 0; }
 .shell.portrait .milestone { grid-template-columns: minmax(0, 1fr) minmax(128px, 150px); grid-template-areas: "name done" "notes notes"; }
 .shell.portrait .page { flex: 1; }
 .shell.portrait .page > .panel { min-height: 100%; }
-.bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; min-height: var(--nav); padding: var(--gap-s) var(--gap) calc(var(--gap-s) + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--line); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--gap-s); }
-.bottom-nav button { padding: var(--pad-s) var(--gap-s); border-radius: var(--radius); font-weight: 600; color: var(--muted); font-size: 13px; }
+.bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; min-height: var(--nav); padding: var(--gap-s) var(--gap) calc(var(--gap-s) + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--line); display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); gap: var(--gap-s); }
+.bottom-nav button { padding: var(--pad-s) 2px; border-radius: var(--radius); font-weight: 600; color: var(--muted); font-size: 12px; white-space: nowrap; min-width: 0; }
 .bottom-nav button[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); }
 
 @media (max-width: 1279px) and (orientation: landscape) {
