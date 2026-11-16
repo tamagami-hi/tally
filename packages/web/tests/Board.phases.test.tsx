@@ -13,17 +13,19 @@ const stages = [
   { id: "C", name: "later", state: "open" as const },
 ];
 
+const reopened = { ...snapshot.status, stages, rows: snapshot.status.rows.map((row) => (row.stage === "A" ? { ...row, finished: false } : row)) };
+
 describe("a stage on the board", () => {
-  test("shows the phase's goal, and when a closed phase closed", () => {
-    render(<Board status={{ ...snapshot.status, stages }} />);
+  test("shows the phase's goal, and when a closed phase with open work again closed", () => {
+    render(<Board status={reopened} />);
 
     expect(screen.getByText("Ship the first slice.")).toBeInTheDocument();
     expect(screen.getByText("Widen it to two formats.")).toBeInTheDocument();
-    expect(screen.getByText("closed 2026-11-14")).toBeInTheDocument();
+    expect(screen.getByText("closed 2026-11-14, and it has open work again")).toBeInTheDocument();
   });
 
   test("shows no closing date for an open phase, and no goal line for a stage without one", () => {
-    render(<Board status={{ ...snapshot.status, stages }} />);
+    render(<Board status={reopened} />);
 
     expect(screen.getAllByText(/^closed /)).toHaveLength(1);
     expect(screen.queryByText("undefined")).not.toBeInTheDocument();

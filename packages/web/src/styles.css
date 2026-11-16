@@ -118,7 +118,12 @@ h1, h2, h3, p { margin: 0; }
 .stage:first-child { margin-top: 0; }
 .stage-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--pad); padding: var(--gap-s) 0; border-bottom: 1px solid var(--line); }
 .stage-head h3 { font-size: 13px; font-weight: 650; }
-.stage-goal, .stage-closed { margin: 0; padding: 2px 0 var(--gap-s); color: var(--muted); }
+.stage-goal, .stage-closed, .stage-finished { margin: 0; padding: 2px 0 var(--gap-s); color: var(--muted); }
+.stage-finished { color: var(--done); }
+.to-done { display: block; margin-top: var(--gap-s); padding: 2px 0; color: var(--muted); text-align: left; text-decoration: underline dotted; text-underline-offset: 3px; }
+.to-done:hover, .empty .to-done { color: var(--accent); }
+.empty .to-done { display: inline; margin: 0; padding: 0; font-weight: 600; }
+.hero-closed { color: var(--muted); }
 .stage-head .name { color: var(--muted); margin-left: var(--pad-s); font-weight: 500; }
 .milestone { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(0, 1.9fr) minmax(170px, 0.8fr); grid-template-areas: "name notes done"; gap: var(--gap-s) var(--pad); padding: var(--pad-s) 0; border-bottom: 1px solid var(--line); align-items: start; }
 .milestone:last-child { border-bottom: 0; }

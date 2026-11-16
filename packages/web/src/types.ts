@@ -35,12 +35,20 @@ export interface TrackRow {
   isMain: boolean;
 }
 
+export interface StageRow {
+  id: string;
+  name: string;
+  goal?: string;
+  state: "open" | "closed";
+  closedAt?: string;
+}
+
 export interface StatusData {
   name: string;
   time: string;
   overall: number;
   stagePct: Record<string, number>;
-  stages: { id: string; name: string; goal?: string; state: "open" | "closed"; closedAt?: string }[];
+  stages: StageRow[];
   rows: MilestoneRow[];
   tracks: TrackRow[];
   main: string;

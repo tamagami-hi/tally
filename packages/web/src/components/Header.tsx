@@ -1,6 +1,7 @@
 import { Half2Icon } from "@radix-ui/react-icons";
 import { useEffect, useState } from "react";
 import { percent, sinceText, tone } from "../format.ts";
+import { closedCount, openBoard } from "../open.ts";
 import type { Live, StatusData } from "../types.ts";
 import type { Scheme } from "../live.ts";
 import { Bar, Progress } from "./Progress.tsx";
@@ -49,6 +50,7 @@ export function TopBar({ status, live, takenAt, scheme, onToggleScheme }: TopBar
 }
 
 export function Hero({ status }: { status: StatusData }) {
+  const { stages, closedOff } = openBoard(status);
   return (
     <section className="panel hero" aria-label="Overall progress">
       <div className="hero-total">
@@ -57,17 +59,15 @@ export function Hero({ status }: { status: StatusData }) {
         <Bar share={status.overall} big />
       </div>
       <div className="hero-stages">
-        {status.stages.map((stage) => {
-          const share = status.stagePct[stage.id] ?? 0;
-          return (
-            <div key={stage.id} className="stage-line">
-              <span className="small" style={{ fontWeight: 600 }}>Stage {stage.id}</span>
-              <Progress share={share} withPercent={false} label={`Stage ${stage.id}`} />
-              <span className={`pct ${tone(share)}`}>{percent(share)}</span>
-              <span className="name truncate">{stage.name}</span>
-            </div>
-          );
-        })}
+        {stages.map(({ id, name, share }) => (
+          <div key={id} className="stage-line">
+            <span className="small" style={{ fontWeight: 600 }}>Stage {id}</span>
+            <Progress share={share} withPercent={false} label={`Stage ${id}`} />
+            <span className={`pct ${tone(share)}`}>{percent(share)}</span>
+            <span className="name truncate">{name}</span>
+          </div>
+        ))}
+        {closedOff === 0 ? null : <div className="hero-closed small">{closedCount(closedOff)}</div>}
       </div>
     </section>
   );
