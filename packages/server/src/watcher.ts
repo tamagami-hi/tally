@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, advance, closeIdleTracks, collect, flushPendingPhase, isActive, queueFile, evidenceFiles, expireSessions, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
+import { Records, advance, closeIdleSessions, closeIdleTracks, collect, flushPendingPhase, isActive, queueFile, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitCount, commitGraph, graphBranches, type LaidCommit } from "./graph.ts";
 
 export interface QueuedLanding {
@@ -67,6 +67,13 @@ export async function snapshot(repo: Repo): Promise<Snapshot> {
 
 export type RepoGetter = () => Promise<Repo>;
 
+export const PROBLEM_HOLD_MS = 60 * 60 * 1000;
+
+interface Held {
+  text: string;
+  until: number;
+}
+
 export class Watcher {
   readonly intervalMs: number;
   private readonly source: RepoGetter;
@@ -77,14 +84,17 @@ export class Watcher {
   private busy = false;
   private inFlight: Promise<void> = Promise.resolve();
   private failure: string | undefined;
+  private held: readonly Held[] = [];
+  private readonly holdMs: number;
   private halt: () => void = () => undefined;
   readonly stopped = new Promise<void>((done) => {
     this.halt = done;
   });
 
-  constructor(repo: Repo | RepoGetter, options: { intervalMs?: number } = {}) {
+  constructor(repo: Repo | RepoGetter, options: { intervalMs?: number; holdMs?: number } = {}) {
     this.source = typeof repo === "function" ? repo : () => Promise.resolve(repo);
     this.intervalMs = options.intervalMs ?? 2000;
+    this.holdMs = options.holdMs ?? PROBLEM_HOLD_MS;
   }
 
   subscribe(listener: Listener): () => void {
@@ -117,6 +127,17 @@ export class Watcher {
     return this.failure;
   }
 
+  private hold(problems: readonly string[]): string[] {
+    const now = Date.now();
+    this.held = [...this.held.filter((one) => one.until > now), ...problems.map((text) => ({ text, until: now + this.holdMs }))];
+    return this.held.map((one) => one.text);
+  }
+
+  private failing(problems: readonly string[]): string | undefined {
+    const all = [...this.hold([]), ...problems];
+    return all.length === 0 ? undefined : all.join("; ");
+  }
+
   private tick(): Promise<void> {
     if (this.busy) return this.inFlight;
     this.busy = true;
@@ -124,7 +145,7 @@ export class Watcher {
       try {
         const repo = await this.source();
         await takeResults(repo);
-        await expireSessions(repo);
+        this.hold((await closeIdleSessions(repo)).problems);
         const idle = await closeIdleTracks(repo);
         await advance(repo);
         await flushPendingPhase(repo);
@@ -135,9 +156,9 @@ export class Watcher {
           this.latest = fresh;
           for (const listener of this.listeners) listener(fresh);
         }
-        this.failure = idle.problems.length === 0 ? undefined : idle.problems.join("; ");
+        this.failure = this.failing(idle.problems);
       } catch (error: unknown) {
-        this.failure = messageOf(error);
+        this.failure = this.failing([messageOf(error)]);
       } finally {
         this.busy = false;
       }
