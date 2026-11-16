@@ -1,5 +1,6 @@
 import { TallyError } from "../errors.ts";
 import { CLI_SESSION, readNewestDays, type ActivityEvent } from "../records/activity.ts";
+import { evidenceKinds } from "../records/evidence.ts";
 import { keepsContextAsRecords } from "../schema/config.ts";
 import { EXPIRED_VERB } from "../state/expire.ts";
 import { listSessions } from "../state/sessions.ts";
@@ -14,6 +15,8 @@ const OPENED_VERB = "session_open";
 const CLOSED_VERB = "session_close";
 const TASK_VERBS: ReadonlySet<string> = new Set(["task_claim", "task_land", "land_start", "review_record", "evidence_record"]);
 const NOT_WRITES: ReadonlySet<string> = new Set([OPENED_VERB, CLOSED_VERB, EXPIRED_VERB]);
+const EVIDENCE_VERB = "evidence_record";
+const KIND_ENDINGS: readonly string[] = evidenceKinds.map((kind) => `, ${kind}`);
 
 export interface EndedSession {
   id: string;
@@ -50,7 +53,12 @@ function bySession(events: readonly ActivityEvent[]): ActivityEvent[][] {
   return [...groups.values()];
 }
 
-const taskOf = (target: string): string => target.split(",", 1)[0] ?? target;
+function tasksOf({ verb, target }: ActivityEvent): string[] {
+  if (!TASK_VERBS.has(verb) || target === undefined) return [];
+  if (verb !== EVIDENCE_VERB) return [target];
+  const ending = KIND_ENDINGS.find((one) => target.endsWith(one));
+  return [ending === undefined ? target : target.slice(0, -ending.length)];
+}
 
 function endOf(verbs: ReadonlySet<string>): EndedSession["ended"] {
   if (verbs.has(CLOSED_VERB)) return "closed";
@@ -61,7 +69,7 @@ function endedOf(events: readonly ActivityEvent[]): EndedSession[] {
   const first = events[0];
   const last = events.at(-1);
   if (first === undefined || last === undefined) return [];
-  const tasks = [...new Set(events.flatMap((event) => (TASK_VERBS.has(event.verb) && event.target !== undefined ? [taskOf(event.target)] : [])))];
+  const tasks = [...new Set(events.flatMap(tasksOf))];
   return [{
     id: first.session,
     track: first.track,

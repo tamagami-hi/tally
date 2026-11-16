@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { endedSessions } from "../../src/done/sessions.ts";
 import { CLI_SESSION, logActivity, type ActivityInput } from "../../src/records/activity.ts";
+import { evidenceKinds } from "../../src/records/evidence.ts";
 import { openSession } from "../../src/state/sessions.ts";
 import type { Repo } from "../../src/store/records.ts";
 import { makeTracked } from "../support/tracked.ts";
@@ -45,13 +46,51 @@ describe("the ended sessions", () => {
     expect(CLI_SESSION).toBe("cli");
   });
 
-  test("take a session's tasks from its reviews and its evidence too, one task whatever follows its first comma", async () => {
+  test("take a session's tasks from its reviews and its evidence too, an evidence event's kind dropped", async () => {
     const { repo } = await logging();
     await log(repo, "s1", [["11T09:00", "track_open", "lane"], ["11T09:05", "evidence_record", "B2 / 4 manifest, green"], ["11T09:10", "review_record", "B2 / 4 manifest"], ["11T09:20", "review_record", "B2 / 5 transcoder"], ["11T09:30", "session_close"]]);
 
     const ended = await endedSessions(repo);
 
     expect(ended.sessions[0]?.tasks).toEqual(["B2 / 4 manifest", "B2 / 5 transcoder"]);
+  });
+
+  test("keep a task's name whole when it has a comma, so two that differ after the comma stay two", async () => {
+    const { repo } = await logging();
+    await log(repo, "s1", [["11T09:00", "task_claim", "B2 / 4 manifest, and atomic publication"], ["11T09:10", "task_land", "B2 / 4 manifest, and atomic publication"], ["11T09:20", "land_start", "B2 / 4 manifest, the reader"], ["11T09:25", "review_record", "B2 / 6 index, by day"], ["11T09:30", "session_close"]]);
+
+    const ended = await endedSessions(repo);
+
+    expect(ended.sessions[0]?.tasks).toEqual(["B2 / 4 manifest, and atomic publication", "B2 / 4 manifest, the reader", "B2 / 6 index, by day"]);
+  });
+
+  test("drop only the kind from an evidence event, whatever commas the task's name has", async () => {
+    const { repo } = await logging();
+    await log(repo, "s1", [["11T09:00", "task_claim", "B2 / 4 manifest, the reader"], ["11T09:05", "evidence_record", "B2 / 4 manifest, the reader, green"], ["11T09:10", "evidence_record", "B2 / 4 manifest, the reader, red"], ["11T09:15", "evidence_record", "B2 / 7 sweep, green, other"], ["11T09:30", "session_close"]]);
+
+    const ended = await endedSessions(repo);
+
+    expect(ended.sessions[0]?.tasks).toEqual(["B2 / 4 manifest, the reader", "B2 / 7 sweep, green"]);
+  });
+
+  test("drop whichever kind an evidence record can have, and take no task from an event with no target", async () => {
+    const { repo } = await logging();
+    const minutes = evidenceKinds.map((kind, n): [string, string, string] => [`11T09:${String(10 + n)}`, "evidence_record", `B2 / 4 manifest, ${kind}`]);
+    await log(repo, "s1", [["11T09:00", "land_start"], ...minutes, ["11T09:30", "session_close"]]);
+
+    const ended = await endedSessions(repo);
+
+    expect(evidenceKinds).toHaveLength(9);
+    expect(ended.sessions[0]?.tasks).toEqual(["B2 / 4 manifest"]);
+  });
+
+  test("take an evidence event whole when no kind ends it, as when a long target was cut", async () => {
+    const { repo } = await logging();
+    await log(repo, "s1", [["11T09:00", "evidence_record", "B2 / 4 manifest, the rea"], ["11T09:05", "evidence_record", "B2 / 5 transcoder"], ["11T09:30", "session_close"]]);
+
+    const ended = await endedSessions(repo);
+
+    expect(ended.sessions[0]?.tasks).toEqual(["B2 / 4 manifest, the rea", "B2 / 5 transcoder"]);
   });
 
   test("leave out a session that is still open", async () => {
