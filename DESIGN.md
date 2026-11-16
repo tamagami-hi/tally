@@ -526,7 +526,7 @@ The rest of a repository's context already has a home in `docs/records/`: the le
 
 - **A run** is a record: the command, the exit, the totals and up to 20 failing tests with their first lines. Its raw output stays a file where it fell, named in the record by path and hash (rule 6). It's a program's output, and a session rarely needs more than the record.
 - **The build log** takes structured entries: `{group, milestone, date, commits[], built, verified[{what, check, totals}], decided[], corrected[], open[]}`. Sections imported as Markdown stay as they are.
-- **The activity log** is `docs/records/log/<date>.json`: one event for each write, `{at, session, track, agent, verb, target, result}`. `activity_get({since, track?})` tells a session what happened while it was away. From 0.4.0 it also holds one `session_open` event when a session opens (no target) and one `session_expire` event when tally closes an idle session (target `idle <n> min`, written before the session ends, so it rides with the records commit that end may make). An ended session is read back from these events and stored nowhere else (§20.4).
+- **The activity log** is `docs/records/log/<date>.json`: one event for each write, `{at, session, track, agent, verb, target, result}`. `activity_get({since, track?})` tells a session what happened while it was away. From 0.4.0 it also holds one `session_open` event when a session opens (no target) and one `session_expire` event when tally closes an idle session (target `idle <n> min`, written before the session ends, so it rides with the records commit that end may make). A session has at most one `session_expire` event: tally looks for it in the days since the session was last seen before writing it. A write that fails does not stop the session from ending; it is shown as the repository's problem, in the sidebar and the overview, for an hour. An ended session is read back from these events and stored nowhere else (§20.4).
 
 ### 16.7 A new repository's first session
 
@@ -702,7 +702,7 @@ Every change is an optional field or a new file: a task's `landedAt`, a part's `
 
 67 tools, every one with a title, four hints and a strict input. `tools/list` is held under 77,000 characters (compact JSON) by shorter shared parameter texts, and a test guards it.
 
-## 20. A Done view, and a board of open work (0.4.0, built 2026-11-16)
+## 20. A Done view, and a board of open work (0.4.0, built 2026-11-16; 0.4.2 after two fixes)
 
 Built from `docs/plans/2026-11-16-1239-done-view-plan.md`. The operator asked for a view of everything completed (phases, tasks, sessions) beside Board, Evidence and Docs, and for a board that shows only what is incomplete or active. The plan's §3 decisions are built as written.
 
@@ -739,3 +739,7 @@ Built from `docs/plans/2026-11-16-1239-done-view-plan.md`. The operator asked fo
 ### 20.6 Left out
 
 A smaller `board_get` that answers only open work (the largest saving in sight for an agent's context; a decision of its own), `tally status` printing only open work, closed tracks as a third list in Done, ended sessions for a repository with no activity log, a bound on `/done`, a smaller snapshot, one word for a phase (the page says "Stage"), and search in Done.
+
+### 20.7 The fix round (0.4.2)
+
+The planner's check found two flaws in the expiry of idle sessions, both fixed. A failed write of `session_expire` (or a failed read of the log before it) stopped the session from ending and, on the service, the rest of the watcher's pass; now the session is ended all the same, its claims and locks released, the pass goes on, and the failure is the repository's problem, one sentence naming the track and the agent, held for an hour. An end that failed before the session was removed wrote the event again on each pass; now tally looks for the session's event before writing, so a session has at most one. The version counts the two fixes: 0.4.2.
