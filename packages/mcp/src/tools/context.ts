@@ -77,7 +77,7 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
   server.registerTool(
     "activity_get",
     {
-      description: "What sessions did here, oldest first: one event per write a tool made, with when, the session, its track and agent, the tool (`verb`) and its `target`. Pass the time you last looked to read what happened since. `matched` counts them before `limit`, which keeps the latest. Kept only where the config says `context: \"records\"`.",
+      description: "What sessions did here, oldest first: one event per write a tool made, one when a session opens, and `session_expire` when tally closed an idle one; each with when, the session, its track and agent, the tool (`verb`) and its `target`. Pass the time you last looked to read what happened since. `matched` counts them before `limit`, which keeps the latest. Kept only where the config says `context: \"records\"`.",
       inputSchema: {
         since: z.string().optional().describe("an ISO time: only what came after it"),
         track: z.string().optional().describe("only this track's events"),

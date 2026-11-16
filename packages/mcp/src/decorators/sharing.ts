@@ -1,16 +1,9 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { collectInbox, listSessions, overlapsOf, type InboxItem, type OverlapWith } from "@tally/core";
 import type { Decorator } from "../decorate.ts";
+import { sessionOf } from "./session-of.ts";
 
 const WARNED = new Set(["session_open", "task_claim", "land_start"]);
 const QUIET = new Set(["inbox_get"]);
-
-function sessionOf(tool: string, args: Record<string, unknown>, result: CallToolResult): string | undefined {
-  const given = args["sessionId"];
-  if (typeof given === "string") return given;
-  const opened = tool === "session_open" ? result.structuredContent?.["id"] : undefined;
-  return typeof opened === "string" ? opened : undefined;
-}
 
 const inboxText = (items: readonly InboxItem[]): string => `inbox:\n${items.map((item) => `- ${item.text}`).join("\n")}`;
 

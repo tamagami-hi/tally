@@ -69,7 +69,7 @@ describe("the activity log through the tools", () => {
 
     const events = await logged(call);
     expect(refused.isError).toBe(true);
-    expect(events.map((event) => [event.verb, event.target])).toEqual([["task_plan", "B2"], ["task_claim", "B2 / 4 manifest"], ["lock_acquire", "evidence"], ["context_put", "finding"], ["context_retire", "finding-1"], ["handoff_write", undefined], ["task_wait", "B2 / 5 transcoder"]]);
+    expect(events.map((event) => [event.verb, event.target])).toEqual([["session_open", undefined], ["task_plan", "B2"], ["task_claim", "B2 / 4 manifest"], ["lock_acquire", "evidence"], ["context_put", "finding"], ["context_retire", "finding-1"], ["handoff_write", undefined], ["task_wait", "B2 / 5 transcoder"]]);
     expect(events.every((event) => event.session === data && event.track === "data" && event.agent === "claude")).toBe(true);
   });
 
@@ -79,7 +79,7 @@ describe("the activity log through the tools", () => {
     const closed = await call("session_close", { sessionId: data });
 
     expect(closed.isError).toBe(false);
-    expect(await logged(call)).toMatchObject([{ verb: "session_close", session: data, track: "data", agent: "claude" }]);
+    expect(await logged(call)).toMatchObject([{ verb: "session_open", session: data }, { verb: "session_close", session: data, track: "data", agent: "claude" }]);
   });
 
   test("in a repository that keeps its context in Markdown nothing is logged and the answer is handed back as it came", async () => {
@@ -108,7 +108,8 @@ describe("the activity log through the tools", () => {
     const afterFirst = [await sh(root, ["log", "-1", "--format=%s"]), await waiting()];
     await call("handoff_write", { sessionId: data, lines: ["a note"] });
 
-    expect(afterFirst).toEqual(["records: B2: planned 1 new task(s): 6 more", `?? docs/records/log/${day}.json`]);
+    expect(afterFirst).toEqual(["records: B2: planned 1 new task(s): 6 more", `M docs/records/log/${day}.json`]);
+    expect(await sh(root, ["show", `HEAD:docs/records/log/${day}.json`])).toContain("\"verb\": \"session_open\"");
     expect(await sh(root, ["show", "--stat", "--format=%s", "HEAD"])).toContain(`docs/records/log/${day}.json`);
     expect(await waiting()).toBe(`M docs/records/log/${day}.json`);
   });
@@ -121,7 +122,7 @@ describe("the activity log through the tools", () => {
 
     expect(await sh(root, ["status", "--porcelain", "--untracked-files=all", "--", "docs/records"])).toBe("");
     expect(await sh(root, ["log", "-1", "--format=%s"])).toMatch(/^records: 1 record file up to [0-9a-f]{7}$/);
-    expect((await logged(call)).map((event) => event.verb)).toEqual(["task_plan", "session_close"]);
+    expect((await logged(call)).map((event) => event.verb)).toEqual(["session_open", "task_plan", "session_close"]);
   });
 
   test("a log that could not be written is said in the answer, and the write itself stands", async () => {
@@ -138,7 +139,8 @@ describe("the activity log through the tools", () => {
   });
 
   test("activity_get answers what came after a time, one track's, and the latest when limited", async () => {
-    const { call, repo } = await serving();
+    const repo = keepingContextAsRecords((await makeTracked()).repo);
+    const { call } = await connect(repo);
     const at = (hour: string): Date => new Date(`2026-11-12T${hour}:00:00Z`);
     await logActivity(repo, { session: "s1", track: "data", agent: "claude", verb: "task_claim", target: "B2 / 4 manifest" }, at("09"));
     await logActivity(repo, { session: "s2", track: "engine", agent: "kiro", verb: "handoff_write" }, at("10"));
@@ -167,7 +169,7 @@ describe("the activity log through the tools", () => {
     await call("session_close", { sessionId: inAlpha });
     await call("session_close", { sessionId: inBeta });
 
-    expect((await logged(call, { repo: "alpha" })).map((event) => [event.verb, event.session])).toEqual([["handoff_write", inAlpha], ["session_close", inAlpha]]);
+    expect((await logged(call, { repo: "alpha" })).map((event) => [event.verb, event.session])).toEqual([["session_open", inAlpha], ["handoff_write", inAlpha], ["session_close", inAlpha]]);
     expect((await call("activity_get", { repo: "beta" })).structured).toEqual({ events: [], matched: 0 });
   });
 });

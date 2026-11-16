@@ -2,6 +2,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { flushWhenFree, keepsContextAsRecords, listSessions, logActivity, messageOf, sessionSchema, type Repo, type Session } from "@tally/core";
 import type { Called, Decorator } from "../decorate.ts";
 import { writesNothing } from "../meta.ts";
+import { sessionOf } from "./session-of.ts";
 
 interface Actor {
   repo: Repo;
@@ -48,8 +49,8 @@ function withProblem(result: CallToolResult, problem: string): CallToolResult {
 
 export const activity: Decorator = async (called) => {
   const { tool, args, result, place } = called;
-  const sessionId = args["sessionId"];
-  if (typeof sessionId !== "string" || result.isError === true || isUnlogged(tool) || writesNothing(tool, place)) return result;
+  const sessionId = sessionOf(tool, args, result);
+  if (sessionId === undefined || result.isError === true || isUnlogged(tool) || writesNothing(tool, place)) return result;
   const actor = await actorOf(called, sessionId).catch(withoutActor);
   if (actor === undefined) return result;
   const target = targetOf(args);
