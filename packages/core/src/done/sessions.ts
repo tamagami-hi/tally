@@ -1,5 +1,5 @@
 import { TallyError } from "../errors.ts";
-import { readNewestDays, type ActivityEvent } from "../records/activity.ts";
+import { CLI_SESSION, readNewestDays, type ActivityEvent } from "../records/activity.ts";
 import { keepsContextAsRecords } from "../schema/config.ts";
 import { EXPIRED_VERB } from "../state/expire.ts";
 import { listSessions } from "../state/sessions.ts";
@@ -81,7 +81,7 @@ export async function endedSessions(repo: Repo, options: { limit?: number } = {}
   const read = await readNewestDays(repo, LOG_WINDOW_DAYS);
   if (!keepsContextAsRecords(repo.config) && read.days === 0) return { kept: false, sessions: [], total: 0 };
   const open = new Set((await listSessions(repo)).map((session) => session.id));
-  const ended = bySession(read.events.filter((event) => !open.has(event.session))).flatMap(endedOf);
+  const ended = bySession(read.events.filter((event) => event.session !== CLI_SESSION && !open.has(event.session))).flatMap(endedOf);
   const latest = ended.toSorted((a, b) => endTime(b) - endTime(a));
   return { kept: true, sessions: latest.slice(0, limit), total: latest.length, ...(read.earlier === 0 ? {} : { earlier: read.earlier }) };
 }

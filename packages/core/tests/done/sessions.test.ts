@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { endedSessions } from "../../src/done/sessions.ts";
-import { logActivity, type ActivityInput } from "../../src/records/activity.ts";
+import { CLI_SESSION, logActivity, type ActivityInput } from "../../src/records/activity.ts";
 import { openSession } from "../../src/state/sessions.ts";
 import type { Repo } from "../../src/store/records.ts";
 import { makeTracked } from "../support/tracked.ts";
@@ -31,6 +31,18 @@ describe("the ended sessions", () => {
     const ended = await endedSessions(repo);
 
     expect(ended).toEqual({ kept: true, total: 1, sessions: [{ id: "s1", track: "data", agent: "claude", from: at("10T23:50").toISOString(), to: at("11T00:30").toISOString(), opened: "recorded", ended: "closed", writes: 2, tasks: ["B2 / 4 manifest"] }] });
+  });
+
+  test("leave out the command line's writes, which are no session's", async () => {
+    const { repo } = await logging();
+    await log(repo, "cli", [["11T08:00", "decision_add", "shop / ARC-2: built"]], "main", "operator");
+    await log(repo, "s1", [["11T09:00", "handoff_write"], ["11T09:10", "session_close"]]);
+
+    const ended = await endedSessions(repo);
+
+    expect(ended.sessions.map((session) => session.id)).toEqual(["s1"]);
+    expect(ended.total).toBe(1);
+    expect(CLI_SESSION).toBe("cli");
   });
 
   test("leave out a session that is still open", async () => {

@@ -8,6 +8,7 @@ import type { Repo } from "../store/records.ts";
 import { askedLimit, askedSince } from "./asked.ts";
 
 export const ACTIVITY_DIR = "log";
+export const CLI_SESSION = "cli";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.json$/;

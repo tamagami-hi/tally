@@ -1,6 +1,7 @@
 import { TallyError, addQuestion, answerQuestion, editQuestion, questionId, readQuestions, rowOf, type Repo } from "@tally/core";
 import { need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
+import { onRecord } from "../on-record.ts";
 
 const OPERATOR = { operator: true };
 const OPERATOR_AGENT = "operator";
@@ -21,9 +22,10 @@ export async function questionCommand(repo: Repo, argv: readonly string[], io: I
       const group = text(parsed, "group");
       if (group === undefined) throw new TallyError("question add needs --group", 2);
       const by = text(parsed, "by");
-      const { question, commit } = await addQuestion(repo, { group, question: need(parsed, 0, "the question"), meanwhile: need(parsed, 1, "the conservative behaviour meanwhile"), ...(by === undefined ? {} : { by }) }, OPERATOR);
+      const { question, id, commit } = await addQuestion(repo, { group, question: need(parsed, 0, "the question"), meanwhile: need(parsed, 1, "the conservative behaviour meanwhile"), ...(by === undefined ? {} : { by }) }, OPERATOR);
       io.out(`question ${question.row} (${group}) asked`);
       if (commit !== null) io.out(`records: ${commit}`);
+      await onRecord(repo, io, { verb: "question_add", target: id, by });
       return 0;
     }
     case "answer": {
@@ -32,6 +34,7 @@ export async function questionCommand(repo: Repo, argv: readonly string[], io: I
       const { commit } = await answerQuestion(repo, row, need(parsed, 1, "the decision that answers it"));
       io.out(`question ${row} answered`);
       if (commit !== null) io.out(`records: ${commit}`);
+      await onRecord(repo, io, { verb: "question_answer", target: questionId(row) });
       return 0;
     }
     case "edit": {
@@ -41,6 +44,7 @@ export async function questionCommand(repo: Repo, argv: readonly string[], io: I
       const { id, commit } = await editQuestion(repo, { agent: OPERATOR_AGENT, operator: true }, { id: rowGiven(need(parsed, 0, "the question's id")), question: text(parsed, "question"), meanwhile: text(parsed, "meanwhile"), why });
       io.out(`${id} edited`);
       if (commit !== null) io.out(`records: ${commit}`);
+      await onRecord(repo, io, { verb: "question_edit", target: id });
       return 0;
     }
     case "list": {

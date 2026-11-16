@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { addDecision, importDecisions, readDecisions, replaceDecision, setDecisionStatus } from "../../src/records/decisions.ts";
+import { DECISION_STATES, addDecision, importDecisions, readDecisions, replaceDecision, setDecisionStatus } from "../../src/records/decisions.ts";
 import { makeTracked } from "../support/tracked.ts";
 
 const DECISIONS = `# Decisions
@@ -52,5 +52,27 @@ describe("decision verbs", () => {
     await expect(setDecisionStatus(repo, { id: "ENG-1", group: "engine", status: "x" }, { by: "operator" })).rejects.toThrow("engine has no decision ENG-1; known: none");
     const file = await readDecisions(repo);
     expect(file.decisions.find((d) => d.id === "SID-3")?.by).toBeUndefined();
+  });
+});
+
+describe("a decision's state, when it is given", () => {
+  test("add, replace and setStatus store the state given, whatever the status says", async () => {
+    const { repo } = await makeTracked();
+
+    const added = await addDecision(repo, { id: "ARC-2", group: "shop", text: "**One cart.**", since: "the operator", status: "Agreed with the maintainer", state: "decided, not built" }, { operator: true }, NOW);
+    const replaced = await replaceDecision(repo, { id: "ARC-2", group: "shop", text: "**Two carts.**", since: "the operator", status: "Agreed again", state: "partly built", why: "wider" }, { operator: true }, NOW);
+    const set = await setDecisionStatus(repo, { id: "ARC-2", group: "shop", status: "Shipped in the spring", state: "built" }, { by: "operator" }, NOW);
+
+    expect([added.decision.state, replaced.decision.state, set.decision.state]).toEqual(["decided, not built", "partly built", "built"]);
+    expect((await readDecisions(repo)).decisions[0]).toMatchObject({ status: "Shipped in the spring", state: "built" });
+  });
+
+  test("without one the state is read from the status, as before", async () => {
+    const { repo } = await makeTracked();
+
+    const { decision } = await addDecision(repo, { id: "ARC-2", group: "shop", text: "**One cart.**", since: "the operator", status: "Agreed with the maintainer" }, { operator: true }, NOW);
+
+    expect(decision.state).toBe("other");
+    expect(DECISION_STATES).toEqual(["in force", "built", "partly built", "decided, not built", "other"]);
   });
 });

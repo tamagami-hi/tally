@@ -39,8 +39,8 @@ export const USAGE = `tally: the tracking harness
   tally checks get | render | fingerprint | set --file F         the code-check record; fingerprint exits 1 when stale
   tally buildlog render --group G | append --group G --milestone M --title T --date D --file BODY [--commit C]...
   tally question add --group G <question> <meanwhile> | answer <row> <decision> | edit <id> [--question T] [--meanwhile T] --why W | list
-  tally decision list [--group G] | add|replace <id> --group G --text T --since S --status ST [--section X] [--why W] --operator
-  tally decision setStatus <id> --group G --status ST [--by WHO | --operator]
+  tally decision list [--group G] | add|replace <id> --group G --text T --since S --status ST [--state STATE] [--section X] [--why W] [--by WHO] --operator
+  tally decision setStatus <id> --group G --status ST [--state STATE] [--by WHO | --operator]   STATE: in force | built | partly built | decided, not built | other
   tally milestone add <id> --stage S --name N --track T --weight W [--waits X] [--group G]
   tally task   plan  <milestone> --track <track> <task>...       add tasks, the close last
   tally task   land  <milestone> <task> <commit> [--track T] [--also C]...
