@@ -2,7 +2,12 @@
 
 **Written:** 2026-11-16 16:02 IST (2026-11-16 10:32 UTC)
 **Base:** `main` at `679557f` (version 0.4.2, 1,567 tests, 67 MCP tools).
-**Status:** not built. This is a plan for a coding agent; the planner checks the result against the repository afterwards. On 2026-11-16 the operator chose what to build: parts A, B, C and D, as version 0.5.0. Parts E, F and G are not built; they stay specified below in case they are wanted later.
+**Status:** built on 2026-11-16 as version 0.5.1, in the ten commits from `73b7feb` to `f83ebed` (1,613 tests, 67 MCP tools), and running in the service since that day. The operator chose what to build: parts A, B, C and D. Parts E, F and G are not built; they stay specified below in case they are wanted later. The text below is the plan as it was written before the build. Where the build differs:
+- **The version is 0.5.1, not 0.5.0** (decision 6). The planner's check found one flaw, and the version counts the fix, as it did for 0.4.2.
+- **A session's tasks (part C).** §6 says a target is cut at its first comma. That cut short every task name that has a comma, and showed two tasks that differ only after the comma as one. Now only an `evidence_record` target is shortened, by the kind that ends it, and every other target is taken whole. The operator had the planner make this fix; a second reviewer read it.
+- **The size of `tools/list`** is 76,589 characters in the service's image (76,411 before). Three descriptions were tightened to keep it under the 77,000 a test holds.
+- **How much room the open board has (part D).** In the second tracked repository, `rows: "open"` answers its 7 open milestones whole, in about 23,300 of the 25,000 characters an answer may have: about 12,500 for the rows and about 9,900 for the tracks, whose lists of uncommitted files grow with the work in progress. With `fields: ["rows"]` as well, the answer is about 12,500.
+- **The dashboard's operator routes** that answer a question or add a decision write no activity event. Part B covers the command line only, and the plan did not mention them.
 **Follows:** `2026-11-16-1239-done-view-plan.md`, which is built, and `2026-11-14-2324-assessment-and-direction-notes.md`, whose §9 questions the review answers (§14 below).
 **This repository is public.** This file names no private project. Keep it that way when you edit it: the private names, paths and commit hashes are in the local notes, which git ignores.
 
