@@ -12,12 +12,12 @@ const SINCE_0_3 = ["deferred_list", "deferred_set", "question_edit", "review_lis
 const versionOf = async (path: string): Promise<string> => (JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { version: string }).version;
 
 describe("the server's version", () => {
-  test("is every package's, 0.4.0, and the handshake carries it", async () => {
+  test("is every package's, 0.4.2, and the handshake carries it", async () => {
     const { client } = await connect((await makeTracked()).repo);
 
-    expect(await Promise.all(PACKAGES.map(versionOf))).toEqual(PACKAGES.map(() => "0.4.0"));
-    expect(SERVER_VERSION).toBe("0.4.0");
-    expect(client.getServerVersion()?.version).toBe("0.4.0");
+    expect(await Promise.all(PACKAGES.map(versionOf))).toEqual(PACKAGES.map(() => "0.4.2"));
+    expect(SERVER_VERSION).toBe("0.4.2");
+    expect(client.getServerVersion()?.version).toBe("0.4.2");
   });
 
   test("marks each tool added from 0.2.0 on with the version that added it", () => {
@@ -27,7 +27,7 @@ describe("the server's version", () => {
     expect(since("0.3.0")).toEqual(SINCE_0_3);
   });
 
-  test("names as newest exactly the tools of the two latest versions that added one, so 0.4.0, which added none, keeps those of 0.2.0 and 0.3.0", () => {
+  test("names as newest exactly the tools of the two latest versions that added one, so 0.4, which added none, keeps those of 0.2.0 and 0.3.0", () => {
     expect([...newestTools()].sort()).toEqual([...SINCE_0_2, ...SINCE_0_3].sort());
   });
 
@@ -38,7 +38,7 @@ describe("the server's version", () => {
     const opened = await call("session_open", { worktree: tracked.trees["data"]!, agent: "claude", brief: "land" });
     const listed = await call("repo_list");
 
-    const server = { version: "0.4.0", tools: Object.keys(TOOL_META).length, newest: [...newestTools()] };
+    const server = { version: "0.4.2", tools: Object.keys(TOOL_META).length, newest: [...newestTools()] };
     expect(opened.structured["server"]).toEqual(server);
     expect(listed.structured["server"]).toEqual(server);
   });
