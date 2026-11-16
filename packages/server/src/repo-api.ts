@@ -3,7 +3,7 @@ import { realpath } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
-import { Records, TallyError, doneWork, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
+import { ENDED_LIMIT, MOST_ENDED, Records, TallyError, doneWork, endedSessions, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
 import { GRAPH_LIMIT, commitCount, commitGraph, graphBranches } from "./graph.ts";
 import { fileOrNull } from "./static.ts";
 import type { Watcher } from "./watcher.ts";
@@ -66,6 +66,11 @@ export function repoRoutes(served: Serve): Hono {
   api.get("/done", async (c) => {
     const { repo, watcher } = await served(c);
     return c.json(await doneWork(repo, (await watcher.current()).status));
+  });
+  api.get("/done/sessions", async (c) => {
+    const limit = c.req.query("limit") ?? String(ENDED_LIMIT);
+    if (!WHOLE_NUMBER.test(limit) || Number(limit) > MOST_ENDED) return c.json({ error: `limit must be a whole number from 1 to ${MOST_ENDED}` }, 400);
+    return c.json(await endedSessions((await served(c)).repo, { limit: Number(limit) }));
   });
   api.get("/ledger", async (c) => c.json(await new Records((await served(c)).repo).readLedger()));
   api.get("/config", async (c) => c.json(redactedConfig((await served(c)).repo.config)));

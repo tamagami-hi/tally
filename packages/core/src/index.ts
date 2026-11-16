@@ -183,3 +183,5 @@ export { onMainOf } from "./status/collect.ts";
 export { doneWork } from "./done/work.ts";
 export type { DoneSource } from "./done/work.ts";
 export type { DoneMilestone, DonePart, DonePhase, DoneTask, DoneWork } from "./done/types.ts";
+export { ENDED_LIMIT, MOST_ENDED, endedSessions } from "./done/sessions.ts";
+export type { EndedSession, EndedSessions } from "./done/sessions.ts";

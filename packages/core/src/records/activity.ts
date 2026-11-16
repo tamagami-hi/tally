@@ -85,3 +85,16 @@ export async function readActivity(repo: Repo, filter: ActivityFilter = {}): Pro
   const kept = files.flatMap((file) => file.events).filter((event) => (after === undefined || Date.parse(event.at) > after) && (filter.track === undefined || event.track === filter.track));
   return { events: limit === undefined ? kept : kept.slice(-limit), matched: kept.length };
 }
+
+export interface NewestDays {
+  events: ActivityEvent[];
+  days: number;
+  earlier: number;
+}
+
+export async function readNewestDays(repo: Repo, most: number): Promise<NewestDays> {
+  const days = await loggedDays(repo);
+  const newest = days.slice(-most);
+  const files = await Promise.all(newest.map((day) => readDay(repo, day)));
+  return { events: files.flatMap((file) => file.events), days: days.length, earlier: days.length - newest.length };
+}
