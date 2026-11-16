@@ -41,7 +41,7 @@ const plannedTask = z.object({
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "board_get",
-    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, and the live claims and locks. scope 'mine' keeps the session's track: its rows, their tasks and notes, its branch beside main, its claims. `fields` keeps only those top-level keys.", inputSchema: { scope: SCOPE, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
+    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, and the live claims and locks. A row is `finished` when its tasks are all on main (or it is built) and ledger_check lists no gap for it. scope 'mine' keeps the session's track: its rows, their tasks and notes, its branch beside main, its claims. `fields` keeps only those top-level keys.", inputSchema: { scope: SCOPE, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
     ({ scope, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const ledger = await new Records(repo).readLedger();
       const status = await collect(repo, ledger);

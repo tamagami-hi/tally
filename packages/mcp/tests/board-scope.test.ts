@@ -6,7 +6,7 @@ import { sh } from "../../core/tests/support/repo.ts";
 import { serving, sessionOn } from "./support/calling.ts";
 
 interface Board {
-  rows: { id: string; track: string; tasks: { id: string; track: string }[] }[];
+  rows: { id: string; track: string; finished: boolean; tasks: { id: string; track: string }[] }[];
   tracks: { track: string; branch: string }[];
   claims: { task: string; track: string }[];
 }
@@ -53,6 +53,18 @@ describe("board_get with scope mine", () => {
     expect(mine.rows.map((row) => row.id)).toEqual(["B3"]);
     expect(mine.tracks.map((track) => track.branch)).toEqual(["main", "feature/ui-work"]);
     expect(mine.claims).toMatchObject([{ task: "1 page", track: "ui" }]);
+  });
+});
+
+describe("board_get's rows", () => {
+  test("each say whether the milestone is finished, in the whole board and in the session's slice", async () => {
+    const { call, engine } = await busy();
+
+    const all = (await call("board_get")).structured as unknown as Board;
+    const mine = (await call("board_get", { scope: "mine", sessionId: engine })).structured as unknown as Board;
+
+    expect(all.rows.map((row) => [row.id, row.finished])).toEqual([["B2", false], ["B3", false]]);
+    expect(mine.rows.map((row) => [row.id, row.finished])).toEqual([["B2", false]]);
   });
 });
 

@@ -9,6 +9,7 @@ export interface MilestoneRow {
   share: number;
   count: [number, number] | null;
   notes: string[];
+  finished: boolean;
   tasks: { id: string; track: string; status: string; commit?: string; waits?: string }[];
 }
 

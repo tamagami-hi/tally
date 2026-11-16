@@ -1,4 +1,4 @@
-import { uncovered, unfinished } from "../ledger/gaps.ts";
+import { findGaps, uncovered, unfinished } from "../ledger/gaps.ts";
 import { ownersOf } from "../ledger/items.ts";
 import type { Milestones } from "../ledger/refs.ts";
 import { waitsOf } from "../ledger/waits.ts";
@@ -14,6 +14,7 @@ export interface MilestoneRow extends Milestone {
   share: number;
   count: [number, number] | null;
   notes: string[];
+  finished: boolean;
 }
 
 export interface Summary {
@@ -60,7 +61,13 @@ function owedNotes(ledger: Milestones, milestone: Pick<Milestone, "delivers" | "
   return [...partly, ...(owed.length === 0 ? [] : [`no task covers ${owed.map((one) => one.id).join(", ")}`])];
 }
 
-async function row(ledger: Ledger, milestone: Milestone, onMain: OnMain, problems: string[], needing: readonly Needing[]): Promise<MilestoneRow> {
+type Counted = Omit<MilestoneRow, "finished">;
+
+function owingMilestones(ledger: Ledger, needing: readonly Needing[]): ReadonlySet<string> {
+  return new Set([...findGaps(ledger).map((gap) => gap.milestone), ...needing.map((one) => one.milestone)]);
+}
+
+async function row(ledger: Ledger, milestone: Milestone, onMain: OnMain, problems: string[], needing: readonly Needing[]): Promise<Counted> {
   const owed = [...owedNotes(ledger, milestone, milestone.tasks), ...reviewNotes(milestone.id, milestone.tasks, needing)];
   if (milestone.built !== undefined) return { ...milestone, share: 1, count: null, notes: ["built", ...owed] };
   if (milestone.tasks.length === 0) {
@@ -89,7 +96,11 @@ export function rowsOf(rows: readonly MilestoneRow[], track: string, needing: re
 export async function summarize(ledger: Ledger, stages: readonly Stage[], onMain: OnMain, needing: readonly Needing[] = []): Promise<Summary> {
   const problems: string[] = [];
   const rows: MilestoneRow[] = [];
-  for (const milestone of ledger.milestones) rows.push({ ...(await row(ledger, milestone, onMain, problems, needing)), track: ownersOf(milestone) });
+  const owing = owingMilestones(ledger, needing);
+  for (const milestone of ledger.milestones) {
+    const counted = await row(ledger, milestone, onMain, problems, needing);
+    rows.push({ ...counted, track: ownersOf(milestone), finished: counted.share >= 1 && !owing.has(milestone.id) });
+  }
   const stagePct: Record<string, number> = {};
   for (const stage of stages) {
     const inStage = rows.filter((r) => r.stage === stage.id);

@@ -9,10 +9,10 @@ export const snapshot: Snapshot = {
     stagePct: { A: 1, B: 0.385, C: 0 },
     stages: [{ id: "A", name: "the first slice", state: "open" }, { id: "B", name: "widening", state: "open" }, { id: "C", name: "later", state: "open" }],
     rows: [
-      { id: "A0-A7", stage: "A", name: "the first slice", track: "all", weight: 100, built: "aaa..bbb", share: 1, count: null, notes: ["built"], tasks: [] },
-      { id: "B4", stage: "B", name: "simulator", track: "alpha+beta", weight: 14, share: 18 / 23, count: [18, 23], notes: ["beta next: T8 candle_close", "T9 store: waits for B2"], tasks: [] },
-      { id: "B5", stage: "B", name: "full builder", track: "beta", weight: 14, share: 0, count: null, notes: ["not started"], tasks: [] },
-      { id: "C1", stage: "C", name: "candles", track: "-", weight: 34, waits: "candle files", share: 0, count: null, notes: ["waits for candle files"], tasks: [] },
+      { id: "A0-A7", stage: "A", name: "the first slice", track: "all", weight: 100, built: "aaa..bbb", share: 1, count: null, notes: ["built"], finished: true, tasks: [] },
+      { id: "B4", stage: "B", name: "simulator", track: "alpha+beta", weight: 14, share: 18 / 23, count: [18, 23], notes: ["beta next: T8 candle_close", "T9 store: waits for B2"], finished: false, tasks: [] },
+      { id: "B5", stage: "B", name: "full builder", track: "beta", weight: 14, share: 0, count: null, notes: ["not started"], finished: false, tasks: [] },
+      { id: "C1", stage: "C", name: "candles", track: "-", weight: 34, waits: "candle files", share: 0, count: null, notes: ["waits for candle files"], finished: false, tasks: [] },
     ],
     tracks: [
       { branch: "main", track: "main", path: ".", head: "ee8999a", subject: "records: a note", ct: 0, when: "2 min ago", ahead: 0, behind: 0, dirty: 0, files: [], isMain: true },
