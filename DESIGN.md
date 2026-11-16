@@ -744,7 +744,7 @@ A smaller `board_get` that answers only open work (the largest saving in sight f
 
 The planner's check found two flaws in the expiry of idle sessions, both fixed. A failed write of `session_expire` (or a failed read of the log before it) stopped the session from ending and, on the service, the rest of the watcher's pass; now the session is ended all the same, its claims and locks released, the pass goes on, and the failure is the repository's problem, one sentence naming the track and the agent, held for an hour. An end that failed before the session was removed wrote the event again on each pass; now tally looks for the session's event before writing, so a session has at most one. The version counts the two fixes: 0.4.2.
 
-## 21. Commits of records only, command-line writes on record, and an open board (0.5.0, built 2026-11-16)
+## 21. Commits of records only, command-line writes on record, and an open board (0.5.0, built 2026-11-16; 0.5.1 after one fix)
 
 Built from `docs/plans/2026-11-16-1602-third-review-plan.md`, which answers the third review, written by the coordinating agent of the second tracked repository after two days of use since 0.3.0. Of its eight findings, two became fixes to how records behave (F1, F4), and two became small corrections to the Done build (F6 and F7, with a button's words beside them). Three more (F5, F2 and F3) became four optional parts, and the operator chose one: part D, the open board (F5). Parts E (commits the config tells the check to pass, F2), F (moving a milestone to another phase, F3) and G ("Phase" for "Stage" on the page, F3 too) are specified in the plan and not built, so that they can be later. The eighth finding, a tag for the release, was already done.
 
@@ -772,7 +772,7 @@ Built from `docs/plans/2026-11-16-1602-third-review-plan.md`, which answers the 
 
 ### 21.4 Three corrections to the Done build (F6, F7)
 
-- **A session's tasks** also come from its `review_record` and `evidence_record` events, a target cut at its first comma, so `<milestone> / <task>, <kind>` and `<milestone> / <task>` are one task. In the second tracked repository the session that ran both of its lanes, which showed no task, now shows two.
+- **A session's tasks** also come from its `review_record` and `evidence_record` events. An evidence event is aimed at `<milestone> / <task>, <kind>`: the kind that ends it is dropped, so it and `<milestone> / <task>` are one task. Every other target is taken whole (21.8). In the second tracked repository the session that ran both of its lanes, which showed no task, now shows two.
 - **The closed-phase line** says how many milestones it holds: "1 closed phase, with 1 finished milestone, is in Done". The two lines under the board then add up to the finished count above it.
 - **The button under the sessions** says how many it will load: "Show 7 more" when 7 remain.
 
@@ -797,3 +797,7 @@ Built from `docs/plans/2026-11-16-1602-third-review-plan.md`, which answers the 
 - **Hiding the records from `git status`**, left out of the 0.3.0 plan for the same reason as then.
 - **Removing tools.**
 - **A tag as a condition** for a passed commit.
+
+### 21.8 The fix round (0.5.1)
+
+The planner's check found one flaw, fixed. The build cut every task's target at its first comma, as the plan said, so in Done's sessions a claimed, landed or reviewed task whose name has a comma showed cut short, and two tasks that differ only after the comma showed as one. Now only an `evidence_record` target is shortened, and only by the kind that ends it, one of the kinds an evidence record can have; a task's name keeps its commas. A target is cut at 120 characters when it is logged, so an evidence event for a task with a name that long can lose its kind, or part of it, and is then taken as it stands, unless what is left happens to end in a kind's word. The version counts the fix: 0.5.1.
