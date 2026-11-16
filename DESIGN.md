@@ -526,7 +526,7 @@ The rest of a repository's context already has a home in `docs/records/`: the le
 
 - **A run** is a record: the command, the exit, the totals and up to 20 failing tests with their first lines. Its raw output stays a file where it fell, named in the record by path and hash (rule 6). It's a program's output, and a session rarely needs more than the record.
 - **The build log** takes structured entries: `{group, milestone, date, commits[], built, verified[{what, check, totals}], decided[], corrected[], open[]}`. Sections imported as Markdown stay as they are.
-- **The activity log** is `docs/records/log/<date>.json`: one event for each write, `{at, session, track, agent, verb, target, result}`. `activity_get({since, track?})` tells a session what happened while it was away.
+- **The activity log** is `docs/records/log/<date>.json`: one event for each write, `{at, session, track, agent, verb, target, result}`. `activity_get({since, track?})` tells a session what happened while it was away. From 0.4.0 it also holds one `session_open` event when a session opens (no target) and one `session_expire` event when tally closes an idle session (target `idle <n> min`, written before the session ends, so it rides with the records commit that end may make). An ended session is read back from these events and stored nowhere else (§20.4).
 
 ### 16.7 A new repository's first session
 
@@ -701,3 +701,41 @@ Every change is an optional field or a new file: a task's `landedAt`, a part's `
 ### 19.10 The tool list
 
 67 tools, every one with a title, four hints and a strict input. `tools/list` is held under 77,000 characters (compact JSON) by shorter shared parameter texts, and a test guards it.
+
+## 20. A Done view, and a board of open work (0.4.0, built 2026-11-16)
+
+Built from `docs/plans/2026-11-16-1239-done-view-plan.md`. The operator asked for a view of everything completed (phases, tasks, sessions) beside Board, Evidence and Docs, and for a board that shows only what is incomplete or active. The plan's §3 decisions are built as written.
+
+### 20.1 The decisions
+
+1. **The view is called Done**, after Board: Board, Done, Evidence, Docs on a wide screen; Board, Tracks, Graph, Done, Evidence, Docs in the phone's bottom bar.
+2. **A milestone is finished** when every task of it has landed on main (or it is marked built) and `ledger_check` lists no gap for it: no deliverable without a task, no deferred part with nowhere to go, no landed task that still needs a review. A part left to a task that exists, or parked, is no gap. This is the line `phase_close` draws.
+3. **A phase leaves the board when it is closed**, not when it reaches 100%. An open phase whose milestones are all finished stays, as one line that says an operator session closes it.
+4. **Nothing unfinished is hidden.** A closed phase with an unfinished milestone again is back on the board, marked.
+5. **A landed task of a milestone in progress** is counted on the board as before, and listed in Done under its milestone, marked as in progress.
+6. **Ended sessions are computed from the activity log**, and stored nowhere (rules 3 and 5). A repository with no log lists none and says why.
+7. **No MCP tool is added, and no answer loses anything.** `board_get` and `tally status` still answer every milestone; each row gains `finished`.
+8. **The percentages do not change.**
+9. **The version is 0.4.0.**
+
+### 20.2 One meaning of finished
+
+`summarize` sets `MilestoneRow.finished`: the row's share is 1 or more, and no gap names the milestone, the gaps being `findGaps` and the landed tasks `needingReview` returns. A landed commit not on main already lowers the share. `rowsOf` keeps the milestone's own `finished`, as it keeps its share.
+
+### 20.3 The board
+
+`web/src/open.ts` chooses, in pure functions: a phase is on the board when it is open or has an unfinished milestone, and under it only its unfinished milestones are drawn. A quiet line under a phase says how many of its milestones are finished and opens Done; another after the phases says how many closed phases are in Done; an empty state says when nothing is open. The panel's detail counts open and finished milestones, and the hero draws a line for each phase on the board and one for the closed rest.
+
+### 20.4 Done
+
+- **`GET /done`** answers `{counts, phases}`, built by `doneWork` (`core/src/done/`) from the status the board already shows, so the two never disagree. A milestone is listed when it is finished or has a landed task, with its landed tasks only; a phase when it is closed or has a listed milestone, the closed ones first (latest close first), then the open ones in the board's order. A task is dated by its `landedAt` ("recorded") or else by its commit's committer date ("commit"), read with one `git log` over the ledger's baseline to main; tasks are latest first, undated ones last in the ledger's order. A deferred part carries its state, and why when parked. A closed phase's `closedBy`, `summary` and `commit` (the tip of main it closed at) come from `phaseRows`, so `board_get` does not grow.
+- **`GET /done/sessions?limit=<n>`** answers `{kept, sessions, total, earlier?}`, built by `endedSessions` from the activity log: a session is every event with one id, left out while it is open. It runs from its first event to its last; it opened "recorded" when the first is `session_open`, else "first write" (every session before 0.4.0); it ended "closed", "expired" or "unknown"; `writes` counts its other events, and `tasks` the distinct targets of its `task_claim`, `task_land` and `land_start`, at most 8. The newest first; `limit` is 50 unless asked, 500 at most; the newest 120 day files are read, and `earlier` counts the older ones. `kept` is false, and the list empty, where the config does not say `context: "records"` and the log folder is empty.
+- **The page** reads both only while Done is shown, and again on each snapshot; loading more sessions asks for a larger limit, so a new snapshot keeps what is loaded. Phases and tasks fold, the first phase open. A failed read says so in a sentence, with the server's reason and a "Try again" button.
+
+### 20.5 The surface
+
+67 tools before and after. Two descriptions change: `board_get` names `finished`, and `activity_get` names the two new events. `tools/list` is 76,411 characters in the image (76,222 before). `/done/sessions` is bounded by `limit`; `/done` carries every landed task and has no bound (a bound by unfolding is left for later). No stored format changes: the activity log gains two values of `verb`, which the previous release reads as events like any other.
+
+### 20.6 Left out
+
+A smaller `board_get` that answers only open work (the largest saving in sight for an agent's context; a decision of its own), `tally status` printing only open work, closed tracks as a third list in Done, ended sessions for a repository with no activity log, a bound on `/done`, a smaller snapshot, one word for a phase (the page says "Stage"), and search in Done.
