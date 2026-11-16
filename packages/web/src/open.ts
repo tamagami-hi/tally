@@ -11,6 +11,7 @@ export interface OpenStage extends StageRow {
 export interface OpenBoard {
   stages: OpenStage[];
   closedOff: number;
+  closedMilestones: number;
 }
 
 const isClosed = (stage: StageRow): boolean => stage.state === "closed";
@@ -26,14 +27,18 @@ const isOnBoard = (stage: OpenStage): boolean => !isClosed(stage) || stage.rows.
 
 export function openBoard(status: StatusData): OpenBoard {
   const stages = status.stages.map((stage) => openStage(status, stage));
-  return { stages: stages.filter(isOnBoard), closedOff: stages.filter((stage) => !isOnBoard(stage)).length };
+  const off = stages.filter((stage) => !isOnBoard(stage));
+  return { stages: stages.filter(isOnBoard), closedOff: off.length, closedMilestones: off.reduce((sum, stage) => sum + stage.finished, 0) };
 }
 
 const counted = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`;
 
 export const finishedLine = (count: number): string => `${counted(count, "finished milestone is", "finished milestones are")} in Done`;
 
-export const closedLine = (count: number): string => `${counted(count, "closed phase is", "closed phases are")} in Done`;
+export function closedLine(phases: number, milestones: number): string {
+  if (milestones === 0) return `${counted(phases, "closed phase is", "closed phases are")} in Done`;
+  return `${counted(phases, "closed phase", "closed phases")}, with ${counted(milestones, "finished milestone", "finished milestones")}, ${phases === 1 ? "is" : "are"} in Done`;
+}
 
 export const closedCount = (count: number): string => `${counted(count, "phase", "phases")} closed`;
 

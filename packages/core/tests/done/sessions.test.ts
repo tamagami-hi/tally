@@ -45,6 +45,15 @@ describe("the ended sessions", () => {
     expect(CLI_SESSION).toBe("cli");
   });
 
+  test("take a session's tasks from its reviews and its evidence too, one task whatever follows its first comma", async () => {
+    const { repo } = await logging();
+    await log(repo, "s1", [["11T09:00", "track_open", "lane"], ["11T09:05", "evidence_record", "B2 / 4 manifest, green"], ["11T09:10", "review_record", "B2 / 4 manifest"], ["11T09:20", "review_record", "B2 / 5 transcoder"], ["11T09:30", "session_close"]]);
+
+    const ended = await endedSessions(repo);
+
+    expect(ended.sessions[0]?.tasks).toEqual(["B2 / 4 manifest", "B2 / 5 transcoder"]);
+  });
+
   test("leave out a session that is still open", async () => {
     const { repo, trees } = await logging();
     const open = await openSession(repo, { worktree: trees["data"]!, agent: "claude" });

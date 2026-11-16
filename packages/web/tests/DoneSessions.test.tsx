@@ -47,6 +47,12 @@ describe("the ended sessions in Done", () => {
     expect(screen.getByText("3 of 80 ended sessions")).toBeInTheDocument();
   });
 
+  test("say how many it will load when fewer than fifty remain", () => {
+    render(<DoneSessions ended={{ ...sessions, total: 10 }} canLoadMore onMore={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Show 7 more" })).toBeInTheDocument();
+  });
+
   test("offer no more when every session is shown", () => {
     render(<DoneSessions ended={sessions} canLoadMore={false} onMore={() => undefined} />);
 

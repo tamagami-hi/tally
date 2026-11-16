@@ -1,5 +1,6 @@
 import type { DonePart, DoneWork, EndedSession } from "./types.ts";
 
+export const SESSIONS_STEP = 50;
 const MINUTE = 60_000;
 const HOUR_MINUTES = 60;
 const TWO_DAYS_HOURS = 48;

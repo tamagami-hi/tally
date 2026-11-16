@@ -25,8 +25,10 @@ describe("which phases the board shows", () => {
 
     expect(off.stages.map((stage) => stage.id)).toEqual(["B"]);
     expect(off.closedOff).toBe(1);
+    expect(off.closedMilestones).toBe(1);
     expect(back.stages.map((stage) => [stage.id, stage.reopened])).toEqual([["A", true], ["B", false]]);
     expect(back.closedOff).toBe(0);
+    expect(back.closedMilestones).toBe(0);
   });
 
   test("an open phase whose milestones are all finished, with no milestone and the mark that it is all finished", () => {
@@ -51,8 +53,9 @@ describe("the board's words", () => {
   test("say how many finished milestones and closed phases are in Done", () => {
     expect(finishedLine(1)).toBe("1 finished milestone is in Done");
     expect(finishedLine(9)).toBe("9 finished milestones are in Done");
-    expect(closedLine(1)).toBe("1 closed phase is in Done");
-    expect(closedLine(2)).toBe("2 closed phases are in Done");
+    expect(closedLine(1, 1)).toBe("1 closed phase, with 1 finished milestone, is in Done");
+    expect(closedLine(2, 5)).toBe("2 closed phases, with 5 finished milestones, are in Done");
+    expect(closedLine(1, 0)).toBe("1 closed phase is in Done");
   });
 
   test("the panel's detail says how many milestones are open and how many finished", () => {

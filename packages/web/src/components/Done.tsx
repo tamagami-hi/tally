@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { SESSIONS_STEP } from "../done-text.ts";
 import { useDone, useEndedSessions, type Loaded } from "../live.ts";
 import { DonePhases } from "./DonePhases.tsx";
 import { DoneSessions } from "./DoneSessions.tsx";
@@ -10,7 +11,6 @@ const TABS: { id: DoneTab; label: string }[] = [
   { id: "sessions", label: "Sessions" },
 ];
 
-const STEP = 50;
 const MOST = 500;
 
 function TabSwitch({ tab, onChange }: { tab: DoneTab; onChange: (tab: DoneTab) => void }) {
@@ -43,10 +43,10 @@ const isBusy = (state: Pick<Loaded<unknown>, "data" | "failed">): boolean => sta
 
 export function Done({ version }: { version: string }) {
   const [tab, setTab] = useState<DoneTab>("phases");
-  const [limit, setLimit] = useState(STEP);
+  const [limit, setLimit] = useState(SESSIONS_STEP);
   const work = useDone(version);
   const ended = useEndedSessions(version, tab === "sessions", limit);
-  const more = (): void => setLimit((current) => Math.min(current + STEP, MOST));
+  const more = (): void => setLimit((current) => Math.min(current + SESSIONS_STEP, MOST));
   return (
     <section className="done" aria-label="Done" aria-busy={isBusy(tab === "phases" ? work : ended)}>
       <TabSwitch tab={tab} onChange={setTab} />

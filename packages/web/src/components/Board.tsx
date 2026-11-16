@@ -87,7 +87,7 @@ export function Board({ status, claims = [], onOpenDone }: BoardProps) {
   return (
     <section className="board" aria-label="Board">
       {nothingOpen ? <NothingOpen onOpenDone={onOpenDone} /> : board.stages.map((stage) => <Stage key={stage.id} stage={stage} claims={claims} onOpenDone={onOpenDone} />)}
-      {board.closedOff === 0 || nothingOpen ? null : <ToDone text={closedLine(board.closedOff)} onOpenDone={onOpenDone} />}
+      {board.closedOff === 0 || nothingOpen ? null : <ToDone text={closedLine(board.closedOff, board.closedMilestones)} onOpenDone={onOpenDone} />}
     </section>
   );
 }

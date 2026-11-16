@@ -1,6 +1,6 @@
 import { InfoCircledIcon } from "@radix-ui/react-icons";
 import type { ReactNode } from "react";
-import { counted, dayText, endedText, spanText } from "../done-text.ts";
+import { SESSIONS_STEP, counted, dayText, endedText, spanText } from "../done-text.ts";
 import type { EndedSession, EndedSessions } from "../types.ts";
 
 interface DoneSessionsProps {
@@ -40,6 +40,8 @@ function Empty({ children }: { children: ReactNode }) {
   return <div className="empty"><InfoCircledIcon aria-hidden="true" /><p>{children}</p></div>;
 }
 
+const moreText = (shown: number, total: number): string => `Show ${Math.min(SESSIONS_STEP, total - shown)} more`;
+
 const shownText = (shown: number, total: number): string => (shown === total ? counted(total, "ended session", "ended sessions") : `${shown} of ${total} ended sessions`);
 
 export function DoneSessions({ ended, canLoadMore, loading = false, onMore }: DoneSessionsProps) {
@@ -51,7 +53,7 @@ export function DoneSessions({ ended, canLoadMore, loading = false, onMore }: Do
     <div className="done-sessions">
       <p className="faint small">{shownText(ended.sessions.length, ended.total)}</p>
       <ul className="ended-list">{ended.sessions.map((session) => <Row key={session.id} session={session} />)}</ul>
-      {canLoadMore ? <button type="button" className="to-done" disabled={loading} onClick={onMore}>{loading ? "Loading…" : "Show 50 more"}</button> : null}
+      {canLoadMore ? <button type="button" className="to-done" disabled={loading} onClick={onMore}>{loading ? "Loading…" : moreText(ended.sessions.length, ended.total)}</button> : null}
       {ended.earlier === undefined ? null : <p className="faint small">{`Older sessions are in the activity log: its ${counted(ended.earlier, "oldest day file is", "oldest day files are")} not read here.`}</p>}
     </div>
   );

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { Board } from "../src/components/Board.tsx";
 import { Hero } from "../src/components/Header.tsx";
 import { Shell } from "../src/Shell.tsx";
+import { countsDetail } from "../src/open.ts";
 import type { MilestoneRow, StatusData } from "../src/types.ts";
 import { snapshot } from "./fixture.ts";
 
@@ -56,8 +57,18 @@ describe("the board of open work", () => {
 
     expect(screen.queryByText("A1")).toBeNull();
     expect(screen.queryByRole("heading", { name: /Stage A/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "1 closed phase is in Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "1 closed phase, with 1 finished milestone, is in Done" }));
     expect(opened).toEqual(["done"]);
+  });
+
+  test("the two lines under the board add up to the finished count above it", () => {
+    const rows = [row("A1", "A", true), ...["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((n) => row(`B${n}`, "B", true)), ...["10", "11", "12"].map((n) => row(`B${n}`, "B", false))];
+    const status = statusOf([A_CLOSED, B_OPEN], rows);
+    drawn(status);
+
+    expect(screen.getByRole("button", { name: "9 finished milestones are in Done" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1 closed phase, with 1 finished milestone, is in Done" })).toBeInTheDocument();
+    expect(countsDetail(status)).toBe("3 open · 10 finished");
   });
 
   test("says so when nothing is open, and points to Done", () => {

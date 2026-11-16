@@ -12,7 +12,7 @@ export const LOG_WINDOW_DAYS = 120;
 const MOST_TASKS = 8;
 const OPENED_VERB = "session_open";
 const CLOSED_VERB = "session_close";
-const TASK_VERBS: ReadonlySet<string> = new Set(["task_claim", "task_land", "land_start"]);
+const TASK_VERBS: ReadonlySet<string> = new Set(["task_claim", "task_land", "land_start", "review_record", "evidence_record"]);
 const NOT_WRITES: ReadonlySet<string> = new Set([OPENED_VERB, CLOSED_VERB, EXPIRED_VERB]);
 
 export interface EndedSession {
@@ -50,6 +50,8 @@ function bySession(events: readonly ActivityEvent[]): ActivityEvent[][] {
   return [...groups.values()];
 }
 
+const taskOf = (target: string): string => target.split(",", 1)[0] ?? target;
+
 function endOf(verbs: ReadonlySet<string>): EndedSession["ended"] {
   if (verbs.has(CLOSED_VERB)) return "closed";
   return verbs.has(EXPIRED_VERB) ? "expired" : "unknown";
@@ -59,7 +61,7 @@ function endedOf(events: readonly ActivityEvent[]): EndedSession[] {
   const first = events[0];
   const last = events.at(-1);
   if (first === undefined || last === undefined) return [];
-  const tasks = [...new Set(events.flatMap((event) => (TASK_VERBS.has(event.verb) && event.target !== undefined ? [event.target] : [])))];
+  const tasks = [...new Set(events.flatMap((event) => (TASK_VERBS.has(event.verb) && event.target !== undefined ? [taskOf(event.target)] : [])))];
   return [{
     id: first.session,
     track: first.track,
