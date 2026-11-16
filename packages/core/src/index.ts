@@ -180,3 +180,6 @@ export type { ReportInput, ReportManifest } from "./records/reports.ts";
 export { STANDING_END, STANDING_START, replaceStanding, standingBlock, standingNow, writeClaudeView } from "./views/claude.ts";
 export type { StandingInput } from "./views/claude.ts";
 export { onMainOf } from "./status/collect.ts";
+export { doneWork } from "./done/work.ts";
+export type { DoneSource } from "./done/work.ts";
+export type { DoneMilestone, DonePart, DonePhase, DoneTask, DoneWork } from "./done/types.ts";

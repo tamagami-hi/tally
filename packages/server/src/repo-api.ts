@@ -3,7 +3,7 @@ import { realpath } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
-import { Records, TallyError, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
+import { Records, TallyError, doneWork, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
 import { GRAPH_LIMIT, commitCount, commitGraph, graphBranches } from "./graph.ts";
 import { fileOrNull } from "./static.ts";
 import type { Watcher } from "./watcher.ts";
@@ -62,6 +62,10 @@ export function repoRoutes(served: Serve): Hono {
     const branches = graphBranches(repo.config);
     const total = await commitCount(repo.root, branches);
     return c.json({ commits: await commitGraph(repo.root, branches, Math.min(Number(limit), Math.max(total, 1))), total });
+  });
+  api.get("/done", async (c) => {
+    const { repo, watcher } = await served(c);
+    return c.json(await doneWork(repo, (await watcher.current()).status));
   });
   api.get("/ledger", async (c) => c.json(await new Records((await served(c)).repo).readLedger()));
   api.get("/config", async (c) => c.json(redactedConfig((await served(c)).repo.config)));
