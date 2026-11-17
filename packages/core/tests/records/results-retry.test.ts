@@ -8,6 +8,8 @@ import { listEvidence } from "../../src/records/evidence.ts";
 import { readNotes } from "../../src/records/notes.ts";
 import { MOST_RETRIED, takeResults } from "../../src/records/results.ts";
 import { removeTask } from "../../src/records/task-removal.ts";
+import { claimTask } from "../../src/state/claims.ts";
+import { openSession } from "../../src/state/sessions.ts";
 import { Records } from "../../src/store/records.ts";
 import { makeTracked, type Tracked } from "../support/tracked.ts";
 
@@ -127,5 +129,48 @@ describe("the note about a refused result", () => {
     const [text] = await notesTo(tracked, "data");
     expect(text).toMatch(/; the result is kept in .*refused\/[^ ]+ and tried again when the ledger changes$/);
     expect(await readFile(join(tracked.tree, RESULTS, "refused", (await left(tracked.tree, "refused"))[0] ?? "", "problem"), "utf8")).toBe("'nowhere' is not planned in B2\n");
+  });
+});
+
+describe("a refused result that names no task", () => {
+  test("is never tried again, though a session in its worktree holds a claim when the ledger changes", async () => {
+    const tracked = await ready();
+    await run(tracked.tree, ["green", "--", "true"]);
+    const [refused] = await takeResults(tracked.repo);
+    const session = await openSession(tracked.repo, { worktree: tracked.tree, agent: "claude" });
+    await claimTask(tracked.repo, session, await new Records(tracked.repo).readLedger(), "B2", "5 transcoder");
+    await planOn(tracked, "data", "6 unrelated");
+
+    const again = await takeResults(tracked.repo);
+
+    expect(again).toEqual([]);
+    expect(await listEvidence(tracked.repo, "B2", "5 transcoder")).toEqual([]);
+    expect(await left(tracked.tree, "refused")).toEqual([refused?.id]);
+  });
+
+  test("is not promised a retry in the note to its track", async () => {
+    const tracked = await ready();
+    await run(tracked.tree, ["green", "--", "true"]);
+
+    const [refused] = await takeResults(tracked.repo);
+
+    const [text] = await notesTo(tracked, "data");
+    expect(text?.endsWith(`; the result is kept in ${join(tracked.tree, RESULTS, "refused", refused?.id ?? "")}`)).toBe(true);
+    expect(text).not.toContain("tried again");
+  });
+});
+
+describe("a retried result once it is recorded", () => {
+  test("loses the untold mark beside its problem", async () => {
+    const tracked = await ready();
+    await refusedByHand(tracked, "20261101T090000Z-7", "8 waiting");
+    await writeFile(join(tracked.tree, RESULTS, "refused", "20261101T090000Z-7", "untold"), "the notes were busy\n");
+    await planOn(tracked, "data", "8 waiting");
+
+    await takeResults(tracked.repo);
+
+    const kept = await readdir(join(tracked.tree, RESULTS, "taken", "20261101T090000Z-7"));
+    expect(kept).not.toContain("untold");
+    expect(kept).not.toContain("problem");
   });
 });

@@ -130,6 +130,8 @@ async function abandoned(results: string, now: Date): Promise<void> {
 const MOST_COMMAND = 160;
 const UNTOLD = "untold";
 
+const namesTask = async (folder: string): Promise<boolean> => (await field(folder, "task").catch(() => "")) !== "";
+
 async function whatRan(folder: string): Promise<string> {
   const kind = await field(folder, "kind").catch(() => "a run");
   const argv = await field(folder, "argv").catch(() => "");
@@ -140,7 +142,7 @@ async function whatRan(folder: string): Promise<string> {
 
 async function tellRefused(repo: Repo, place: Place, id: string, problem: string, now: Date): Promise<string> {
   const kept = join(place.worktree, RESULTS, REFUSED, id);
-  const where = `; the result is kept in ${kept} and tried again when the ledger changes`;
+  const where = `; the result is kept in ${kept}${(await namesTask(kept)) ? " and tried again when the ledger changes" : ""}`;
   const said = `the run ${id} (${await whatRan(kept)}) was not recorded: ${problem}`;
   const text = `${said.slice(0, MAX_NOTE - where.length)}${where}`;
   try {
@@ -184,7 +186,7 @@ async function takeOne(pass: Pass, from: string, id: string): Promise<Taken | un
   if (from !== results) await utimes(folder, pass.now, pass.now);
   try {
     const kept = await record(pass.repo, pass.session, folder);
-    await rm(join(folder, PROBLEM), { force: true });
+    await Promise.all([PROBLEM, UNTOLD].map((name) => rm(join(folder, name), { force: true })));
     await mkdir(join(results, TAKEN), { recursive: true });
     await rename(folder, join(results, TAKEN, id));
     return { id, worktree: pass.place.worktree, ...kept };
@@ -205,7 +207,7 @@ async function dueAgain(results: string, ledgerAt: number): Promise<string[]> {
   for (const id of ids) {
     if (due.length >= MOST_RETRIED) break;
     const refusedAt = await stat(join(folder, id, PROBLEM)).then((file) => Math.floor(file.mtimeMs), () => undefined);
-    if (refusedAt !== undefined && refusedAt < ledgerAt) due.push(id);
+    if (refusedAt !== undefined && refusedAt < ledgerAt && (await namesTask(join(folder, id)))) due.push(id);
   }
   return due;
 }
