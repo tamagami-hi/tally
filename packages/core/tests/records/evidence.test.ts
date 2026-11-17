@@ -132,7 +132,7 @@ describe("evidence records", () => {
     const logged = await recordEvidence(repo, data, ledger, { ...run, kind: "red", exit: 1, logPath: "red.log" });
     const broken = await recordEvidence(repo, data, ledger, { ...run, kind: "red", exit: 1, logPath: "broken.log" });
     const bare = await recordEvidence(repo, data, ledger, { ...run, kind: "red", exit: 0 });
-    const green = await recordEvidence(repo, data, ledger, { ...run, kind: "green", exit: 1 });
+    const green = await recordEvidence(repo, data, ledger, { ...run, kind: "green", exit: 0 });
 
     expect(summed.record.kind).toBe("red");
     expect(logged.record).toMatchObject({ kind: "red", summary: { failed: 2 } });

@@ -81,11 +81,19 @@ function notRed(exit: number, summary: EvidenceInput["summary"]): string | null 
   return null;
 }
 
-export function judgeRed(run: Pick<EvidenceInput, "kind" | "exit" | "summary" | "note">): { kind: EvidenceKind; note?: string; notice?: string } {
+const notGreen = (exit: number): string | null => (exit === 0 ? null : `it exited ${exit}`);
+
+function reasonNot(kind: EvidenceKind, exit: number, summary: EvidenceInput["summary"]): string | null {
+  if (kind === "red") return notRed(exit, summary);
+  if (kind === "green") return notGreen(exit);
+  return null;
+}
+
+export function judgeRun(run: Pick<EvidenceInput, "kind" | "exit"> & Partial<Pick<EvidenceInput, "summary" | "note">>): { kind: EvidenceKind; note?: string; notice?: string } {
   const { kind, exit, summary, note } = run;
-  const reason = kind === "red" ? notRed(exit, summary) : null;
+  const reason = reasonNot(kind, exit, summary);
   if (reason === null) return { kind, ...(note === undefined ? {} : { note }) };
-  const notice = `recorded as other, not red: ${reason}`;
+  const notice = `recorded as other, not ${kind}: ${reason}`;
   return { kind: "other", note: note === undefined ? notice : `${notice}; ${note}`, notice };
 }
 
@@ -142,7 +150,7 @@ export async function recordEvidence(repo: Repo, session: Session, ledger: Ledge
   const read = input.logPath === undefined ? undefined : await hashLog(repo, session, input.logPath);
   const summary = input.summary ?? (read === undefined ? undefined : summarize(read.text));
   const measured = summary === undefined ? input : { ...input, summary };
-  const { notice, ...verdict } = judgeRed(measured);
+  const { notice, ...verdict } = judgeRun(measured);
   const record = composeRecord(session, track, { ...measured, ...verdict }, read?.log);
   await appendRecord(repo, input.milestone, record);
   const commit = await commitRecords(repo, commitLine(input.milestone, record));
@@ -166,7 +174,7 @@ async function committed(repo: Repo, milestone: string, record: RunRecord): Prom
 }
 
 export async function keepRun(repo: Repo, session: Session, track: string, input: EvidenceInput & { logPath: string }): Promise<Kept> {
-  const { notice, ...verdict } = judgeRed(input);
+  const { notice, ...verdict } = judgeRun(input);
   const judged = { ...input, ...verdict };
   const told = notice === undefined ? {} : { notice };
   try {

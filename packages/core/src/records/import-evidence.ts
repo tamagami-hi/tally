@@ -8,7 +8,7 @@ import { writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
-import { evidencePath, judgeRed, readEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
+import { evidencePath, judgeRun, readEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
 import { summarize } from "./totals.ts";
 
 const runShape = z
@@ -86,7 +86,7 @@ async function toRecord(repo: Repo, jsonPath: string, options: ImportOptions, tr
   const { log, text } = await hashedLog(jsonPath);
   const heads = Object.fromEntries(Object.entries({ head: run.head, head_before: run.head_before, head_after: run.head_after }).filter(([, value]) => value !== undefined)) as Record<string, string>;
   const summary = { ...(summarize(text) ?? {}), ...heads };
-  const { kind, note } = judgeRed({ kind: options.kind ?? kindOf(jsonPath), exit: run.exit, summary, note: `indexed from ${rel}${fromMtime ? "; started from the record file's mtime" : ""}` });
+  const { kind, note } = judgeRun({ kind: options.kind ?? kindOf(jsonPath), exit: run.exit, summary, note: `indexed from ${rel}${fromMtime ? "; started from the record file's mtime" : ""}` });
   return {
     id: sha256(Buffer.from(`${options.milestone}\u0000${options.task}\u0000${rel}`)).slice(0, 32),
     task: options.task,

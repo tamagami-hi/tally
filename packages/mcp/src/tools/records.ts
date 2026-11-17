@@ -16,7 +16,7 @@ const DEFAULT_RECORDS = 20;
 export function registerRecordTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "evidence_record",
-    { description: "Record a run that already happened: its command, cwd, timing, exit, an optional log (in the worktree, hashed) and summary (else the log's totals are read). A `red` that exited 0 or shows no failed test is kept as `other`, and `notice` says why. An exit of 126 or 127 is refused.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), cwd: z.string(), started: z.string(), seconds: z.number().nonnegative(), exit: z.number().int(), logPath: z.string().optional(), summary: z.record(z.string(), summaryValue).optional(), note: z.string().optional() } },
+    { description: "Record a run that already happened: its command, cwd, timing, exit, an optional log (in the worktree, hashed) and summary (else the log's totals are read). A `red` that exited 0 or shows no failed test, or a `green` that did not exit 0, is kept as `other`, and `notice` says why. An exit of 126 or 127 is refused.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), cwd: z.string(), started: z.string(), seconds: z.number().nonnegative(), exit: z.number().int(), logPath: z.string().optional(), summary: z.record(z.string(), summaryValue).optional(), note: z.string().optional() } },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await recordEvidence(repo, session, await new Records(repo).readLedger(), defined(input)))),
   );
   server.registerTool(
