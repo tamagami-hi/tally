@@ -2,7 +2,15 @@
 
 **Written:** 2026-11-17 09:19 IST (2026-11-17 03:49 UTC)
 **Base:** `main` at `65d441b` (version 0.5.1, 1,613 tests, 67 MCP tools).
-**Status:** not built. This is a plan for a coding agent; the planner checks the result against the repository afterwards. Parts A to G are to be built, as version 0.6.0. Parts H, I and J are not built; they are specified below so that the operator can choose them later.
+**Status:** built on 2026-11-17 as version 0.6.1, in the fourteen commits from `2b8aed1` to `76e3b45` (1,684 tests, 67 MCP tools), and running in the service since that day. Parts A to G are built. Parts H, I and J are not built; they are specified below so that the operator can choose them later. The text below is the plan as it was written before the build. Where the build differs:
+- **The version is 0.6.1, not 0.6.0** (decision 7). The planner's check found one flaw in how the build behaved, and the version counts the fix.
+- **A refused result is tried again only when it names its task** (part A3). §4 says every refused result. One recorded with no `--task` is filed under the task its worktree's session holds when it is taken, which is wrong for a retry days later, so it stays refused until it is run again with `--task`. A refused result's `problem` file is dated with the ledger's time read in that pass, not the clock's, so that a change made while it was being judged is not missed.
+- **A default read's name goes inside the answer's JSON** (part D). §7 says one last line of text. A client that joins an answer's text and parses it as JSON would have stopped parsing. Only an answer whose text the tool wrote itself, such as `ledger_check`'s, gains the line.
+- **A log's path** (part F). §9 says an absolute path under the repository's `.temp/` is accepted for a report and for a log. For a log, only the repository's `.temp/tally/logs/` is.
+- **A text that is too long** (part F) is answered in tally's words, inside the wording of the protocol's library, which checks an argument before tally's handler runs.
+- **`tally version`** always runs on the host, and `/api/health` answers the service's version for it.
+- **§16.3.** A green that failed is judged in the service, so open lanes have part B at once. Only the folder and `dirty` of part E wait for a lane's runner to be rewritten.
+- **The size of `tools/list`** is 76,551 characters in the image and 76,927 on a host (76,589 and 76,991 before). Descriptions that repeated what their schema says were shortened to pay for the two parameters.
 **Follows:** `2026-11-16-1602-third-review-plan.md`, which is built as 0.5.1.
 **This repository is public.** This file names no private project. Keep it that way when you edit it: the private names, paths and commit hashes are in the local notes, which git ignores.
 
