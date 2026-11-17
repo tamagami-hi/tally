@@ -12,7 +12,7 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
     {
       description: "The rules in force, in rulebook order: authority, safety, working, then doing each thing once; breaking a `safety` rule fails the work whatever the tests say. `waiting: true` keeps the rules that still carry `tailor`, a question this project has to answer. `template.notAdopted` names the template's rules this repository never had.",
       inputSchema: {
-        section: z.enum(RULE_SECTIONS).optional().describe("only this section's rules: authority, safety, working or once"),
+        section: z.enum(RULE_SECTIONS).optional().describe("only this section's rules"),
         waiting: z.boolean().optional().describe("true keeps only the rules that still carry a question for the project"),
         fields: z.array(z.string()).optional().describe("keep only these keys of each rule, for example id and title"),
         ...WHERE,
@@ -42,7 +42,7 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
         source: z.string().min(1).max(MAX_SOURCE).describe(`whose word and when, or a decision's id, in one line, such as "the operator, 2026-11-14" or DEC-12`),
         title: z.string().max(MAX_TITLE).optional().describe(`the new title, at most ${MAX_TITLE} characters; the old one when left out`),
         text: z.string().max(MAX_TEXT).optional().describe(`the new text, at most ${MAX_TEXT.toLocaleString("en-US")} characters; the old one when left out`),
-        section: z.enum(RULE_SECTIONS).optional().describe("authority, safety, working or once; the old rule's when left out, and needed when it had none"),
+        section: z.enum(RULE_SECTIONS).optional().describe("the old rule's when left out, and needed when it had none"),
         paths: z.array(z.string()).max(MAX_LISTED).optional().describe("files, folders or globs from the repository's root; the old rule's when left out"),
         tags: z.array(z.string()).max(MAX_LISTED).optional().describe("words to find it by; the old rule's when left out"),
         refs: z.array(z.string()).max(MAX_LISTED).optional().describe("other records this one rests on; the old rule's when left out"),

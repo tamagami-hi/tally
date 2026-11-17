@@ -17,7 +17,7 @@ export function registerQuestionTools(server: ToolHost, source: RepoSource): voi
   server.registerTool(
     "question_add",
     {
-      description: "Ask the operator a question (a choice that changes what a result means or costs): the question and the conservative behaviour built meanwhile. Answers its id, Q-<number>; the next number is taken under the lock. An operator session may give `number` to line up with a plan's numbering, forward only.",
+      description: "Ask the operator a question (a choice that changes what a result means or costs): the question and the conservative behaviour built meanwhile. Answers its id, Q-<number>. An operator session may give `number` to line up with a plan's numbering, forward only.",
       inputSchema: { sessionId: z.string(), group: z.string(), question: text, meanwhile: text, number: z.number().int().positive().optional() },
     },
     ({ sessionId, group, question, meanwhile, number }) => inSession(source, sessionId, async (repo, session) => ok(await addQuestion(repo, { group, question, meanwhile, by: session.agent, track: session.track, number }, { operator: isOperator(repo, session) }))),

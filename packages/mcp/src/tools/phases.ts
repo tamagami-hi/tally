@@ -24,7 +24,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "phase_list",
     {
-      description: "The build's phases: each one's goal, whether it is open or closed, how many of its tasks are landed, and `left`, what still stops an open phase from closing: tasks not landed, commits the ledger lacks, gaps ledger_check lists in its milestones (deliverables, waits, unplaced parts, missing reviews) and landings in the queue. Report `left` to the operator before asking to close.",
+      description: "The build's phases: each one's goal, whether it is open or closed, how many of its tasks are landed, and `left`, what still stops an open phase from closing: tasks not landed, commits the ledger lacks, gaps ledger_check lists in its milestones and landings in the queue. Report `left` to the operator before asking to close.",
       inputSchema: { state: z.enum(["open", "closed"]).optional().describe("only phases in this state"), ...WHERE },
     },
     ({ state, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok({ phases: await listPhases(repo, defined({ state })) })),

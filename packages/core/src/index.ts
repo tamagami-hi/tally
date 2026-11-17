@@ -39,6 +39,8 @@ export { CONFIG_FILE, LEDGER_FILE, RECORDS_DIR, Records, findRepoRoot, initRecor
 export { isOpen, readTracks, tracksPath } from "./tracks/file.ts";
 export { openTrack } from "./tracks/open.ts";
 export type { OpenTrackInput, TrackOpened } from "./tracks/open.ts";
+export { openTrackWithPlan, plannedOnMainNotice } from "./tracks/plan.ts";
+export type { PlannedOnTrack, TrackPlan } from "./tracks/plan.ts";
 export { closeTrack } from "./tracks/close.ts";
 export type { TrackClosed } from "./tracks/close.ts";
 export { listTracks } from "./tracks/list.ts";

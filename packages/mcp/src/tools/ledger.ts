@@ -1,10 +1,11 @@
 import { z } from "zod";
 import {
   addMilestone, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
-  listLocks, other, plan, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
+  listLocks, other, plan, plannedOnMainNotice, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
 import { FIELDS, pickKnown } from "../filters.ts";
+import { plannedTasks } from "../planned-task.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -39,13 +40,6 @@ function scopedTrack(repo: Repo, session: Session, given: string | undefined): s
   assertMayWrite(repo, session, track);
   return track;
 }
-
-const plannedTask = z.object({
-  id: z.string().min(1),
-  brief: z.string().optional().describe("what to do"),
-  paths: z.array(z.string().min(1)).optional().describe("the files it expects to touch"),
-  covers: z.array(z.string().min(1)).optional().describe("ids of the milestone's deliverables it covers"),
-});
 
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
@@ -96,13 +90,14 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_plan",
-    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's. A task is its name, or {id, brief?, paths?, covers?}: what to do, the files it should touch, and the ids of the deliverables it covers. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: z.array(z.union([z.string(), plannedTask])).min(1) } },
+    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's (an operator session's is main: `notice` says so while a lane is open). A task is its name, or {id, brief?, paths?, covers?}: what to do, the files it should touch, and the ids of the deliverables it covers. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: plannedTasks } },
     ({ sessionId, milestone, track, tasks }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       const scoped = scopedTrack(repo, session, track);
       await assertMilestoneOpen(repo, await records.readLedger(), milestone);
       const message = await records.update((ledger) => plan(ledger, { milestone, track: scoped, tasks }));
-      return ok(await recorded(repo, message));
+      const notice = await plannedOnMainNotice(repo, session, track);
+      return ok({ ...(await recorded(repo, message)), ...(notice === undefined ? {} : { notice }) });
     }),
   );
   server.registerTool(
@@ -133,7 +128,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   server.registerTool(
     "task_remove",
     {
-      description: "Remove a planned task that will not be done (planned by mistake, split, or dropped); a landed task stays as the record of its commit. Refused while another session holds it or a queued landing would record it; your own claim is released. Its run records stay, and the tracks whose tasks wait on it are told. The message says what the removal leaves: a deliverable no task covers, or a deferred part with no task.",
+      description: "Remove a planned task that will not be done; a landed task stays as the record of its commit. Refused while another session holds it or a queued landing would record it; your own claim is released. Its run records stay, and the tracks whose tasks wait on it are told. The message says what the removal leaves: a deliverable no task covers, or a deferred part with no task.",
       inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), why: z.string() },
     },
     ({ sessionId, milestone, task, why }) => inSession(source, sessionId, async (repo, session) => {
@@ -153,7 +148,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_land",
-    { description: "Record the commit on main that landed a task (land_start and land_run can do it for you); follow-up commits go in `also`. The task's claim is released, whoever holds it (`problem` when it could not be). `deferred` lists the parts that did not land, each {what} with `to` (MILESTONE:TASK) or `parked` (an operator session's, or under a decision); until those tasks land the board shows it landed in part. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional() } },
+    { description: "Record the commit on main that landed a task (land_start and land_run can do it for you); follow-up commits go in `also`. The task's claim is released, whoever holds it (`problem` when it could not be). `deferred` lists the parts that did not land (parking is an operator session's, or under a decision); until those tasks land the board shows it landed in part. Tasks that waited on this one stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional() } },
     ({ sessionId, milestone, task, commit, also, track, deferred }) => inSession(source, sessionId, async (repo, session) => {
       await assertMayPark(repo, session, deferred ?? []);
       const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, deferred, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);

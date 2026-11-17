@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { closeTrack, listTracks, openTrack } from "@tally/core";
+import { closeTrack, listTracks, openTrackWithPlan } from "@tally/core";
+import { plannedTasks } from "../planned-task.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -8,18 +9,20 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "track_open",
     {
-      description: "Open a new track: tally makes the branch track/<name> at main's tip and a worktree for it, writes the runner there and records who opened it and why. The answer's absolute `worktree` is where the helper starts and calls session_open; `scratch` is its folder for notes and throwaway files. An operator session opens any track; a track's session opens only a child of its own, and may then write that child's tasks, evidence and hand-offs. Every track lands on main through land_start.",
+      description: "Open a new track: tally makes the branch track/<name> at main's tip and a worktree for it, writes the runner there and records who opened it and why. The helper starts in the answer's `worktree` and calls session_open there; `scratch` is its folder for notes. An operator session opens any track; a track's session opens only a child of its own, and may then write that child's tasks, evidence and hand-offs. `plan` plans its tasks in the same call (`planned`): a plan that cannot be made is refused before anything is, and one that fails after leaves the track open with `planProblem`. Every track lands on main through land_start.",
       inputSchema: {
         sessionId: z.string(),
         name: z.string().describe("lowercase letters, digits, - and _; it names the branch track/<name> and the worktree's folder"),
         purpose: z.string().describe("one line on what the track is for; track_list shows it"),
         parent: z.string().optional().describe("the track this one helps; a track's session leaves it out or names its own track"),
         paths: z.array(z.string()).optional().describe("the only folders or files it may land, from the worktree; left out, any"),
+        plan: z.strictObject({ milestone: z.string(), tasks: plannedTasks }).optional().describe("tasks to plan on the new track at once, as task_plan takes them"),
       },
     },
-    ({ sessionId, name, purpose, parent, paths }) => inSession(source, sessionId, async (repo, session) => {
-      const { track, runner, scratch, commit } = await openTrack(repo, session, { name, purpose, ...(parent === undefined ? {} : { parent }), ...(paths === undefined ? {} : { paths }) });
-      return ok({ ...track, runner, scratch, commit });
+    ({ sessionId, name, purpose, parent, paths, plan }) => inSession(source, sessionId, async (repo, session) => {
+      const input = { name, purpose, ...(parent === undefined ? {} : { parent }), ...(paths === undefined ? {} : { paths }) };
+      const { track, runner, scratch, commit, ...planned } = await openTrackWithPlan(repo, session, input, plan);
+      return ok({ ...track, runner, scratch, commit, ...planned });
     }),
   );
   server.registerTool(
