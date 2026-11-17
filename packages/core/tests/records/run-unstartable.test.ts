@@ -114,7 +114,7 @@ describe("a runner result the service refuses", () => {
     const [taken] = await takeResults(repo);
 
     const [note] = await listNotes(repo, { track: "data", state: "all" });
-    expect(note?.text.endsWith(`the result is kept in ${join(tree, RESULTS, "refused", taken?.id ?? "")}`)).toBe(true);
+    expect(note?.text.endsWith(`the result is kept in ${join(tree, RESULTS, "refused", taken?.id ?? "")} and tried again when the ledger changes`)).toBe(true);
   });
 
   test("is still set aside when its note cannot be written, and the inbox says so instead", async () => {
@@ -142,6 +142,6 @@ describe("a runner result the service refuses", () => {
     const notes = await listNotes(repo, { track: "data", state: "all" });
     expect(notes).toHaveLength(1);
     expect(notes[0]?.from).toEqual({ track: "main", agent: "tally" });
-    expect(notes[0]?.text).toBe(`the run ${taken?.id} (green: true) was not recorded: the run names no task, and no session in this worktree holds one; pass --task MILESTONE:TASK; the result is kept in ${join(tree, RESULTS, "refused", taken?.id ?? "")}`);
+    expect(notes[0]?.text).toBe(`the run ${taken?.id} (green: true) was not recorded: the run names no task, and no session in this worktree holds one; pass --task MILESTONE:TASK; the result is kept in ${join(tree, RESULTS, "refused", taken?.id ?? "")} and tried again when the ledger changes`);
   });
 });
