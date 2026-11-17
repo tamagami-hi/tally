@@ -40,6 +40,11 @@ export async function readHandoff(repo: Repo, track: string): Promise<Handoff> {
   }
 }
 
+export function latestHistory(handoff: Handoff, kept: number): Handoff & { earlier: number } {
+  const shown = kept === 0 ? [] : handoff.history.slice(-kept);
+  return { ...handoff, history: shown, earlier: handoff.history.length - shown.length };
+}
+
 export interface HandoffInput {
   task?: string;
   lines: readonly string[];

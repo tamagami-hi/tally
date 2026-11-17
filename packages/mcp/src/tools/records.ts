@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  Records, acquireLock, evidenceKinds, findMilestone, listEvidence, listLocks, readHandoff, recordEvidence, releaseLock, writeHandoff,
+  Records, acquireLock, evidenceKinds, findMilestone, latestHistory, listEvidence, listLocks, readHandoff, recordEvidence, releaseLock, writeHandoff,
 } from "@tally/core";
 import { FIELDS, LIMIT, lastStarted, pick, startedSince } from "../filters.ts";
 import { defined } from "../defined.ts";
@@ -37,8 +37,11 @@ export function registerRecordTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "handoff_read",
-    { description: "A track's current hand-off note and its history.", inputSchema: { track: z.string(), ...WHERE } },
-    ({ track, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok(await readHandoff(repo, track))),
+    { description: "A track's current hand-off note and its earlier ones, oldest first. A session wants `history: 0`, the current note alone (`earlier` counts the rest), unless it reads how the hand-off changed.", inputSchema: { track: z.string(), history: z.number().int().nonnegative().optional().describe("how many of the latest earlier notes to answer; all when left out"), ...WHERE } },
+    ({ track, history, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+      const handoff = await readHandoff(repo, track);
+      return ok(history === undefined ? handoff : latestHistory(handoff, history));
+    }),
   );
   server.registerTool(
     "lock_acquire",

@@ -120,7 +120,7 @@ export { claimTask, listClaims, releaseClaim, releaseClaimsOf, releaseLanded } f
 export type { Claim } from "./state/claims.ts";
 export { acquireLock, listLocks, releaseLock, releaseLocksOf } from "./state/locks.ts";
 export type { HeldLock } from "./state/locks.ts";
-export { MAX_HANDOFF_LINES, readHandoff, safeName, writeHandoff } from "./records/handoffs.ts";
+export { MAX_HANDOFF_LINES, latestHistory, readHandoff, safeName, writeHandoff } from "./records/handoffs.ts";
 export type { Handoff, HandoffInput, HandoffNote } from "./records/handoffs.ts";
 export { evidenceFiles, evidenceKinds, findEvidence, judgeRun, listEvidence, readAllEvidence, readEvidence, recordEvidence } from "./records/evidence.ts";
 export type { EvidenceInput, EvidenceKind, Kept, MilestoneEvidence, RunRecord } from "./records/evidence.ts";
