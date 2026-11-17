@@ -1,7 +1,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { LiveRepo, TallyError, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
-import { attempt } from "./respond.ts";
+import { attempt, jsonText } from "./respond.ts";
 
 export interface Opened {
   repo: Repo;
@@ -109,10 +109,13 @@ export function inSession(source: RepoSource, sessionId: string, body: (repo: Re
 const defaultLine = (name: string): string => `read from ${name}, the default repository; repo names another (repo_list lists them)`;
 
 function namingTheDefault(result: CallToolResult, name: string): CallToolResult {
-  if (result.isError === true) return result;
   const answer = result.structuredContent;
-  const structured = answer === undefined || "repo" in answer ? answer : { ...answer, repo: name };
-  return { ...result, content: [...result.content, { type: "text", text: defaultLine(name) }], ...(structured === undefined ? {} : { structuredContent: structured }) };
+  if (result.isError === true || answer === undefined || "repo" in answer) return result;
+  const named = { ...answer, repo: name };
+  const asJson = jsonText(answer);
+  const at = result.content.findIndex((part) => part.type === "text" && part.text === asJson);
+  const content = at < 0 ? [...result.content, { type: "text" as const, text: defaultLine(name) }] : result.content.map((part, index) => (index === at ? { type: "text" as const, text: jsonText(named) } : part));
+  return { ...result, content, structuredContent: named };
 }
 
 const isDefaultRead = async (source: RepoSource, where: Where): Promise<boolean> => where.sessionId === undefined && where.repo === undefined && (await source.isOneOfMany());
