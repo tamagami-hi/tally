@@ -19,7 +19,9 @@ import { serveCommand, serveListCommand } from "./commands/serve.ts";
 import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
 import { taskCommand } from "./commands/task.ts";
+import { versionCommand } from "./commands/version.ts";
 import { viewsCommand } from "./commands/views.ts";
+import { buildPlaceOf } from "./build-stamp.ts";
 import type { IO } from "./io.ts";
 import { remoteRun } from "./remote.ts";
 import { serviceCli } from "./service-cli.ts";
@@ -55,12 +57,13 @@ export const USAGE = `tally: the tracking harness
   tally repo   add PATH [--name NAME] | remove NAME | default NAME | list   the repositories this tally serves
   tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR] [--workspace DIR]   the live board, the API and /mcp: every listed repository, or the one --repo names
   tally mcp                                                      the MCP server on stdio: every listed repository, or the one --repo names (or, with nothing listed, the one above the current folder)
+  tally version                                                  this source's version, its build's and, with TALLY_URL, the service's; exits 1 when the build is older
   tally <command> [<verb>] --help                                that command's lines of this list
 
   --repo PATH names the tracked repository; otherwise the one above the current folder.
   With TALLY_URL set to the service's address, every command but serve and mcp is carried out by the service.`;
 
-const LOCAL = new Set(["serve", "mcp"]);
+const LOCAL = new Set(["serve", "mcp", "version"]);
 
 const commandsIn = (line: string): string[] => [...line.matchAll(/\btally ([a-z]+)/g)].flatMap(([, word]) => word ?? []);
 
@@ -103,6 +106,7 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
     }
     const url = io.env["TALLY_URL"];
     if (url !== undefined && url !== "" && !LOCAL.has(command)) return await remoteRun(argv, io, url);
+    if (command === "version") return await versionCommand(args, io, buildPlaceOf(import.meta.url));
     if (command === "init") return await initCommand(repoOption === undefined ? io.cwd : resolve(io.cwd, repoOption), args, io);
     if (command === "repo") return await repoCommand(args, io);
     const home = tallyHome(io.env);

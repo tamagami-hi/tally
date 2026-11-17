@@ -10,6 +10,7 @@ import { openSession } from "../../core/src/state/sessions.ts";
 import { Records } from "../../core/src/store/records.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
 import { makeTracked, type Tracked } from "../../core/tests/support/tracked.ts";
+import { SERVER_VERSION } from "../../mcp/src/server-info.ts";
 
 export interface Service {
   home: string;
@@ -45,10 +46,10 @@ export async function service(): Promise<Service> {
 const json = async <T>(response: Response): Promise<T> => (await response.json()) as T;
 
 describe("the service for every repository", () => {
-  test("says it is up", async () => {
+  test("says it is up, and its version", async () => {
     const { app } = await service();
 
-    expect(await json(await app.request("/api/health"))).toEqual({ ok: true });
+    expect(await json(await app.request("/api/health"))).toEqual({ ok: true, version: SERVER_VERSION });
   });
 
   test("lists its repositories with their progress, sessions and the default", async () => {

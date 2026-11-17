@@ -15,7 +15,7 @@ describe("starting the service", () => {
     const listed = (await (await fetch(`${running.url}api/repos`)).json()) as { repos: { name: string }[] };
     await running.close();
 
-    expect(health).toEqual({ ok: true });
+    expect(health).toMatchObject({ ok: true, version: expect.any(String) });
     expect(listed.repos.map((repo) => repo.name)).toEqual(["alpha"]);
   });
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { NotListed, TallyError, messageOf, type StartDefaults } from "@tally/core";
-import { manyRepos, mcpHandler } from "@tally/mcp";
+import { SERVER_VERSION, manyRepos, mcpHandler } from "@tally/mcp";
 import { cliRoutes, type CliRunner } from "./cli-api.ts";
 import { listFolders } from "./folders.ts";
 import { Forbidden, loopbackOnly } from "./guard.ts";
@@ -27,7 +27,7 @@ export function createServiceApp({ hub, webDir, workspace, defaults, cli }: Serv
     process.stderr.write(`tally failed on ${c.req.method} ${new URL(c.req.url).pathname}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
     return c.json({ error: "tally failed; the service's log has the detail" }, 500);
   });
-  app.get("/api/health", (c) => c.json({ ok: true }));
+  app.get("/api/health", (c) => c.json({ ok: true, version: SERVER_VERSION }));
   app.get("/api/repos", async (c) => {
     const repos = await hub.overview();
     const problem = hub.repos.listProblem();

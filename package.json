@@ -11,7 +11,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "npm run build -w packages/web && tsc -b packages/core packages/mcp packages/server packages/cli",
+    "build": "npm run build -w packages/web && tsc -b packages/core packages/mcp packages/server packages/cli && node packages/cli/dist/stamp-build.js",
     "test": "vitest run",
     "typecheck": "tsc -b packages/core packages/mcp packages/server packages/cli && npm run typecheck -w packages/web",
     "coverage": "vitest run --coverage"

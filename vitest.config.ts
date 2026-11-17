@@ -7,7 +7,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"],
-      exclude: ["packages/cli/src/main.ts", "packages/cli/src/io.ts", "packages/web/src/main.tsx", "packages/web/src/App.tsx", "packages/web/src/live.ts", "packages/server/src/serve.ts", "packages/cli/src/commands/mcp.ts"],
+      exclude: ["packages/cli/src/main.ts", "packages/cli/src/stamp-build.ts", "packages/cli/src/io.ts", "packages/web/src/main.tsx", "packages/web/src/App.tsx", "packages/web/src/live.ts", "packages/server/src/serve.ts", "packages/cli/src/commands/mcp.ts"],
       thresholds: { lines: 80, functions: 80, branches: 70, statements: 80 },
     },
   },
