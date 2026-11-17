@@ -27,6 +27,7 @@ export interface RepoSource {
   forSession(sessionId: string): Promise<Repo>;
   forWorktree(path: string): Promise<Opened>;
   forRead(where: Where): Promise<Repo>;
+  isOneOfMany(): Promise<boolean>;
   listed(): Promise<ListedRepo[]>;
 }
 
@@ -44,6 +45,7 @@ export function oneRepo(first: Repo): RepoSource {
     forSession: () => live.current(),
     forWorktree: async (path) => ({ repo: await live.current(), worktree: path }),
     forRead: ({ repo: name }) => (name === undefined || name === first.name ? live.current() : Promise.reject(new TallyError(`this server serves only ${first.name}, not ${name}`))),
+    isOneOfMany: async () => false,
     listed: async () => {
       const repo = await live.current();
       const problem = live.problem;
@@ -83,6 +85,7 @@ export function manyRepos(repos: Repos): RepoSource {
       if (name !== undefined && name !== repo.name) throw new TallyError(`session ${sessionId} is in ${repo.name}, not ${name}`);
       return repo;
     },
+    isOneOfMany: async () => (await repos.entries()).length > 1,
     listed: async () => {
       const chosen = await repos.defaultName();
       const rows: ListedRepo[] = [];
@@ -103,6 +106,21 @@ export function inSession(source: RepoSource, sessionId: string, body: (repo: Re
   });
 }
 
+const defaultLine = (name: string): string => `read from ${name}, the default repository; repo names another (repo_list lists them)`;
+
+function namingTheDefault(result: CallToolResult, name: string): CallToolResult {
+  if (result.isError === true) return result;
+  const answer = result.structuredContent;
+  const structured = answer === undefined || "repo" in answer ? answer : { ...answer, repo: name };
+  return { ...result, content: [...result.content, { type: "text", text: defaultLine(name) }], ...(structured === undefined ? {} : { structuredContent: structured }) };
+}
+
+const isDefaultRead = async (source: RepoSource, where: Where): Promise<boolean> => where.sessionId === undefined && where.repo === undefined && (await source.isOneOfMany());
+
 export function reading(source: RepoSource, where: Where, body: (repo: Repo) => Promise<CallToolResult>): Promise<CallToolResult> {
-  return attempt(async () => body(await source.forRead(where)));
+  return attempt(async () => {
+    const repo = await source.forRead(where);
+    const result = await body(repo);
+    return (await isDefaultRead(source, where)) ? namingTheDefault(result, repo.name) : result;
+  });
 }

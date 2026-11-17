@@ -10,7 +10,7 @@ import { serving, sessionOn } from "./support/calling.ts";
 
 const unused = (): Promise<never> => Promise.reject(new Error("the outcome reads no repository"));
 
-const source: RepoSource = { instructions: "", forSession: unused, forWorktree: unused, forRead: unused, listed: unused };
+const source: RepoSource = { instructions: "", forSession: unused, forWorktree: unused, forRead: unused, isOneOfMany: unused, listed: unused };
 
 const called = (args: Record<string, unknown>, result: CallToolResult): Called => ({ tool: "task_plan", args, result, source });
 
