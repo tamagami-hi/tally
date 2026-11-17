@@ -9,7 +9,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
-import { keptFile } from "./kept-file.ts";
+import { keptFile, missingFile } from "./kept-file.ts";
 
 export const MOST_REVIEWER = 120;
 export const MOST_REVIEW_SUMMARY = 1000;
@@ -104,7 +104,8 @@ async function shortCommit(session: Session, commit: string): Promise<string> {
 async function reportOf(repo: Repo, session: Session, report: string | undefined): Promise<KeptFile | undefined> {
   if (report === undefined) return undefined;
   const outside = (given: string): string => `the report must be inside the session's worktree or the repository's ${SCRATCH}/: ${given}`;
-  return (await keptFile(report, { base: session.worktree, folders: [session.worktree, join(repo.root, SCRATCH)], outside, missing: (path) => `the report does not exist: ${path}` })).file;
+  const scratch = join(repo.root, SCRATCH);
+  return (await keptFile(report, { base: session.worktree, folders: [session.worktree, scratch], outside, missing: missingFile("the report", session.worktree, scratch) })).file;
 }
 
 const told = (review: Review): string => `${review.id}: ${review.milestone} '${review.task}' ${review.verdict}${review.blocking === 0 ? "" : `, ${review.blocking} blocking`}`;

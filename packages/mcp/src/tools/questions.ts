@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { MOST_EDIT_WHY, MOST_QUESTION_TEXT, addQuestion, editQuestion, isOperator, questionId, readQuestions, rowOf, type Question } from "@tally/core";
 import { LIMIT, latest } from "../filters.ts";
+import { limitedText } from "../limited.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
-const text = z.string().min(1).max(MOST_QUESTION_TEXT);
+const text = limitedText(MOST_QUESTION_TEXT, 1);
 
 function shown<T extends Question>(row: T, history: boolean): Omit<T, "edits"> & { id: string; edited?: number; edits?: Question["edits"] } {
   const { edits, ...rest } = row;
@@ -39,7 +40,7 @@ export function registerQuestionTools(server: ToolHost, source: RepoSource): voi
     "question_edit",
     {
       description: "Edit an open question or its meanwhile (an operator session, or the agent that asked it), saying why. The question keeps what it said before in `edits`, oldest first. An answered question is refused: ask a new one that names it.",
-      inputSchema: { sessionId: z.string(), id: z.union([z.string(), z.number().int().positive()]), question: text.optional(), meanwhile: text.optional(), why: z.string().min(1).max(MOST_EDIT_WHY) },
+      inputSchema: { sessionId: z.string(), id: z.union([z.string(), z.number().int().positive()]), question: text.optional(), meanwhile: text.optional(), why: limitedText(MOST_EDIT_WHY, 1) },
     },
     ({ sessionId, id, question, meanwhile, why }) => inSession(source, sessionId, async (repo, session) => ok(await editQuestion(repo, { agent: session.agent, track: session.track, operator: isOperator(repo, session) }, { id, question, meanwhile, why }))),
   );

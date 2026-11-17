@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MOST_REVIEWER, MOST_REVIEW_SUMMARY, Records, TallyError, needingReview, reviewSchema, readReviews, recordReview, reviewStateOf, reviewVerdicts, type Needing, type Review, type ReviewState } from "@tally/core";
 import { FIELDS, pick } from "../filters.ts";
+import { keyRefusal, limitedText } from "../limited.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -28,8 +29,8 @@ export function registerReviewTools(server: ToolHost, source: RepoSource): void 
     {
       description: "Record a review of a task's work: the commit the reviewer read, who reviewed (not the builder), the verdict (land: nothing blocks; fix: land once the blocking findings are fixed; stop: not as built; waived: needs none, an operator session's) and how many findings block. Answers the review and the task's state after it (none, open or clear); a refusal says what each verdict takes.",
       inputSchema: {
-        sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), reviewer: z.string().min(1).max(MOST_REVIEWER), verdict: z.enum(reviewVerdicts),
-        blocking: z.number().int().min(0).max(MOST_BLOCKING), findings: z.record(z.string().min(1).max(MOST_FINDING_NAME), z.number().int().nonnegative()).optional(), summary: z.string().min(1).max(MOST_REVIEW_SUMMARY), follows: z.string().optional(), report: z.string().optional(),
+        sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), reviewer: limitedText(MOST_REVIEWER, 1), verdict: z.enum(reviewVerdicts),
+        blocking: z.number().int().min(0).max(MOST_BLOCKING), findings: z.record(limitedText(MOST_FINDING_NAME, 1, "a finding's name"), z.number().int().nonnegative(), { error: keyRefusal }).optional(), summary: limitedText(MOST_REVIEW_SUMMARY, 1), follows: z.string().optional(), report: z.string().optional(),
       },
     },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await recordReview(repo, session, input))),

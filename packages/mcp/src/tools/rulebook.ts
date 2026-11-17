@@ -2,6 +2,7 @@ import { z } from "zod";
 import { MAX_LISTED, MAX_SOURCE, MAX_TEXT, MAX_TITLE, RULE_SECTIONS, adoptRulebook, readRulebook, tailorRule } from "@tally/core";
 import { defined } from "../defined.ts";
 import { keeping } from "../entry-fields.ts";
+import { limitedText } from "../limited.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -39,9 +40,9 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
       inputSchema: {
         sessionId: z.string(),
         id: z.string().describe("the rule's id, for example rule-9"),
-        source: z.string().min(1).max(MAX_SOURCE).describe(`whose word and when, or a decision's id, in one line, such as "the operator, 2026-11-14" or DEC-12`),
-        title: z.string().max(MAX_TITLE).optional().describe(`the new title, at most ${MAX_TITLE} characters; the old one when left out`),
-        text: z.string().max(MAX_TEXT).optional().describe(`the new text, at most ${MAX_TEXT.toLocaleString("en-US")} characters; the old one when left out`),
+        source: limitedText(MAX_SOURCE, 1).describe(`whose word and when, or a decision's id, in one line, such as "the operator, 2026-11-14" or DEC-12`),
+        title: limitedText(MAX_TITLE).optional().describe(`the new title, at most ${MAX_TITLE} characters; the old one when left out`),
+        text: limitedText(MAX_TEXT).optional().describe(`the new text, at most ${MAX_TEXT.toLocaleString("en-US")} characters; the old one when left out`),
         section: z.enum(RULE_SECTIONS).optional().describe("the old rule's when left out, and needed when it had none"),
         paths: z.array(z.string()).max(MAX_LISTED).optional().describe("files, folders or globs from the repository's root; the old rule's when left out"),
         tags: z.array(z.string()).max(MAX_LISTED).optional().describe("words to find it by; the old rule's when left out"),

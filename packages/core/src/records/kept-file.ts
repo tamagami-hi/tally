@@ -8,7 +8,14 @@ export interface Allowed {
   base: string;
   folders: readonly string[];
   outside: (given: string) => string;
-  missing: (path: string) => string;
+  missing: (path: string, given: string) => string;
+}
+
+export function missingFile(what: string, base: string, elsewhere: string): (path: string, given: string) => string {
+  return (path, given) => {
+    const said = `${what} does not exist: ${path}`;
+    return isAbsolute(given) ? said : `${said}; a relative path is read against the session's worktree, ${base}; an absolute path under ${elsewhere} is accepted too`;
+  };
 }
 
 const within = (folder: string, path: string): boolean => !relative(folder, path).startsWith("..");
@@ -20,7 +27,7 @@ export async function keptFile(given: string, allowed: Allowed): Promise<{ file:
   try {
     content = await readFile(absolute);
   } catch {
-    throw new TallyError(allowed.missing(absolute));
+    throw new TallyError(allowed.missing(absolute, given));
   }
   const real = await realpath(absolute);
   const folders = await Promise.all(allowed.folders.map((folder) => realpath(folder).catch(() => folder)));

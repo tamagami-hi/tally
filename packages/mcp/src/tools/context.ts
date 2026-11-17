@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ENTRY_KINDS, MAX_LISTED, MAX_SOURCE, MAX_TEXT, MAX_TITLE, RULE_SECTIONS, configureRepo, findEntries, putEntry, readActivity, retireEntry, setProject } from "@tally/core";
 import { defined } from "../defined.ts";
 import { keeping } from "../entry-fields.ts";
+import { limitedText } from "../limited.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -45,7 +46,7 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
         refs: z.array(z.string()).optional().describe("other records this one rests on: a decision, a question, a task, another entry"),
         replaces: z.string().optional().describe("the id of the entry this one takes the place of"),
         section: z.enum(RULE_SECTIONS).optional().describe("a rule's section, needed unless it replaces one that has it"),
-        source: z.string().max(MAX_SOURCE).optional().describe("a rule's only, and needed: whose word and when, or a decision's id"),
+        source: limitedText(MAX_SOURCE).optional().describe("a rule's only, and needed: whose word and when, or a decision's id"),
       },
     },
     ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await putEntry(repo, session, defined(input)))),

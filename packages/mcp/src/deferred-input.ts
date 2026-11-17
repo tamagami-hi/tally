@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { MOST_OWNER, MOST_PARKED_WHY } from "@tally/core";
+import { limitedText } from "./limited.ts";
 
-const why = z.string().min(1).max(MOST_PARKED_WHY);
-const owner = z.string().min(1).max(MOST_OWNER);
+const why = limitedText(MOST_PARKED_WHY, 1);
+const owner = limitedText(MOST_OWNER, 1);
 
 export const parkedInput = z.strictObject({
   why: why.describe("why it is left on purpose, in a line"),

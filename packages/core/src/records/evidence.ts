@@ -10,7 +10,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { assertMayWrite, type Session } from "../state/sessions.ts";
 import { commitRecords } from "./commit.ts";
-import { keptFile } from "./kept-file.ts";
+import { keptFile, missingFile } from "./kept-file.ts";
 import { safeName } from "./handoffs.ts";
 import { summarize } from "./totals.ts";
 
@@ -74,7 +74,8 @@ const LOGS = ".temp/tally/logs";
 
 async function hashLog(repo: Repo, session: Session, logPath: string): Promise<{ log: RunRecord["log"]; text: string }> {
   const outside = (given: string): string => `the log must be inside the session's worktree: ${given}`;
-  const { file, content } = await keptFile(logPath, { base: session.worktree, folders: [session.worktree, join(repo.root, LOGS)], outside, missing: (path) => `the log does not exist: ${path}` });
+  const logs = join(repo.root, LOGS);
+  const { file, content } = await keptFile(logPath, { base: session.worktree, folders: [session.worktree, logs], outside, missing: missingFile("the log", session.worktree, logs) });
   return { log: file, text: content.toString("utf8") };
 }
 
