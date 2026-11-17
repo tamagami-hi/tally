@@ -157,6 +157,8 @@ export interface EvidenceRecord {
   log?: { path: string; sha256: string; bytes: number };
   summary?: Record<string, number | string | boolean>;
   note?: string;
+  head?: string;
+  dirty?: boolean;
 }
 
 export interface EvidenceIndex {

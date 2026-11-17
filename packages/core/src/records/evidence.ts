@@ -30,6 +30,8 @@ export const runRecordSchema = z.object({
   log: z.object({ path: z.string(), sha256: z.string().length(64), bytes: z.number().int().nonnegative() }).optional(),
   summary: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).optional(),
   note: z.string().optional(),
+  head: z.string().optional(),
+  dirty: z.boolean().optional(),
 });
 
 export const evidenceFileSchema = z.object({
@@ -64,6 +66,8 @@ export interface EvidenceInput {
   logPath?: string;
   summary?: Record<string, number | string | boolean>;
   note?: string;
+  head?: string;
+  dirty?: boolean;
 }
 
 const LOGS = ".temp/tally/logs";
@@ -131,6 +135,8 @@ function composeRecord(session: Session, track: string, input: EvidenceInput, lo
     ...(log === undefined ? {} : { log }),
     ...(input.summary === undefined ? {} : { summary: input.summary }),
     ...(input.note === undefined ? {} : { note: input.note }),
+    ...(input.head === undefined ? {} : { head: input.head }),
+    ...(input.dirty === undefined ? {} : { dirty: input.dirty }),
   };
 }
 

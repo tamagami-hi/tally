@@ -34,6 +34,18 @@ describe("formatting evidence", () => {
 });
 
 describe("the evidence page", () => {
+  test("shows the head a run ran on, shortened, and says when the worktree had uncommitted changes", () => {
+    const ran = { id: "d".repeat(32), task: "data 7 head", track: "data", agent: "runner", kind: "green", command: ["true"], cwd: "/w/data/crates/core", started: "2026-11-17T09:00:00.000Z", seconds: 1, exit: 0 };
+    render(<Evidence index={{ milestones: [{ milestone: "B5", records: [{ ...ran, head: "0a1b2c3d4e5f60718293", dirty: true }, { ...ran, id: "e".repeat(32), head: "9f8e7d6c5b4a39281706", dirty: false }, { ...ran, id: "f".repeat(32) }] }] }} />);
+
+    const runs = screen.getAllByRole("listitem").filter((li) => li.classList.contains("run"));
+
+    expect(runs[0]).toHaveTextContent("head 0a1b2c3, with uncommitted changes");
+    expect(runs[1]).toHaveTextContent("head 9f8e7d6");
+    expect(runs[1]).not.toHaveTextContent("uncommitted");
+    expect(runs[2]).not.toHaveTextContent("head");
+  });
+
   test("says when nothing is recorded yet, and while loading", () => {
     render(<Evidence index={{ milestones: [] }} />);
     expect(screen.getByText(/No evidence records yet/)).toBeInTheDocument();

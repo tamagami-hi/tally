@@ -58,3 +58,19 @@ describe("listing run records", () => {
     expect(missing.text).toContain("B2");
   });
 });
+
+describe("a run record's head and dirty", () => {
+  test("are answered with the record, and fields keeps them", async () => {
+    const { repo, trees } = await makeTracked();
+    const { call } = await connect(repo);
+    const data = await opened(call, trees["data"]!, "claude");
+    await writeFile(join(trees["data"]!, "new.rs"), "fn main() {}\n");
+    const ran = await call("evidence_run", { sessionId: data, milestone: "B2", task: "4 manifest", kind: "green", command: ["true"] });
+    const head = (ran.structured["record"] as { head?: string }).head;
+
+    const listed = await call("evidence_list", { milestone: "B2", fields: ["head", "dirty"] });
+
+    expect(head).toMatch(/^[0-9a-f]{40}$/);
+    expect(listed.structured["records"]).toEqual([{ head, dirty: true }]);
+  });
+});

@@ -11,6 +11,7 @@ import { runnerLine } from "../land/runner.ts";
 import { isUnstarted, keepRun, writableTrack, type EvidenceKind, type Kept } from "./evidence.ts";
 import { safeName } from "./handoffs.ts";
 import { summarize } from "./totals.ts";
+import { treeState } from "./tree-state.ts";
 
 export interface RunInput {
   milestone: string;
@@ -52,6 +53,7 @@ export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, 
   const stamp = now.toISOString().replaceAll(/[:.]/g, "-");
   const logPath = join(folder, `${stamp}-${input.kind}-${safeName(input.task)}.log`);
   const env = await landingEnvironment(repo, session.worktree, session.track);
+  const ranOn = await treeState(session.worktree, session.track);
   const started = Date.now();
   const { exit, text } = await new Promise<{ exit: number; text: string }>((done, fail) => {
     const chunks: string[] = [];
@@ -79,6 +81,7 @@ export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, 
     logPath,
     ...(summary === undefined ? {} : { summary }),
     ...(input.note === undefined ? {} : { note: input.note }),
+    ...ranOn,
   });
   return { ...told(session, input, kept, text), logPath };
 }

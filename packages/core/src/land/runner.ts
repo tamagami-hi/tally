@@ -6,7 +6,12 @@ import type { Repo } from "../store/records.ts";
 export const RUNNER = ".temp/tally/run";
 export const RESULTS = ".temp/tally/results";
 export const LOGS = ".temp/tally/logs";
-export const RESULT_FIELDS = ["kind", "task", "note", "head", "cwd", "started", "seconds", "exit", "log", "argv"] as const;
+export const RESULT_FIELDS = ["kind", "task", "note", "head", "dirty", "cwd", "started", "seconds", "exit", "log", "argv"] as const;
+export const STATUS_WORDS = ["--no-optional-locks", "status", "--porcelain"] as const;
+
+export const keptByTally = (track: string): string[] => [".temp/tally", `.temp/${track}/tally`, `.temp/${track}/landing`];
+
+export const changesPathspec = (track: string): string[] => ["--", ".", ...keptByTally(track).map((path) => `:(exclude)${path}`)];
 
 const VARIABLE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const USAGE = "usage: .temp/tally/run <kind> [--task MILESTONE:TASK] [--note TEXT] -- <command...>";
@@ -50,6 +55,7 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     "  esac",
     "done",
     'if [ "$#" -lt 1 ]; then echo "$usage" >&2; exit 2; fi',
+    'cwd="$(pwd -P)"',
     'id="$(date -u +%Y%m%dT%H%M%SZ)-$$"',
     `logs="$root/${LOGS}/$track"`,
     `results="$tree/${RESULTS}"`,
@@ -59,6 +65,8 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     "printf '%s\\0' \"$@\" > \"$out/argv\"",
     ...environmentLines(repo, worktree, track),
     'head="$(git -C "$tree" rev-parse HEAD 2>/dev/null || true)"',
+    "dirty=''",
+    `if [ -n "$head" ] && changes="$(git -C "$tree" ${[...STATUS_WORDS, ...changesPathspec(track)].map(quoted).join(" ")} 2>/dev/null)"; then if [ -n "$changes" ]; then dirty=true; else dirty=false; fi; fi`,
     'started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"',
     'began="$(date +%s)"',
     '{ "$@"; echo "$?" > "$out/exit"; } 2>&1 | tee "$log"',
@@ -74,7 +82,8 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     'printf \'%s\\n\' "$task" > "$out/task"',
     'printf \'%s\\n\' "$note" > "$out/note"',
     'printf \'%s\\n\' "$head" > "$out/head"',
-    'printf \'%s\\n\' "$tree" > "$out/cwd"',
+    'printf \'%s\\n\' "$dirty" > "$out/dirty"',
+    'printf \'%s\\n\' "$cwd" > "$out/cwd"',
     'printf \'%s\\n\' "$started" > "$out/started"',
     'printf \'%s\\n\' "$(( $(date +%s) - began ))" > "$out/seconds"',
     'printf \'%s\\n\' "$log" > "$out/log"',

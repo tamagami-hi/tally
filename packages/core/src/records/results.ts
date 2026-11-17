@@ -57,6 +57,13 @@ async function field(folder: string, name: string): Promise<string> {
   }
 }
 
+async function ranOn(folder: string): Promise<{ head?: string; dirty?: boolean }> {
+  const head = await field(folder, "head").catch(() => "");
+  if (head === "") return {};
+  const dirty = await field(folder, "dirty").catch(() => "");
+  return dirty === "true" || dirty === "false" ? { head, dirty: dirty === "true" } : { head };
+}
+
 const openAt = (place: Place, sessions: readonly Session[]): Session | undefined => sessions.filter((session) => session.worktree === place.worktree).at(-1);
 
 function runnerAt(place: Place, now: Date): Session {
@@ -96,6 +103,7 @@ async function record(repo: Repo, session: Session, folder: string): Promise<Pic
     exit: Number(await field(folder, "exit")),
     logPath: await field(folder, "log"),
     ...(note === "" ? {} : { note }),
+    ...(await ranOn(folder)),
   });
   return { record: kept.record, ...(kept.notice === undefined ? {} : { notice: kept.notice }) };
 }

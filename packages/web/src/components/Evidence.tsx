@@ -6,6 +6,14 @@ import { here } from "../place.ts";
 
 const basename = (path: string): string => path.split("/").at(-1) ?? path;
 
+const SHORT_HEAD = 7;
+
+function ranOn(record: EvidenceRecord): string | null {
+  if (record.head === undefined) return null;
+  const head = `head ${record.head.slice(0, SHORT_HEAD)}`;
+  return record.dirty === true ? `${head}, with uncommitted changes` : head;
+}
+
 function LogView({ record }: { record: EvidenceRecord }) {
   const [text, setText] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState<string | undefined>(undefined);
@@ -34,6 +42,7 @@ function LogView({ record }: { record: EvidenceRecord }) {
 
 function Run({ record }: { record: EvidenceRecord }) {
   const command = record.command.join(" ");
+  const head = ranOn(record);
   return (
     <li className={`run ${kindTone(record.kind)}`}>
       <span className={`chip chip-${kindTone(record.kind)}`}>{record.kind}</span>
@@ -43,6 +52,7 @@ function Run({ record }: { record: EvidenceRecord }) {
       <span className="cmd truncate mono" title={command}>{command}</span>
       <span className="meta small">
         {record.summary === undefined ? null : <span>{summaryText(record.summary)}</span>}
+        {head === null ? null : <span className="mono" title={record.cwd}>{head}</span>}
         <LogView record={record} />
       </span>
     </li>
