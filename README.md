@@ -8,11 +8,14 @@ The tracking harness for parallel agent builds: a ledger of milestones and tasks
 
 ```bash
 npm install
-npm run build          # tsc -b: packages/*/dist
+npm run build          # the web build, tsc -b (packages/*/dist), then the build stamp
 npm test               # vitest
 npm run coverage
 node packages/cli/dist/main.js --help
+node packages/cli/dist/main.js version   # the source's version and the build's; exit 1 when the build is older
 ```
+
+`npm run build` ends by writing `packages/cli/dist/build.json`, the version the build was made at. A command run from a build whose stamp names another version than its source, or that has none, says so in one line on the error stream and otherwise does what it would have done.
 
 A tracked repository gets `docs/records/config.json` and `docs/records/ledger.json` from `tally init`; every other command finds them above the current folder or through `--repo`.
 
@@ -95,7 +98,7 @@ Then run an MCP evaluation harness over stdio against `node packages/cli/dist/ma
 | `packages/core/src/views` | the standing block CLAUDE.md carries between its markers |
 | `packages/server/src` | Hono: the API, the event stream, the git watcher, the commit graph layout, static serving of the web build |
 | `packages/web/src` | Vite + React, hand-written CSS: the board (`Shell`, `Header`, `Stats`, `Board` of open work, `Tracks`, `Graph`, `Done` with `DonePhases` and `DoneSessions`, `Evidence` with its logs, `Docs` with its reader), what the board shows (`open.ts`), the fork lanes (`lanes.ts`), the branch colours and ranks (`branches.ts`), the live hooks, the two layouts in `styles.css` and Done's in `done.css` |
-| `packages/cli/src` | `tally`: argument parsing, one file per command, and the activity event a decision or question write leaves |
+| `packages/cli/src` | `tally`: argument parsing, one file per command, the activity event a decision or question write leaves, and the build stamp that `tally version` and the stale-build warning read |
 | `packages/*/tests` | Vitest, mirroring `src`; temp git repositories as fixtures |
 | `examples/` | a config per tracked repository |
 

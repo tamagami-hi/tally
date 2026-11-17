@@ -64,10 +64,10 @@ Any client that speaks streamable HTTP can use the `/mcp` URL instead. One serve
 | --- | --- |
 | take the task, so the board shows it | `task_claim` |
 | write the failing test, run it | `evidence_run` with kind `red` (the command runs in your worktree with the landing environment; the log is kept under `.temp/<track>/tally/`, its hash in the record). A red must show a failed test: one that exits 0, or exits non-zero with no failed test, such as a compile or usage error, is recorded as `other` with a note saying why, and the result's `notice` says so. The failed count is read from cargo's, vitest's and pytest's output; for another runner, use `evidence_record` with `summary.failed` |
-| make it pass, lint, format | `evidence_run` with `green`, `clippy`, `fmt` (or `evidence_record` for a run you made yourself); a command that ran always answers with what ran, and `recorded: false` with `problem` says the record could not be written, the log being kept all the same |
+| make it pass, lint, format | `evidence_run` with `green`, `clippy`, `fmt` (or `evidence_record` for a run you made yourself); a command that ran always answers with what ran, and `recorded: false` with `problem` says the record could not be written, the log being kept all the same. A green must have exited 0: one that did not is recorded as `other`, with the notice "recorded as other, not green: it exited 1", by every path a run is recorded by (`evidence_run`, `evidence_record`, the runner and `tally import evidence`). A run already recorded is not rewritten |
 | land it on main | `land_run` with the explicit files and the commit message file: rebase, the configured tests, a commit as the operator, a fast-forward; refused when the checkout is dirty, the branch is wrong, files are staged that you did not name, or main moved under you. With `commands.landing` in the config the commit comes first and every commit ahead of main is tested in a clean checkout (section 7); the result's `log` holds their output, and a failure names the commit and that log. With `milestone` and `task` it records that task at the hash it made, the landing's earlier commits in `also`, and releases the claim, an unplanned task being added as `task_land` adds it (from the shell, `tally land <track> --message F --milestone M --task T <paths...>`). A landing that succeeds but cannot record says so with the commit, and is still a landing |
 | record a landing made without them | `task_land` or `tally task land` with the commit (and `also` for follow-ups); the claim is released, whoever holds it, since a landed task cannot be worked |
-| leave what the next session cannot find in the commits | `handoff_write` (at most 60 lines) |
+| leave what the next session cannot find in the commits | `handoff_write` (at most 60 lines); `handoff_read` with `history: 0` reads the current note alone, and `earlier` counts the notes it left out (10.4) |
 | wait on something | `task_wait`, cleared by `task_unwait` (`tally task unwait <milestone> <task>`); a commit that is no task's: `task_other` |
 | drop a task that will not be done | `task_remove` with `why` (`tally task remove <milestone> <task> --why REASON`): for a task planned by mistake, split into others, or dropped. A landed task stays, since it is the record of its commit. It is refused while another session holds the task or a landing in the queue is to record it. The task's run records stay in the milestone's evidence, the tracks whose tasks wait on it are told, and the message says what the removal leaves behind |
 | check | `ledger_check` must say the ledger covers every commit on main |
@@ -80,7 +80,7 @@ A records commit that cannot take the landing lock fails nothing: the change is 
 
 | step | tool |
 | --- | --- |
-| index the run records a track kept on its own | `tally import evidence <dir> --milestone M --task T [--kind K] [--flat]`: each `*.json` of the shape `{command, cwd, started, seconds, exit}` becomes a record of that task, its kind read from the file name (red, green, clippy, fmt, land, coverage, sweep) unless `--kind` says, its sibling `.log` hashed and left in place, a `red` with no failed test indexed as `other`; a second run indexes nothing twice |
+| index the run records a track kept on its own | `tally import evidence <dir> --milestone M --task T [--kind K] [--flat]`: each `*.json` of the shape `{command, cwd, started, seconds, exit}` becomes a record of that task, its kind read from the file name (red, green, clippy, fmt, land, coverage, sweep) unless `--kind` says, its sibling `.log` hashed and left in place, a `red` with no failed test, or a `green` that did not exit 0, indexed as `other`; a second run indexes nothing twice |
 | the code as last verified | `tally checks set --file <record.json>` (the MCP tool `checks_set`), refused unless the record's fingerprint is what `tally checks fingerprint` prints for main (`git log -1 --format=%h <main> -- <the config's code paths>`); `checks get` is the record and `checks render` the Markdown a reader expects |
 | the build log's dated section | `tally buildlog append --group G --milestone M --title "T" --date YYYY-MM-DD --file body.md [--commit C]...` (`buildlog_append`), one section per milestone and group; `tally buildlog render --group G` (`buildlog_render`) is the group's log as Markdown |
 | a decision built | `tally decision setStatus <id> --group G --status "built in M (<commit>)" [--state built] [--by WHO]`; adding or replacing a decision is the operator's alone: `tally decision add\|replace <id> --group G --text "..." --since "..." --status "..." [--why "..."] --operator` |
@@ -148,7 +148,7 @@ Sections 1 to 9 describe one server for one repository, started with `--repo`. T
 - `brief`, in a repository that keeps its context as records (10.8): the project, every rule, your track's unlanded tasks and its hand-off, the context entries that apply to your track's paths, who else is working, how many questions are open, and what the repository's context still lacks. Ask for less with `brief: "work"` or `brief: "land"` (10.14).
 - `server`: the service's `version`, how many `tools` it has, and `newest`, the tools of its two latest versions. A client reads the tool list once, when it connects. If a tool named in `newest` is not in your list, your client connected before the service was upgraded: reconnect it. `repo_list` answers the same.
 
-`repo_list` lists the repositories the service tracks. A reading tool called with neither a `sessionId` nor a `repo` goes to the default repository: the first one added, unless the operator picked another.
+`repo_list` lists the repositories the service tracks. A reading tool called with neither a `sessionId` nor a `repo` goes to the default repository: the first one added, unless the operator picked another. While more than one repository is listed, such an answer names the one it read: `repo` in the structured answer, and a last line saying it read the default and that `repo` names another. With one repository listed, or with a session or a `repo`, the answer is as before.
 
 ### 10.2 Run a check
 
@@ -160,10 +160,19 @@ The service has git and no toolchain, so you run every command yourself, in your
 
 - The first word is the kind of run: `red`, `green`, `clippy`, `fmt`, or any other lowercase word.
 - `--task MILESTONE:TASK` ties the run to a task, and `--note TEXT` adds a note.
-- The command runs with the repository's configured environment. Its output is shown live and kept in a log under the repository's `.temp/tally/logs/<track>/`.
+- The command runs with the repository's configured environment, in the folder you called the script from. Its output is shown live and kept in a log under the repository's `.temp/tally/logs/<track>/`.
 - The script exits with the command's exit code.
 
-Within two seconds the service takes the result in as a run record with the log's hash, and your next tool answer says so under `inbox`. A result it can't accept is set aside under `results/refused/`, and tally leaves your track a note saying which run, why, and where the result is kept. `evidence_list` reads the records as before.
+Within two seconds the service takes the result in as a run record with the log's hash, and your next tool answer says so under `inbox`.
+
+**What a run record says it ran on.** A run made through the runner, or by `evidence_run` on the host, records:
+- `cwd`: the folder the command ran in. From the runner that is the folder you called it from, which may be below the worktree's root, so a record can be replayed as it was run.
+- `head`: the commit the worktree was at when the run began.
+- `dirty`: whether the worktree held uncommitted changes then (a changed tracked file, or a file git neither tracks nor ignores). What tally keeps in the worktree (`.temp/tally/`, and `.temp/<track>/tally/` and `.temp/<track>/landing/`) does not count. It is read with `git status --no-optional-locks`, which writes nothing into the repository.
+
+A run recorded with `evidence_record` has neither `head` nor `dirty`, and a record made before 0.6.0 has neither. `evidence_list` answers them with the record, and the Evidence page shows the head, shortened, and "with uncommitted changes" when there were. Commit first and run after, and a reader can tell what was tested.
+
+**A result it can't accept** is set aside under `results/refused/`, and tally leaves your track a note saying which run, why, and that the result is kept there and tried again when the ledger changes. It is not lost: each time the ledger changes (a task planned, moved or removed), the service records it again by the same path as a fresh one, at most 20 to a worktree in one pass. A result refused because its task was on another track is recorded once the task is planned on yours, with nothing to move by hand. Recorded, it moves to `results/taken/`; refused again, it waits for the next change, and your track is told again only when the reason is a new one. `evidence_list` reads the records as before.
 
 **The service runs no project command.** Its image has node, git and a shell, and sets `TALLY_COMMANDS=agent`. There, `evidence_run` checks that you may record for the task, runs nothing, records nothing, and answers `ran: false` with `run`, the exact line to run instead:
 
@@ -207,6 +216,7 @@ git status -- . ':(exclude)docs/records'
 ### 10.4 What the other tracks are doing
 
 - **Overlaps.** The answers of `session_open`, `task_claim` and `land_start` carry `overlaps` when another track has changed a file yours also changes: the file, the track and who is on it.
+- **Hand-offs.** `handoff_read({ track, history? })` answers the track's current note and its earlier ones, oldest first. They can be long: with `history: 0` it answers the current note alone, and `earlier` counts the notes left out; `history: 2` adds the two latest earlier ones. Ask for `history: 0` unless you need to see how the hand-off changed. Left out, the answer is as before.
 - **Notes.** `note_post({ sessionId, to, kind, text, paths?, task? })` leaves a note of at most 600 characters for `"all"` or for the tracks named. The kinds are `heads-up`, `request`, `answer` and `finding`. `note_reply` answers one, `note_done` closes it, and `note_list` lists them.
 - **The inbox.** Every tool answer carries, under `inbox`, what is new for your session since its last call:
   - notes and replies, among them the note a landing leaves when it clears a wait of yours
@@ -223,7 +233,9 @@ git status -- . ':(exclude)docs/records'
 
 A track is a branch and a worktree. The config names the standing ones, and an agent opens the rest.
 
-- **`track_open({ sessionId, name, purpose, parent?, paths? })`** makes the branch `track/<name>` at `main`'s tip and a worktree for it under the repository's `.temp/worktrees/` (or the config's `worktreeRoot`), and writes the runner there. The answer carries the absolute `worktree`: start the helper in that folder and have it call `session_open` with it.
+- **`track_open({ sessionId, name, purpose, parent?, paths?, plan? })`** makes the branch `track/<name>` at `main`'s tip and a worktree for it under the repository's `.temp/worktrees/` (or the config's `worktreeRoot`), and writes the runner there. The answer carries the absolute `worktree`: start the helper in that folder and have it call `session_open` with it.
+  - **A lane's tasks** are planned in the same call with `plan: { milestone, tasks }`, `tasks` as `task_plan` takes them. They go on the new track, so the lane's session can claim them and its runner's results are recorded; the answer's `planned` is the sentence `task_plan` would answer. What can be refused (a milestone that does not exist, is built or is in a closed phase, a task covering what the milestone does not deliver) is checked before the branch is made, and then nothing is made. If the plan fails once the track is made, the track stays open and `planProblem` says why; plan the tasks with `task_plan` and `track`. Who may pass `plan` is who may call `task_plan` for that track.
+  - **`task_plan` from an operator session with no `track`** plans the tasks on the main branch's track, as before. While a track opened with `track_open` is open, its answer carries `notice`: the tasks are on main's track, which tracks are open, and that `track` plans them on a lane.
   - An operator session opens any track. A track's session opens only a child of its own track, and may then write that child's tasks, evidence and hand-offs.
   - `paths` limits what the track may land. A child takes its parent's `paths` when it names none, and can't go wider.
 - **Every track lands on `main`** through `land_start`, child or not. Nothing lands into a parent's branch.
@@ -284,7 +296,7 @@ The list tools take filters, so an answer stays small:
 - A longer answer from any tool is cut: its longest list keeps its latest items, `truncated` says which part was shortened and from how many, and a last line names the arguments that narrow that tool.
 - Answers are compact JSON.
 
-**A tool refuses an argument it doesn't have**, by name, so a mistyped argument is never silently ignored. Every tool also carries a title and hints for the client: whether it only reads, whether it removes or overwrites, and whether calling it twice changes anything.
+**A tool refuses an argument it doesn't have**, by name, so a mistyped argument is never silently ignored. A text longer than its parameter's limit is refused naming the parameter, its limit and the length given (`summary holds at most 1000 characters; this one has 1001`), inside the MCP library's own words for an invalid argument (`MCP error -32602: Input validation error: …`). A `report` or a `logPath` that does not exist is refused with the path it was read against: a relative path is read against your worktree, and the refusal names the absolute folder accepted from any session (the repository's `.temp/` for a review's report, its `.temp/tally/logs/` for a log). Every tool also carries a title and hints for the client: whether it only reads, whether it removes or overwrites, and whether calling it twice changes anything.
 
 ### 10.8 Context as records
 
@@ -313,6 +325,8 @@ A repository whose config says `context: "records"` keeps everything a session n
 With `TALLY_URL` set (`export TALLY_URL=http://127.0.0.1:47560`), every `tally` command is carried out by the service, so there is one writer. `tally land` joins the same queue as the agents' landings, runs the turn's script in your shell, and waits for the result. Without `TALLY_URL` the command works on the files itself, which is right only for a repository the service doesn't serve.
 
 `tally repo add PATH [--name NAME]`, `remove NAME`, `default NAME` and `list` manage the list of repositories from a shell. The board's sidebar does the same.
+
+**A build that is older than its source says so.** `npm run build` ends by writing `packages/cli/dist/build.json`, the version it was built at and when. A `tally` command run from a `dist` whose stamp names another version than its `package.json`, or that has no stamp, prints one line on the error stream (the version it was built at, the source's, and that `npm run build` rebuilds it) and then does what it would have done, with the same output and exit code. `tally version` prints the source's version, the build's and when it was built, and, with `TALLY_URL` set, the service's (its `/api/health` answers it); its last line says which differ, and it exits 1 when the build is not the source's version.
 
 ### 10.10 What a build leaves on disk
 

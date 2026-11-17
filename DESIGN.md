@@ -801,3 +801,75 @@ Built from `docs/plans/2026-11-16-1602-third-review-plan.md`, which answers the 
 ### 21.8 The fix round (0.5.1)
 
 The planner's check found one flaw, fixed. The build cut every task's target at its first comma, as the plan said, so in Done's sessions a claimed, landed or reviewed task whose name has a comma showed cut short, and two tasks that differ only after the comma showed as one. Now only an `evidence_record` target is shortened, and only by the kind that ends it, one of the kinds an evidence record can have; a task's name keeps its commas. A target is cut at 120 characters when it is logged, so an evidence event for a task with a name that long can lose its kind, or part of it, and is then taken as it stands, unless what is left happens to end in a kind's word. The version counts the fix: 0.5.1.
+
+## 22. A lane's tasks on the lane, refused results tried again, failed greens, stale builds, the default named, what a run ran on, limits in tally's words, and a shorter hand-off (0.6.0, built 2026-11-17)
+
+Built from `docs/plans/2026-11-17-0919-fourth-review-plan.md`, which answers the fourth review, written by the coordinating agent of the second tracked repository after 16.5 hours of parallel work on 0.5.1. Of its twelve findings, seven became parts A to G, built here. Two are features left to the operator, parts H (a lane that starts from another lane, F4) and I (records committed by age in the `phase` mode, F8), and the planner added part J (a lighter open board), seen on the service; the three are specified in the plan and not built. F12 asks for nothing.
+
+### 22.1 The decisions
+
+1. **Nothing here refuses what works today.** Planning a task on main from an operator session stays allowed, and a call that names no repository still reads the default: the first tracked repository's scripts rely on both. Each gains a sentence that says what happened (`notice`, and the default's name).
+2. **A refused result is tried again by tally, with no new tool,** when the ledger has changed since it was refused. A tool that requeues it would add a step nobody should have to take.
+3. **A green that failed is filed as `other`,** as a red that did not fail already is. Records already written are not rewritten: a run record is written once (rule 6).
+4. **A stale build warns and goes on.** A script that calls the command line must not stop working because a build is old.
+5. **A run records the head it ran on and whether the tree had uncommitted changes,** not the tree's own hash: computing one writes objects into the repository for every run. Attributing a run to a later commit with the same tree is left out with it.
+6. **`handoff_read` keeps its default.** The earlier notes are left out only when the caller asks, as `board_get` does with `rows`.
+7. **The version is 0.6.0:** two tools gain a parameter, a run record gains two fields, and the command line gains a verb.
+
+### 22.2 A lane's tasks reach the lane, and a refused result is not lost (F1)
+
+- **`track_open` takes `plan: { milestone, tasks }`**, `tasks` in `task_plan`'s shape (`openTrackWithPlan`, `core/src/tracks/plan.ts`). Before anything is made, `plan` is run once against the ledger as it is, with the new track's name, and `assertMilestoneOpen` is asked: a milestone that does not exist, is built or is in a closed phase, and a task that covers what the milestone does not deliver, are refused with no branch, worktree or tracks record made. Then the track is opened as before, and the tasks are planned with the reopened repository, so `assertMayWrite` sees the new track: whoever opened it may write it, as `task_plan` would allow. The answer gains `planned`, the sentence `task_plan` answers, and its `commit` is the plan's when there is one. A plan that fails once the track is made leaves the track open, and `planProblem` says why.
+- **`task_plan`** from an operator session with no `track`, while a track opened with `track_open` is open (read from `tracks.json`), answers `notice`: the tasks are on the main branch's track, which tracks are open, and that `track` plans them on one. Nothing is refused.
+- **A refused result is tried again** (`takeResults`, `core/src/records/results.ts`). Each pass reads the ledger's time once, in whole milliseconds. A result under `results/refused/` whose `problem` file is older is claimed as a fresh one is, by renaming it to `<id>.taking`, and recorded by the same path. Recorded, it loses its `problem` and moves to `results/taken/`. Refused again, its `problem` is rewritten and dated with the ledger's time read at the start of that pass, so that it waits for the next change, including one made while it was being judged; the track is told only when the sentence differs from the one it replaces. At most 20 are retried in one pass of one worktree, the oldest first, the rest in the next passes. A retry does not mark the worktree's session as seen. When nothing is refused the cost is one stat of the ledger and one read of an empty or missing folder per worktree; when the ledger has not changed it is one stat per refused result.
+- **The note** about a refused result says it is kept and tried again when the ledger changes. Results refused before this build are retried on the first pass after the ledger changes, and a track is told about one again only when its reason has changed.
+
+### 22.3 A green that failed (F2)
+
+`judgeRed` became `judgeRun`: a `red` is judged as before, and a `green` that did not exit 0 is filed as `other` with the notice "recorded as other, not green: it exited N", kept in the record's note. It holds for `evidence_record`, the runner's results, `evidence_run` and `tally import evidence`, which all go through it. The greens that failed before this build stay as they are.
+
+### 22.4 A build that knows when it is older than its source (F3)
+
+- **The stamp.** `npm run build` ends with `node packages/cli/dist/stamp-build.js`, which writes `packages/cli/dist/build.json`: the version in `packages/cli/package.json` and the time. The script is compiled with the rest of the command line, so the image's build stage, which copies only the package files and `packages/`, writes one too, and the final stage copies it with `dist`.
+- **The warning.** `main.js` hands the arguments to `entry`, which compares the stamp in its own `dist` with its package's version before running the command. A stamp of another version, or none, gives one line on the error stream: the version it was built at, the source's, and that `npm run build` rebuilds it. Standard output and the exit code are the command's own. Run from source (a module whose file ends in `.ts`, as vitest runs it), there is no `dist` and nothing is checked. `tally version` gives no warning, since it reports the same.
+- **`tally version`** is always carried out on the host, even with `TALLY_URL` set. It prints the source's version, the build's and when it was built, and, with `TALLY_URL`, the service's, which `/api/health` now answers beside `ok`. Its last line says which differ, or that they agree; it exits 1 when the build is not the source's version or has no stamp. A service older than 0.6.0 answers its health without a version, and `tally version` says so.
+
+### 22.5 A read of the default repository names it (F5)
+
+`reading()` (`mcp/src/source.ts`), which every read tool goes through, adds the name when the call has neither a `sessionId` nor a `repo` and the source lists more than one repository (`RepoSource.isOneOfMany`): `repo` in the structured answer, unless the answer already has a key of that name, and one more text part, "read from <name>, the default repository; repo names another (repo_list lists them)". No read tool's answer had a top-level `repo` key. A refusal is left as it is. With one repository, a `repo` or a session, the answer is unchanged, byte for byte.
+
+### 22.6 What a run ran on, and where (F6, F7)
+
+- **Where.** The runner records `$(pwd -P)`, the folder it was called from, as `cwd`; it never changes folder, so that is where the command ran. `evidence_run` runs in the worktree and records it, as before.
+- **On what.** A run record gains `head` and `dirty`, both optional. The runner already read the head; it now also runs `git -C <worktree> --no-optional-locks status --porcelain -- . ':(exclude).temp/tally' ':(exclude).temp/<track>/tally' ':(exclude).temp/<track>/landing'` before the command, and writes both into its result. `--no-optional-locks` keeps git from refreshing the index, so nothing is written to the index or the object store. The pathspecs leave out what tally keeps in a worktree, also where `.gitignore` does not ignore `.temp/`; a note of the agent's own under `.temp/<track>/`, where `.temp/` is not ignored, counts as a change. The script stays POSIX `sh`, and is rewritten at each `session_open`, so open lanes get it without being reopened. A result from an older runner has no `dirty`, and its record then has `head` alone.
+- **Both runners.** `evidence_run` reads the same two with the same arguments (`treeState`, `core/src/records/tree-state.ts`). `evidence_record` records neither.
+- **Readers.** `evidence_list` answers them with the record, and `fields` keeps them. The Evidence page shows "head <7 characters>", followed by ", with uncommitted changes" when `dirty` is true; its title is the run's folder.
+- **Stored format.** The schema stays 1 and the fields are optional, so a record without them reads. An older build reads a record with them, but its schema strips keys it does not know: when 0.5.1 appends a run to a milestone's evidence file, or indexes runs into it, it rewrites the file, and every record in that file loses `head` and `dirty`. The records themselves stay. Going back to an older build is therefore not free for these two fields.
+
+### 22.7 A refusal says the limit, or the path (F10, F11)
+
+- **Too long.** The SDK validates a call against the tool's zod input schema before tally's handler runs, and answers a failure with its own prefix ("MCP error -32602: Input validation error: Invalid arguments for tool <tool>: ") followed by each zod issue's message and " at <path>". The message comes from the schema, so that is where tally answers: every text parameter with a limit is built by `limitedText` (`mcp/src/limited.ts`), whose error says "<parameter> holds at most <limit> characters; this one has <length>", in the words core already uses for limits. That covers `question_add` and `question_edit`, `context_put.source`, `rule_tailor`'s source, title and text, `review_record`'s reviewer, summary and finding names, and a deferred part's `why` and `owner` wherever one is taken. A finding's name is a record key, which zod refuses as an invalid key; the record's own error passes on the key's message. The listed schemas are unchanged, each `maxLength` with them, and no description grew. The SDK's prefix and suffix stay: changing them would mean replacing a private method of the SDK's server.
+- **Not found.** `keptFile` takes the path as given; when a report or a log is not found from a relative path, the refusal adds the worktree it was read against and the absolute folder accepted from any session: the repository's `.temp/` for a review's report, and its `.temp/tally/logs/` for a log (an absolute path elsewhere under `.temp/` is not accepted for a log). An absolute path that is not found is refused as before.
+
+### 22.8 A hand-off without its history (F9)
+
+`handoff_read` takes `history`, a whole number of 0 or more: how many of the latest earlier notes to answer, kept oldest first. With it the answer gains `earlier`, the count left out, and `history: 0` answers the current note alone. Left out, the answer is as before. The description says that a session wants `history: 0` unless it reads how the hand-off changed.
+
+### 22.9 The surface
+
+- **MCP tools:** 67 before and after.
+- **Parameters added:** `track_open.plan`, `handoff_read.history`.
+- **Answers that gain a field:** `track_open` (`planned`, `planProblem`), `task_plan` (`notice`), a read of the default repository while several are listed (`repo`), `handoff_read` (`earlier`), `evidence_list` rows (`head`, `dirty`); `/api/health` (`version`).
+- **Stored formats:** a run record gains `head` and `dirty`, both optional; a runner's result gains a `dirty` file.
+- **The command line:** `tally version`, and one warning line on the error stream from a stale build. The first tracked repository's commands are unchanged.
+- **`tools/list`** is held under 77,000 characters by its test. To pay for `plan` and `history`, the nested texts of a planned task (which `task_plan`'s description already explains) were dropped, and parameter texts that repeated their enum's values or their schema's own default and maximum, and a few sentences that repeated a parameter's text, were shortened. It is 76,927 characters on a host and 76,551 in the image (76,991 and 76,589 before).
+
+### 22.10 Left out
+
+- **Parts H, I and J**, for the operator to choose, specified in the plan.
+- **A tree hash on a run record**, and attributing a run to a later commit with the same tree (decision 5).
+- **Rewriting the green records that failed before this build** (decision 3).
+- **An option on the runner to choose the folder:** it records the folder it was called from, which is what a replay needs.
+- **Recovering the events of the decisions written by the older build.**
+- **Fewer operator sessions for bookkeeping** (F12): the review asks for nothing.
+- **Refusing a call that names no repository**, and guessing the repository from the caller's last session: the service keeps no caller between calls.
+- **Answering an invalid argument without the SDK's prefix**, which would mean patching the SDK.
