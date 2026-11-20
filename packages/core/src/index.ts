@@ -26,7 +26,7 @@ export { askOf, cycleState, isCarried } from "./cycles/state.ts";
 export type { CycleState } from "./cycles/state.ts";
 export { closeCycle } from "./cycles/close.ts";
 export { carryOut } from "./cycles/carry.ts";
-export { CLOSE_BUSY, CloseBusy, finishPendingClose } from "./cycles/finish.ts";
+export { CLOSE_BUSY, CloseBusy, CloseUnfinished, finishPendingClose } from "./cycles/finish.ts";
 export { cycleList, cycleOne, isComplete } from "./cycles/list.ts";
 export type { ClosedCycle, CurrentCycle, CycleList, CycleTotals } from "./cycles/list.ts";
 export type { CycleClosed, Parked } from "./cycles/close.ts";

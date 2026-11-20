@@ -58,12 +58,19 @@ export async function finishHeld(repo: Repo, retries: Retries = RETRIES): Promis
   return committed(repo, plan.n, plan.record.summary);
 }
 
-function unfinished(repo: Repo, n: number, error: unknown): TallyError {
-  if (error instanceof LockBusy) return new CloseBusy();
-  const reason = messageOf(error);
-  process.stderr.write(`tally could not finish the close of cycle ${n} in ${repo.name}: ${reason}\n`);
-  return new TallyError(`a cycle close is being finished and could not be finished now: ${reason}; try again, and tell the operator if it fails again`);
+export class CloseUnfinished extends TallyError {
+  readonly cycle: number;
+  readonly reason: string;
+
+  constructor(cycle: number, reason: string) {
+    super(`a cycle close is being finished and could not be finished now: ${reason}; try again, and tell the operator if it fails again`);
+    this.name = "CloseUnfinished";
+    this.cycle = cycle;
+    this.reason = reason;
+  }
 }
+
+const unfinished = (n: number, error: unknown): TallyError => (error instanceof LockBusy ? new CloseBusy() : new CloseUnfinished(n, messageOf(error)));
 
 export async function finishPendingClose(repo: Repo, retries: Retries = QUICK_RETRIES): Promise<string | null | undefined> {
   if (repo.cycle !== undefined) return undefined;
@@ -72,6 +79,6 @@ export async function finishPendingClose(repo: Repo, retries: Retries = QUICK_RE
   try {
     return await withLock(landingLockPath(repo), () => finishHeld(repo, retries), retries);
   } catch (error: unknown) {
-    throw unfinished(repo, n, error);
+    throw unfinished(n, error);
   }
 }

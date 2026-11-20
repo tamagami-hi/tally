@@ -1,6 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { LiveRepo, TallyError, cycleView, finishPendingClose, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
+import { CloseUnfinished, LiveRepo, TallyError, cycleView, finishPendingClose, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
 import { isWriting } from "./calling.ts";
 import { SHARED_TEXT } from "./params.ts";
 import { attempt, jsonText } from "./respond.ts";
@@ -126,6 +126,7 @@ export async function finished(repo: Repo): Promise<Repo> {
   try {
     await finishPendingClose(repo);
   } catch (error: unknown) {
+    if (error instanceof CloseUnfinished) process.stderr.write(`tally could not finish the close of cycle ${error.cycle} in ${repo.name}: ${error.reason}\n`);
     if (isWriting()) throw error;
   }
   return repo;
