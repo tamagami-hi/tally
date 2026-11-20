@@ -3,7 +3,7 @@ import { closeCycle } from "../../src/cycles/close.ts";
 import { plan } from "../../src/ledger/ops.ts";
 import { assertCited, checkedAccept, decisionsToMark, findCited } from "../../src/records/cited.ts";
 import { recordDecision } from "../../src/records/decision-record.ts";
-import { addDecision } from "../../src/records/decisions.ts";
+import { addDecision, setDecisionStatus } from "../../src/records/decisions.ts";
 import { Records } from "../../src/store/records.ts";
 import { AT, cycling } from "../support/cycling.ts";
 import { CLOSE_INPUT } from "../support/pending.ts";
@@ -64,5 +64,14 @@ describe("decisions to mark", () => {
 
     expect(marked).toEqual({ toMark: [{ id: "DEC-1", group: "core", state: "decided, not built", tasks: ["A1:1 read"] }], problems: [] });
     expect(landed).toHaveLength(7);
+  });
+
+  test("leaves out a withdrawn decision, though every task citing it has landed", async () => {
+    const { repo } = await cycling();
+    await addDecision(repo, { id: "DEC-1", group: "core", text: "dropped", since: "2026-11-20", status: "decided, not built" }, { operator: true });
+    await new Records(repo).update((ledger) => ({ ledger: { ...ledger, milestones: ledger.milestones.map((one) => (one.id === "A1" ? { ...one, tasks: one.tasks.map((task) => ({ ...task, cites: ["DEC-1"] })) } : one)) }, message: "cited" }));
+    await setDecisionStatus(repo, { id: "DEC-1", group: "core", status: "withdrawn: not wanted" }, { by: "operator" });
+
+    expect((await decisionsToMark(repo)).toMark).toEqual([]);
   });
 });
