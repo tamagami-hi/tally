@@ -85,14 +85,16 @@ function shortened(list: readonly unknown[], budget: number, fromTheStart: boole
   return fromTheStart ? kept : kept.reverse();
 }
 
+const withNote = (answer: Answer, cuts: readonly Cut[]): number => jsonText(answer).length + (cuts.length === 0 ? 0 : jsonText({ [NOTE_KEY]: cuts.map(({ path, shown, of }) => ({ path, shown, of })) }).length);
+
 function fitted(answer: Answer, room: number, fromTheStart: boolean, keptWhole: readonly string[]): { answer: Answer; cuts: Cut[] } {
   let current = answer;
   let cuts: Cut[] = [];
-  for (let round = 0; round < MOST_CUTS && jsonText(current).length > room; round += 1) {
+  for (let round = 0; round < MOST_CUTS && withNote(current, cuts) > room; round += 1) {
     const largest = largestPart(current, keptWhole);
     if (largest === undefined) break;
     const whole = valueAt(current, largest.path);
-    const budget = Math.max(room - (jsonText(current).length - largest.size), 0);
+    const budget = Math.max(room - (withNote(current, cuts) - largest.size), 0);
     const kept = largest.isList ? shortened(whole as unknown[], budget, fromTheStart) : (whole as string).slice(0, Math.max(budget, CUT_TEXTS_OVER.at(-1) ?? 0));
     const name = largest.path.join(".");
     const of = cuts.find((cut) => cut.path === name)?.of ?? (whole as { length: number }).length;

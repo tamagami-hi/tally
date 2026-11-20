@@ -147,3 +147,17 @@ describe("an answer too large to read", () => {
     expect(await sized({ tool: "board_get", args: {}, params: [], result: refusal, source: oneRepo(repo) })).toBe(refusal);
   });
 });
+
+describe("an answer cut to just under its room", () => {
+  test("is cut further when the note of the cut would not fit beside it, and is never refused as uncuttable", async () => {
+    const line = (n: number) => `${n} `.padEnd(150, "x");
+    const refused: number[] = [];
+
+    for (const count of Array.from({ length: 12 }, (_, n) => 168 + n)) {
+      const { texts } = await cut("decision_list", ["ids"], { decisions: Array.from({ length: count }, (_, n) => line(n)), pad: "y".repeat((count * 13) % 160) });
+      if (texts.some((text) => text.includes("nothing in it could be cut"))) refused.push(count);
+    }
+
+    expect(refused).toEqual([]);
+  });
+});
