@@ -1,6 +1,6 @@
 {
   "name": "@tally/mcp",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
   "exports": {
     ".": {
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.24.0",
-    "@tally/core": "0.6.1",
+    "@tally/core": "0.7.0",
     "zod": "^4.1.0"
   }
 }

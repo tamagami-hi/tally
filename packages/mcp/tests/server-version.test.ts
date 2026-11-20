@@ -13,12 +13,12 @@ const SINCE_0_7 = ["cycle_close", "cycle_list", "milestone_edit", "milestone_rem
 const versionOf = async (path: string): Promise<string> => (JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { version: string }).version;
 
 describe("the server's version", () => {
-  test("is every package's, 0.6.1, and the handshake carries it", async () => {
+  test("is every package's, 0.7.0, and the handshake carries it", async () => {
     const { client } = await connect((await makeTracked()).repo);
 
-    expect(await Promise.all(PACKAGES.map(versionOf))).toEqual(PACKAGES.map(() => "0.6.1"));
-    expect(SERVER_VERSION).toBe("0.6.1");
-    expect(client.getServerVersion()?.version).toBe("0.6.1");
+    expect(await Promise.all(PACKAGES.map(versionOf))).toEqual(PACKAGES.map(() => "0.7.0"));
+    expect(SERVER_VERSION).toBe("0.7.0");
+    expect(client.getServerVersion()?.version).toBe("0.7.0");
   });
 
   test("marks each tool added from 0.2.0 on with the version that added it", () => {
@@ -40,7 +40,7 @@ describe("the server's version", () => {
     const opened = await call("session_open", { worktree: tracked.trees["data"]!, agent: "claude", brief: "land" });
     const listed = await call("repo_list");
 
-    const server = { version: "0.6.1", tools: Object.keys(TOOL_META).length, newest: [...newestTools()] };
+    const server = { version: "0.7.0", tools: Object.keys(TOOL_META).length, newest: [...newestTools()] };
     expect(opened.structured["server"]).toEqual(server);
     expect(listed.structured["server"]).toEqual(server);
   });

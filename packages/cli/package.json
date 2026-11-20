@@ -1,13 +1,13 @@
 {
   "name": "@tally/cli",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
   "bin": {
     "tally": "./dist/main.js"
   },
   "dependencies": {
-    "@tally/core": "0.6.1",
-    "@tally/server": "0.6.1",
-    "@tally/mcp": "0.6.1"
+    "@tally/core": "0.7.0",
+    "@tally/server": "0.7.0",
+    "@tally/mcp": "0.7.0"
   }
 }
