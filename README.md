@@ -13,6 +13,7 @@ npm test               # vitest
 npm run coverage
 node packages/cli/dist/main.js --help
 node packages/cli/dist/main.js version   # the source's version and the build's; exit 1 when the build is older
+node packages/cli/dist/main.js usage     # the tools by calls since counting began, and those never called
 ```
 
 `npm run build` ends by writing `packages/cli/dist/build.json`, the version the build was made at. A command run from a build whose stamp names another version than its source, or that has none, says so in one line on the error stream and otherwise does what it would have done.
@@ -22,6 +23,8 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 ## Run as a service
 
 **Phases 5, 6 and 7 are built** (2026-11-12, [DESIGN.md](DESIGN.md) §14 to §16): one Docker service for every repository, the tools agents need to work in parallel, and context kept as JSON records. The MCP server has 62 tools. [GUIDE.md](GUIDE.md), section 10, is how an agent works through it.
+
+**0.7.0** (2026-11-21, [DESIGN.md](DESIGN.md) §23): a repository's work runs in numbered cycles, closed on the operator's word (`cycle_close`) and read back with `cycle`; milestones and tracks can be edited (`milestone_edit`, `milestone_remove`, `track_edit`); the service watches every listed repository from its start and survives a bad file, a hung git or a lost lock; each repository has its own MCP address, `/r/<name>/mcp`; and tally counts the calls each tool receives (`tally usage`, `/api/usage`). The MCP server has 72 tools, 71 where the service runs no command, and `tools/list` stays under 77,000 characters.
 
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config
@@ -75,7 +78,7 @@ tally views claude --check         # CLAUDE.md's standing block; exit 1 when sta
 
 ## Evaluating the MCP server
 
-`evaluations/tally.xml` holds ten questions an agent should be able to answer with the read-only tools, each with one checked answer. They are asked about a small repository that `evaluations/fixture.py` builds the same way every time:
+`evaluations/tally.xml` holds twelve questions an agent should be able to answer with the read-only tools, each with one checked answer. They are asked about a small repository that `evaluations/fixture.py` builds the same way every time:
 
 ```bash
 python3 evaluations/fixture.py /tmp/lumen

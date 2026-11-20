@@ -881,3 +881,88 @@ The planner's check found one flaw in how the build behaves and two things to co
 - **A refused result that names no task is not tried again.** The runner's `--task` is optional: a result without one is filed under the task the session open in its worktree holds when the result is taken. That is right within seconds of the run, and wrong for a retry days later, when the session may hold another task. A refused result is now tried again only when its `task` field names a task; one with none stays refused until it is run again with `--task`, and its note no longer promises a retry. A recorded retry also loses its `untold` mark. This was a gap in the plan's rule. The version counts the fix: 0.6.1.
 - **A default read's JSON text stays one JSON value.** The build added the sentence about the default repository as a second text part to every default read. A client that joins an answer's text parts and parses them as JSON, as the first tracked repository's script does with the default repository's answers, would no longer parse it. Now an answer whose text is its JSON carries `repo` inside that JSON, and only an answer whose text the tool wrote itself gains the sentence (22.5).
 - **A test fixture's two commit hashes** were replaced with invented ones before the branch reached main.
+
+## 23. Cycles, the verbs the ledger and the tracks lacked, a service that keeps house, a list that stays small, and a count of what is called (0.7.0, built 2026-11-21)
+
+Built from `docs/plans/2026-11-20-2112-cycles-work-orders-landing-plan.md`, as amended the same evening: the first of three releases (0.7.0, 0.8.0, 0.9.0). It answers two reviews by the coordinating agent of the second tracked repository and the operator's direction of 2026-11-20: build sessions kept as numbered records, verbs the ledger and the tracks lacked, and a service that survives what the audit found. The operator's word on the tool list was that it stays at 77,000 characters, and that tally counts what is called so tools can be removed by use at the next upgrade.
+
+### 23.1 The decisions
+
+1. **The word is `cycle`.** "Session" stays an agent's session.
+2. **A closed cycle takes** the ledger's finished milestones, closed tracks, their evidence, reviews, hand-offs and build-log entries, the whole activity log, every phase record, and the notes that are done, tally's own or addressed only to closed tracks. **It leaves** the config, the context, every decision and question, checks, plans, documents, reports, the open notes and every id counter.
+3. **Tally closes no cycle by itself.** When nothing stops a close, `cycle_list`, `board_get` and an operator session's brief carry a sentence that tells the agent to ask the operator; `cycle_close` takes the operator's words in `said`.
+4. **A word for a run is stored as kind `evidence` with a `label`,** so the stored kinds do not grow and an older build still reads the file.
+5. **The tool list stays at most 77,000 characters,** paid for by Part T in the plan's order, and the test's number does not change.
+6. **The count of calls is not a record and not in git:** it is about tally's tools, not a repository's work.
+7. **The version is 0.7.0.**
+
+### 23.2 A build keeps what it does not know (E.6)
+
+Every record read from the records folder and written back keeps the keys its schema does not name, on the file and on each item: the ledger (with its milestones, tasks, deliverables, waits and deferred parts), tracks, phases, decisions, questions, reviews, run records, hand-offs, context entries, notes, the build log and the activity log, and from this release cycles. Their schemas are `z.looseObject`; the small nested "who" objects stay plain. The writers that rebuilt a file field by field (a hand-off, a decisions import, a build-log import) now spread what they read. The config is left as it is: `repo_configure` refuses a key its schema lacks. Rule 8 says so, and that builds before 0.7.0 still drop such keys.
+
+### 23.3 Paying for the list (Part T)
+
+- **One function shapes each entry** (`mcp/src/listing.ts`), replacing the SDK's `tools/list` handler: no `$schema` in an input, no `execution` block that says only the protocol's default, and a hint only where it differs from the protocol's default (19.10). A client that fills in the defaults reads the four hints `TOOL_META` gives.
+- **The shared parameter texts** are said once: `sessionId` "from session_open", `repo` "a repo_list name, else the default", `limit` "at most this many", `fields` "the keys of each item to keep", `cycle` "a closed cycle's number; left out, the current". What a limit keeps and its default are in the tool's description or schema.
+- **`land_run` is not registered** where `TALLY_COMMANDS=agent`: it could only refuse there.
+- **The ten longest descriptions** say the same in 5,627 characters where they held 6,062; a test holds them under 5,700. New tools' descriptions hold at most 300.
+- **The sizes.** 76,927 characters at 0.6.1 as the host lists it; 66,889 after Part T; 73,193 at 0.7.0 with 72 tools (71,831 and 71 tools where no command runs).
+
+### 23.4 A count of what is called (Part U)
+
+- **Counted** for each tool: `calls`, `refused`, `cut`, `invalid`, `first`, `last`, `days`, and the calls by scope (`operator`, `track`, `none`) and by repository. Nothing else: no argument, answer or session id.
+- **Seen.** tally now parses a call's arguments with the tool's own strict schema itself (`mcp/src/decorate.ts`), giving the SDK a permissive one, so a call the schema refuses is seen and counted as `invalid`; its refusal reads "Invalid arguments for tool <tool>: …", without the SDK's prefix. A call to a tool the server does not have is still the SDK's to refuse, and is not counted.
+- **Kept** in memory and written atomically at most every 30 seconds and when the server stops: the service's in `<TALLY_HOME>/usage.json`, a server of one repository's (and `tally mcp`'s) in its state folder.
+- **Read** with `GET /api/usage`, `tally usage` (`--json`; with `TALLY_URL` it asks the service) and the Overview page's "Tools by use": the most called first, each with `chars`, what its entry costs in the list; `never`, the listed tools never called and what they cost together; `since` and the versions served. A tool counted and no longer listed is marked so.
+
+### 23.5 A service that keeps house (Part E)
+
+- **Watchers from the start (E.1).** The hub starts a watcher for every listed repository when the service starts, and looks at the list again at the watcher's interval. Until now nothing ticked until a board was opened.
+- **A failed write leaves nothing (E.2).** `writeJsonAtomic` writes a uniquely named temporary file, flushes it, renames it, and removes it when the write or the rename fails. A records commit adds and commits the folder without `*.tmp`.
+- **A git call has a limit (E.3):** 60 seconds, or five minutes for `worktree`, `rebase`, `checkout`, `clean`, `cherry-pick` and `reset`; the suite's 18,068 git calls took at most 145 ms. A command stopped at its limit fails with exit 124 and says so, so its operation fails and releases its lock.
+- **A lost lock ends one operation (E.4).** proper-lockfile's default throws from a timer and ends the process. `withLock` now notes the loss; the operation fails with `LockLost`, naming the lock, and the next one takes it again.
+- **One unreadable file (E.5).** A `tracks.json` or `phases.json` that is not JSON or does not fit schema 1 no longer stops a repository from opening: it opens with the config's own tracks and stages, the board lists the file's problem, `repo_list` and the overview name it, and a write that needs the file reads it and is refused naming it. Where the service holds a whole copy it keeps it until the file is mended. A file that declares a schema tally does not know is still refused (rule 8).
+- **An address for each repository (E.7).** `/r/<name>/mcp` serves the same tools; a read naming no session and no repository reads `<name>` and is not marked as the default's; `session_open` there refuses another repository's folder and names its address; the instructions name the repository; an unlisted name is answered 404. `/mcp` is unchanged.
+
+### 23.6 The verbs the ledger and the tracks lacked (Part B)
+
+- **`milestone_edit`** (operator): `name`, `waits` (null clears it) and `drop`: each dropped deliverable gains `dropped: {why, decision?, by, at}` and is no gap in `ledger_check`. A deliverable a landed task covers cannot be dropped; an unknown id is refused with the milestone's ids.
+- **`milestone_remove`** (operator): a milestone with no landed, claimed or queued task goes with its planned tasks; its run records stay; the tracks whose tasks waited on it are told. A decision it is removed under is named in its message and commit.
+- **`track_edit`** (operator, or the parent's session) widens a track `track_open` made: added paths join its own, no wider than the parent's, the row keeps `widened: [{paths, by, at}]`, and `purpose` is replaced. A track with no paths is already unlimited, and the answer says so.
+- **`declared`**: `track_open` and `track_edit` answer the open tracks whose declared paths overlap this track's, with the paths they share. Nothing is refused for it.
+- **`track_close` takes `endSessions`**: it first ends the track's sessions that hold no claim; one that holds a claim still refuses, before anything is ended. The refusal for an open session names `endSessions`.
+
+### 23.7 Words for a run, and a review's own text (Part C)
+
+- `evidence_record`, `evidence_run` and the runner accept the words `check`, `test`, `lint`, `typecheck`, `build`, `integration` and `e2e`, stored as kind `evidence` with `label`; such a run is judged by nothing. Another word is refused with both lists. `evidence_list`'s `kind` matches the label. The runner accepts a digit in a word, and a worktree gets the new runner at its next `session_open`.
+- A run record gains `scope` (at most 200 characters): `evidence_record` takes it, and the runner `--scope`.
+- `review_record` takes `text` (at most 20,000 characters) in place of `report`: tally writes `<repository>/.temp/tally/reviews/<review id>.md` and records it as the report, with its hash. Both given is refused.
+
+### 23.8 Refusals that say what is accepted (Part D)
+
+An unknown argument is refused by the tool's own strict schema with the tool's parameters: "decision_list takes no 'groups'; it takes group, ids, limit, sessionId, repo"; `repo` given to a writing tool adds that its repository is its session's, and `cwd` given to `session_open` that it takes `worktree`. `limit` holds at most 200 on `evidence_list`, `note_list`, `decision_list` and `question_list`. `capabilities.tools.listChanged` is false.
+
+### 23.9 Cycles (Part A)
+
+- **Records.** `docs/records/cycles.json` (`{schema, current, cycles: [{n, name?, from, to, closedAt, closedBy, said, decision?, summary}]}`); a repository without it is in cycle 1. A closed cycle's folder, `docs/records/cycles/cycle-<n>/`, has the records folder's layout.
+- **A view** (`cycleView`, `core/src/cycles/view.ts`) opens a closed cycle as a repository whose records folder is the cycle's, with the base config joined with that folder's tracks and phases and no live state. Every function that writes a record or commits refuses a view (`assertCurrent`).
+- **What stops a close** (`cycleState`, in A.4's order): a landing queued or at its turn; a commit on main the ledger does not record; a milestone with landed work that is not finished; a track `track_open` made that is neither carried (it has tasks, all in milestones not started) nor closable now by `track_close`'s rules, checked without closing (`closeBlocker`); a milestone not started in a closed phase; no finished milestone. A track listed in the config is permanent and does not stop a close.
+- **The close** (`closeCycle`), an operator session's, holds the landing lock throughout: it checks the blockers, closes the closable tracks without their own commits, writes the plan of the close to `closing.json` (each file's new contents, each move, and `cycles.json` last), carries it out, and makes one commit, "records: cycle <n> closed", with the summary as its body, in every records mode but `never`. The close's note to all is part of the plan's new `notes.json`. A close stopped part way is finished, never undone, by the next tool call on the repository or the watcher's pass: every step is safe to repeat.
+- **Kept across cycles:** the ledger's baseline becomes main's tip, `other` empties, the milestones not started stay with their planned tasks; review, note and entry counters stay where they were; `milestone_add` refuses an id a closed cycle's ledger holds. Phases whose milestones are all archived close "with cycle <n>"; an open phase stays.
+- **Reading.** `cycle_list` answers the current cycle (counts, `complete`, `blockers`, and `ask` once complete) and the closed ones, newest first; with `n`, one closed cycle whole with its totals and parked parts. Nine reads take `cycle` and name it. `board_get` answers `cycle: {n, complete, ask?}`, an operator session's brief the same and a track session's brief `{n}`; `complete` is checked cheapest first.
+- **The page.** `GET /cycles` and `GET /cycles/<n>/done`. Cycles sits between Done and Evidence in landscape; on a phone the bottom bar keeps six entries and Cycles is reached from a line at the top of Done. A closed cycle unfolds into its phases, milestones and tasks, read only when opened.
+
+### 23.10 The surface
+
+- **MCP tools:** 72 (71 where the service runs no command). New: `cycle_list`, `cycle_close`, `milestone_edit`, `milestone_remove`, `track_edit`.
+- **Parameters added:** `cycle` on nine reads; `track_close.endSessions`; `review_record.text`; `evidence_record.scope`; the run words on `kind`.
+- **Answers that gain a field:** `track_open` (`declared`), `board_get` (`cycle`), a brief (`cycle`).
+- **Stored formats:** `cycles.json` and the cycles folder; a deliverable's `dropped`; a track's `widened`; a run's `label` and `scope`; a runner's result gains a `scope` file. Outside git: `usage.json`.
+- **HTTP:** `/api/usage`, `/cycles`, `/cycles/<n>/done`, `/r/<name>/mcp`.
+- **The command line:** `tally usage`. The first tracked repository's commands are unchanged.
+
+### 23.11 Left out
+
+- Asking the operator through the client's own dialog, an Evidence page for a closed cycle, moving a milestone to another phase, and pruning notes in a repository that never closes a cycle (the plan's section 11).
+- Counting a call to a tool the server does not have: the SDK refuses it before tally sees it.
+- Running the evaluation with a model: it spends a model's tokens, so it is the operator's to order.

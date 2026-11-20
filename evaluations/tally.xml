@@ -39,4 +39,12 @@
     <question>According to the current hand-off of Lumen's data track, in which file does the segment index live? Give the path.</question>
     <answer>crates/store/src/index.rs</answer>
   </qa_pair>
+  <qa_pair>
+    <question>Lumen has never closed a cycle, and its first cannot close yet. Which milestones hold landed work that is not finished? Give their ids in the order tally names them, separated by a comma and a space.</question>
+    <answer>A1, B1</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In Lumen's current cycle, how many milestones have no task landed yet and would be carried into the next cycle? Answer with the number only.</question>
+    <answer>3</answer>
+  </qa_pair>
 </evaluation>

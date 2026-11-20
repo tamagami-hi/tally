@@ -50,7 +50,7 @@ Kiro, in `~/.kiro/settings/mcp.json`:
 { "mcpServers": { "tally": { "command": "node", "args": ["/path/to/tally/packages/cli/dist/main.js", "--repo", "/path/to/repository", "mcp"] } } }
 ```
 
-Any client that speaks streamable HTTP can use the `/mcp` URL instead. One server per tracked repository; the live state is shared through files, so a stdio session and the board agree.
+Any client that speaks streamable HTTP can use the `/mcp` URL instead. The service also serves each listed repository at `/r/<name>/mcp`: there a read that names no session and no repository reads that repository, and `session_open` refuses a folder of another repository and names that one's address. One server per tracked repository; the live state is shared through files, so a stdio session and the board agree.
 
 ## 4. A session's first minute
 
@@ -158,8 +158,8 @@ The service has git and no toolchain, so you run every command yourself, in your
 .temp/tally/run green --task "B2:4 manifest" -- cargo test --locked
 ```
 
-- The first word is the kind of run: `red`, `green`, `clippy`, `fmt`, or any other lowercase word.
-- `--task MILESTONE:TASK` ties the run to a task, and `--note TEXT` adds a note.
+- The first word is the kind of run: `red`, `green`, `clippy`, `fmt`, `sweep`, `coverage`, `land`, `evidence` or `other`, or one of the words `check`, `test`, `lint`, `typecheck`, `build`, `integration` and `e2e`, which are kept as kind `evidence` with the word as their `label` and judged by nothing: the exit is the result. `evidence_list`'s `kind` finds them by the word. Any other word is refused, and the refusal lists both.
+- `--task MILESTONE:TASK` ties the run to a task, `--note TEXT` adds a note, and `--scope TEXT` (at most 200 characters) says what ran when it was not the whole, such as "the 31 tests of one module, coverage off". `evidence_record` takes `scope` too.
 - The command runs with the repository's configured environment, in the folder you called the script from. Its output is shown live and kept in a log under the repository's `.temp/tally/logs/<track>/`.
 - The script exits with the command's exit code.
 
@@ -414,4 +414,30 @@ A question's id is `Q-<number>` (`Q-24`), computed from its row. `question_add` 
 
 - **A plan's own numbering.** An operator session's `question_add` may give `number`, at or above the next one, so tally's ids line up with a plan's. The numbering may jump forward, never back.
 - **`question_edit({ sessionId, id, question?, meanwhile?, why })`** corrects an open question. It is for an operator session, or the agent that asked it on the same track. The question keeps what it said before in `edits`; `question_list` says `edited` and, with `history: true`, gives the edits. An answered question is refused: ask a new one that names it. From a shell: `tally question edit Q-24 --question T --why W`.
+
+### 10.16 Cycles
+
+A repository's work runs in numbered cycles; the current one is what `docs/records/` holds.
+
+- **When it is complete.** Once a milestone is finished and nothing would stop a close, `cycle_list`, `board_get` (`cycle`) and an operator session's brief say "everything planned in cycle <n> has landed: ask the operator whether to close it". Ask; tally closes nothing by itself.
+- **Closing.** `cycle_close({ sessionId, summary, said, name?, decision? })` is an operator session's, on the operator's word: put their own words, quoted, in `said`. It is refused, changing nothing, while a landing is queued, main holds a commit the ledger does not record, a milestone with landed work is not finished, a track you opened is neither waiting on work not started nor closable, a milestone not started sits in a closed phase, or nothing is finished; `cycle_list` names each blocker. The finished work moves to `docs/records/cycles/cycle-<n>/`, the tracks that can close are closed, and one commit is made: "records: cycle <n> closed".
+- **What stays.** Milestones not started, with their planned tasks; open tracks, phases and notes; every decision, question, rule and context entry; every counter, so the next review or note takes the next number. A milestone's id is never used again: `milestone_add` refuses one a closed cycle holds.
+- **Reading a closed cycle.** `cycle_list` with `n` answers it whole. `board_get`, `evidence_list`, `review_list`, `handoff_read`, `track_list`, `phase_list`, `activity_get`, `note_list` and `deferred_list` take `cycle` and answer as that cycle was at its close. The Cycles page shows them too.
+- **An interrupted close** is finished by the next tool call on the repository, or the service's next pass.
+
+### 10.17 Changing a milestone or a track
+
+- `milestone_edit` (operator): a new `name`, a `waits` line (null clears it), or `drop: [{id, why, decision?}]`, deliverables that will not be built, which `ledger_check` then no longer lists. A deliverable a landed task covers cannot be dropped.
+- `milestone_remove` (operator): a milestone with no landed, claimed or queued task goes with its planned tasks; its run records stay, and the tracks that waited on it are told.
+- `track_edit` (operator, or a session of the track's parent): `addPaths` widens a track `track_open` made, no wider than its parent; `purpose` replaces its line.
+- `track_open` and `track_edit` answer `declared`: the open tracks whose declared paths overlap this one's. Nothing is refused for it; agree an order before you both change a file.
+- `track_close` with `endSessions: true` first ends the track's sessions that hold no claim.
+
+### 10.18 A review's own text
+
+`review_record` takes `text`, the whole review, at most 20,000 characters, in place of a `report` file: tally keeps it as `.temp/tally/reviews/<review id>.md` in the repository and records that file as the report. `summary` is still required.
+
+### 10.19 What tally counts
+
+tally counts the calls each tool receives, and nothing else: per tool, the calls, those refused, cut or refused by the schema, the days with a call, and the calls by scope and repository. No argument, answer or session id is kept, and nothing of it is in git. `tally usage` prints the ranking (`--json` for the data; with `TALLY_URL` it asks the service), `GET /api/usage` answers it, and the Overview page shows "Tools by use", with the tools never called and the characters they cost in every session's tool list.
 
