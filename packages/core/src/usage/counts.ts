@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const USAGE_FILE = "usage.json";
 export const FLUSH_MS = 30_000;
@@ -43,8 +44,8 @@ export const usageFileSchema = z.looseObject({
   tools: z.record(z.string(), toolCountSchema),
 });
 
-export type ToolCount = z.infer<typeof toolCountSchema>;
-export type UsageFile = z.infer<typeof usageFileSchema>;
+export type ToolCount = Exact<z.infer<typeof toolCountSchema>>;
+export type UsageFile = Exact<z.infer<typeof usageFileSchema>>;
 
 export const usagePathOf = (where: { home: string } | { stateDir: string }): string => join("home" in where ? where.home : where.stateDir, USAGE_FILE);
 

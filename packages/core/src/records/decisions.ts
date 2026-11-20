@@ -7,6 +7,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
 import { parseTables, renderRow } from "./markdown.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const DECISION_STATES = ["in force", "built", "partly built", "decided, not built", "other"] as const;
 
@@ -36,10 +37,10 @@ export const decisionsFileSchema = z.looseObject({
   replaced: z.array(replacedSchema).default([]),
 });
 
-export type Decision = z.infer<typeof decisionSchema>;
+export type Decision = Exact<z.infer<typeof decisionSchema>>;
 export type DecisionState = Decision["state"];
-export type Replaced = z.infer<typeof replacedSchema>;
-export type DecisionsFile = z.infer<typeof decisionsFileSchema>;
+export type Replaced = Exact<z.infer<typeof replacedSchema>>;
+export type DecisionsFile = Exact<z.infer<typeof decisionsFileSchema>>;
 
 export const decisionsPath = (repo: Repo): string => join(repo.recordsDir, "decisions.json");
 

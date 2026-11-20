@@ -6,6 +6,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { assertCurrent, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const noteKinds = ["heads-up", "request", "answer", "finding"] as const;
 export const MAX_NOTE = 600;
@@ -26,8 +27,8 @@ export const noteSchema = z.looseObject({
 
 export const notesFileSchema = z.looseObject({ schema: z.literal(1), nextNumber: z.number().int().positive(), notes: z.array(noteSchema) });
 
-export type Note = z.infer<typeof noteSchema>;
-export type NotesFile = z.infer<typeof notesFileSchema>;
+export type Note = Exact<z.infer<typeof noteSchema>>;
+export type NotesFile = Exact<z.infer<typeof notesFileSchema>>;
 
 export interface NoteInput {
   to: "all" | readonly string[];

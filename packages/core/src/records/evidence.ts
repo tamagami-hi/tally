@@ -13,6 +13,7 @@ import { commitRecords } from "./commit.ts";
 import { keptFile, missingFile } from "./kept-file.ts";
 import { safeName } from "./handoffs.ts";
 import { summarize } from "./totals.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const evidenceKinds = ["red", "green", "clippy", "fmt", "sweep", "coverage", "land", "evidence", "other"] as const;
 
@@ -42,7 +43,8 @@ export const evidenceFileSchema = z.looseObject({
   records: z.array(runRecordSchema).default([]),
 });
 
-export type RunRecord = z.infer<typeof runRecordSchema>;
+export type RunRecord = Exact<z.infer<typeof runRecordSchema>>;
+export type EvidenceFile = Exact<z.infer<typeof evidenceFileSchema>>;
 
 export const RUN_WORDS = ["check", "test", "lint", "typecheck", "build", "integration", "e2e"] as const;
 export const KINDS_AND_WORDS = [...evidenceKinds, ...RUN_WORDS] as const;
@@ -64,7 +66,7 @@ export type EvidenceKind = (typeof evidenceKinds)[number];
 
 export const evidencePath = (repo: Repo, milestone: string): string => join(repo.recordsDir, "evidence", `${safeName(milestone)}.json`);
 
-export async function readEvidence(repo: Repo, milestone: string): Promise<z.infer<typeof evidenceFileSchema>> {
+export async function readEvidence(repo: Repo, milestone: string): Promise<EvidenceFile> {
   try {
     return await readJson(evidencePath(repo, milestone), evidenceFileSchema);
   } catch (error: unknown) {

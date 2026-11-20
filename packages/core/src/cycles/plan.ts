@@ -10,6 +10,7 @@ import { handoffPath } from "../records/handoffs.ts";
 import { MAX_NOTE, readNotes, type Note } from "../records/notes.ts";
 import { TALLY } from "../records/tell.ts";
 import { configSchema, type Config } from "../schema/config.ts";
+import type { Exact } from "../schema/kept.ts";
 import type { Ledger } from "../schema/ledger.ts";
 import type { TracksFile } from "../schema/tracks.ts";
 import { readJson } from "../store/json.ts";
@@ -32,8 +33,8 @@ export const planSchema = z.object({
   moves: z.array(moveSchema),
 });
 
-export type Move = z.infer<typeof moveSchema>;
-export type ClosePlan = z.infer<typeof planSchema>;
+export type Move = Exact<z.infer<typeof moveSchema>>;
+export type ClosePlan = Exact<z.infer<typeof planSchema>>;
 
 export interface CloseInput {
   summary: string;

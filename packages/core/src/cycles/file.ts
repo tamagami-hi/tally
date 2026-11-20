@@ -3,6 +3,7 @@ import { z } from "zod";
 import { TallyError } from "../errors.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const CYCLES_FILE = "cycles.json";
 export const CYCLES_DIR = "cycles";
@@ -28,8 +29,8 @@ export const cyclesFileSchema = z.looseObject({
   cycles: z.array(cycleSchema).default([]),
 });
 
-export type CycleRecord = z.infer<typeof cycleSchema>;
-export type CyclesFile = z.infer<typeof cyclesFileSchema>;
+export type CycleRecord = Exact<z.infer<typeof cycleSchema>>;
+export type CyclesFile = Exact<z.infer<typeof cyclesFileSchema>>;
 
 export const cyclesPath = (recordsDir: string): string => join(recordsDir, CYCLES_FILE);
 

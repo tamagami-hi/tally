@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Exact } from "./kept.ts";
 
 export const TRACKS_FILE = "tracks.json";
 export const DEFAULT_WORKTREE_ROOT = ".temp/worktrees";
@@ -24,5 +25,5 @@ export const tracksFileSchema = z.looseObject({
   tracks: z.array(openedTrackSchema).default([]),
 });
 
-export type OpenedTrack = z.infer<typeof openedTrackSchema>;
-export type TracksFile = z.infer<typeof tracksFileSchema>;
+export type OpenedTrack = Exact<z.infer<typeof openedTrackSchema>>;
+export type TracksFile = Exact<z.infer<typeof tracksFileSchema>>;

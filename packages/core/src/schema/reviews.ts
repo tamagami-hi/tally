@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { keptFileSchema } from "./kept.ts";
+import { type Exact, keptFileSchema } from "./kept.ts";
 
 export const reviewVerdicts = ["land", "fix", "stop", "waived"] as const;
 export const reviewStates = ["none", "clear", "open"] as const;
@@ -27,7 +27,7 @@ export const reviewsFileSchema = z.looseObject({
   reviews: z.array(reviewSchema).default([]),
 });
 
-export type Review = z.infer<typeof reviewSchema>;
+export type Review = Exact<z.infer<typeof reviewSchema>>;
 export type ReviewVerdict = (typeof reviewVerdicts)[number];
 export type ReviewState = (typeof reviewStates)[number];
-export type ReviewsFile = z.infer<typeof reviewsFileSchema>;
+export type ReviewsFile = Exact<z.infer<typeof reviewsFileSchema>>;

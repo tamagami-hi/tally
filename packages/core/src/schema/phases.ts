@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Exact } from "./kept.ts";
 
 export const PHASES_FILE = "phases.json";
 
@@ -21,5 +22,5 @@ export const phasesFileSchema = z.looseObject({
   phases: z.array(phaseSchema).default([]),
 });
 
-export type PhaseRecord = z.infer<typeof phaseSchema>;
-export type PhasesFile = z.infer<typeof phasesFileSchema>;
+export type PhaseRecord = Exact<z.infer<typeof phaseSchema>>;
+export type PhasesFile = Exact<z.infer<typeof phasesFileSchema>>;

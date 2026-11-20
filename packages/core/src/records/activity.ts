@@ -6,7 +6,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { assertCurrent, type Repo } from "../store/records.ts";
 import { askedLimit, askedSince } from "./asked.ts";
-import type { Known } from "../schema/kept.ts";
+import type { Exact, Known } from "../schema/kept.ts";
 
 export const ACTIVITY_DIR = "log";
 export const CLI_SESSION = "cli";
@@ -30,8 +30,8 @@ export const activityFileSchema = z.looseObject({
   events: z.array(activityEventSchema).default([]),
 });
 
-export type ActivityEvent = z.infer<typeof activityEventSchema>;
-export type ActivityFile = z.infer<typeof activityFileSchema>;
+export type ActivityEvent = Exact<z.infer<typeof activityEventSchema>>;
+export type ActivityFile = Exact<z.infer<typeof activityFileSchema>>;
 export type ActivityInput = Omit<Known<ActivityEvent>, "at">;
 
 export interface ActivityFilter {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Exact } from "./kept.ts";
 
 export const taskStatuses = ["planned", "claimed", "landed"] as const;
 
@@ -85,13 +86,13 @@ export const ledgerSchema = z.looseObject({
   other: z.array(otherCommitSchema).default([]),
 });
 
-export type Task = z.infer<typeof taskSchema>;
+export type Task = Exact<z.infer<typeof taskSchema>>;
 export type TaskStatus = (typeof taskStatuses)[number];
-export type Milestone = z.infer<typeof milestoneSchema>;
-export type Deliverable = z.infer<typeof deliverableSchema>;
-export type Dropped = z.infer<typeof droppedSchema>;
-export type WaitOn = z.infer<typeof waitOnSchema>;
-export type Deferred = z.infer<typeof deferredSchema>;
-export type Parked = z.infer<typeof parkedSchema>;
-export type OtherCommit = z.infer<typeof otherCommitSchema>;
-export type Ledger = z.infer<typeof ledgerSchema>;
+export type Milestone = Exact<z.infer<typeof milestoneSchema>>;
+export type Deliverable = Exact<z.infer<typeof deliverableSchema>>;
+export type Dropped = Exact<z.infer<typeof droppedSchema>>;
+export type WaitOn = Exact<z.infer<typeof waitOnSchema>>;
+export type Deferred = Exact<z.infer<typeof deferredSchema>>;
+export type Parked = Exact<z.infer<typeof parkedSchema>>;
+export type OtherCommit = Exact<z.infer<typeof otherCommitSchema>>;
+export type Ledger = Exact<z.infer<typeof ledgerSchema>>;

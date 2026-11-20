@@ -9,6 +9,7 @@ import { assertCurrent, type Repo } from "../store/records.ts";
 import { segmentsOf } from "./match.ts";
 import { MAX_SOURCE, MAX_TAILOR, refuseRuleFieldsOnAnyOther, ruleFieldsOf } from "./rule-fields.ts";
 import { RULE_SECTIONS } from "./rulebook-template.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const ENTRY_KINDS = ["rule", "convention", "area", "interface", "howto", "finding"] as const;
 export const MAX_TITLE = 120;
@@ -53,8 +54,8 @@ export const kindFileSchema = z.looseObject({
   entries: z.array(entrySchema).default([]),
 });
 
-export type Entry = z.infer<typeof entrySchema>;
-export type KindFile = z.infer<typeof kindFileSchema>;
+export type Entry = Exact<z.infer<typeof entrySchema>>;
+export type KindFile = Exact<z.infer<typeof kindFileSchema>>;
 
 export interface EntryInput {
   kind: EntryKind;

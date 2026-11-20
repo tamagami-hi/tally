@@ -6,6 +6,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import type { Session } from "../state/sessions.ts";
 import { commitRecords } from "./commit.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const MAX_HANDOFF_LINES = 60;
 
@@ -24,8 +25,8 @@ export const handoffSchema = z.looseObject({
   history: z.array(handoffNoteSchema).default([]),
 });
 
-export type HandoffNote = z.infer<typeof handoffNoteSchema>;
-export type Handoff = z.infer<typeof handoffSchema>;
+export type HandoffNote = Exact<z.infer<typeof handoffNoteSchema>>;
+export type Handoff = Exact<z.infer<typeof handoffSchema>>;
 
 export const safeName = (id: string): string => id.replaceAll(/[^A-Za-z0-9._-]/g, "_");
 

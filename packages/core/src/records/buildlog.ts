@@ -8,6 +8,7 @@ import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
 import { FIELD_NAMES, buildlogFields, fieldBlocks, fieldsOf, type FieldsInput } from "./buildlog-fields.ts";
 import { blob } from "./sections.ts";
+import type { Exact } from "../schema/kept.ts";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HEADING = /^## (.+?)\. (.+), (\d{4}-\d{2}-\d{2})$/;
@@ -30,8 +31,8 @@ export const buildlogFileSchema = z.looseObject({
   entries: z.array(buildlogEntrySchema).default([]),
 });
 
-export type BuildlogEntry = z.infer<typeof buildlogEntrySchema>;
-export type BuildlogFile = z.infer<typeof buildlogFileSchema>;
+export type BuildlogEntry = Exact<z.infer<typeof buildlogEntrySchema>>;
+export type BuildlogFile = Exact<z.infer<typeof buildlogFileSchema>>;
 
 export const buildlogPath = (repo: Repo): string => join(repo.recordsDir, "buildlog.json");
 

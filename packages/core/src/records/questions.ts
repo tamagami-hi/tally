@@ -7,6 +7,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
 import { parseTables, renderRow } from "./markdown.ts";
+import type { Exact } from "../schema/kept.ts";
 
 export const questionEditSchema = z.looseObject({
   at: z.string(),
@@ -37,10 +38,10 @@ export const questionsFileSchema = z.looseObject({
   answered: z.array(answeredSchema).default([]),
 });
 
-export type Question = z.infer<typeof questionSchema>;
-export type QuestionEdit = z.infer<typeof questionEditSchema>;
-export type AnsweredQuestion = z.infer<typeof answeredSchema>;
-export type QuestionsFile = z.infer<typeof questionsFileSchema>;
+export type Question = Exact<z.infer<typeof questionSchema>>;
+export type QuestionEdit = Exact<z.infer<typeof questionEditSchema>>;
+export type AnsweredQuestion = Exact<z.infer<typeof answeredSchema>>;
+export type QuestionsFile = Exact<z.infer<typeof questionsFileSchema>>;
 
 export const questionsPath = (repo: Repo): string => join(repo.recordsDir, "questions.json");
 
