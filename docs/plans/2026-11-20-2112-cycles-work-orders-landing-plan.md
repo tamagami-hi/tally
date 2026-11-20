@@ -3,6 +3,7 @@
 **Written:** 2026-11-20 21:12 IST (2026-11-20 15:42 UTC)
 **Base:** `main` at `5afec07`, version 0.6.1 (1,684 tests in 200 files, 67 MCP tools, `tools/list` 76,551 characters in the image).
 **Status:** planned, not built.
+**Amended:** 2026-11-20 21:30 IST, at the operator's word, before any part was committed: the limit on `tools/list` stays at 77,000 characters (section 3, row 9, and Part T), and tally counts what is called, so that the operator can remove tools by use at the next upgrade (Part U). Two tools of the first draft became an answer and a parameter (`role_get`, `land_order`).
 **Builds as:** three releases in this order, 0.7.0, 0.8.0 and 0.9.0, by one builder on one branch. Each release ends green before the next begins.
 **Checked:** against the MCP builder guide on 2026-11-20; section 9 is what that check added.
 **This repository is public.** This file names no private project. Keep it that way when you edit it: the private names and paths are in the local notes, which git ignores.
@@ -58,7 +59,7 @@ The operator said to write the plan on the planner's recommended answers. Each i
 | 6 | A call that names no repository. | **An MCP address for each repository** (`/r/<name>/mcp`), where such a call reads that repository. The plain address is unchanged, because the first tracked repository's script relies on its default. |
 | 7 | The host's command line is an old build, and writes the first tracked repository's records beside the service. | **Not built here.** Section 12 lists the steps, which are the operator's to order. |
 | 8 | The order. | **0.7.0:** cycles, the verbs the ledger and tracks lacked, and a service that keeps house. **0.8.0:** the operator's word over MCP, decision links, work orders, role surfaces. **0.9.0:** landing options, a trial tree, manual checks, releases, hints. |
-| 9 | The limit on `tools/list`. The plan adds 16 tools to 67. | **Raised for the whole list, and set for each role:** the whole list at most 84,000 characters after 0.7.0, 88,000 after 0.8.0 and 94,000 after 0.9.0; a builder's list at most 30,000 and a reviewer's at most 22,000, from 0.8.0. A session that builds or reviews should register the role's address. |
+| 9 | The limit on `tools/list`. The plan adds 14 tools to 67. | **Kept at 77,000 characters for the whole list, at every release** (the operator's word, 2026-11-20). What is added is paid for as Part T says, and the test's number does not change. A builder's list holds at most 30,000 and a reviewer's at most 22,000, from 0.8.0. The operator removes tools at the next upgrade, from the ranking of Part U. |
 | 10 | New words for a run's kind. Adding a value to a stored enum makes the file unreadable to an older build. | **Accepted at the tool and the runner, stored as kind `evidence` with a `label`.** The stored enum does not grow. |
 
 **The one format change that is not an optional field or a new file:** closing a cycle moves files. An older build then reads the current folder as a repository with a fresh ledger, which is valid, and does not see the closed cycles. Nothing an older build writes is lost.
@@ -237,12 +238,55 @@ Tests first, for each verb: its refusals, what the record holds after it, and wh
    - The server's instructions there name the repository.
    - `/mcp` is unchanged, byte for byte.
 
+### Part T. Paying for the list
+
+The whole of `tools/list` stays at most 77,000 characters at every release, and the test that holds it (`mcp/tests/meta.test.ts`) keeps its number. What this plan adds is paid for in this order:
+
+1. **What a tool lists.** One function shapes each tool's entry in the list.
+   - It leaves out `$schema`.
+   - It leaves out any block that says only what the protocol takes as the default.
+   - It lists a hint only where the hint differs from the protocol's default (a tool that only reads lists `readOnlyHint`; a tool that writes without destroying lists `destructiveHint: false`). Every tool still has its four hints in `TOOL_META`.
+   - Test first: a client of the SDK reads the trimmed list and calls every tool; a read tool is still marked as one; each entry is a valid tool by the protocol's own schema.
+   - DESIGN 19.10 is reworded to say so.
+2. **The shared parameter texts** (`sessionId`, `repo`, `limit`, `fields`, `cycle`) are each said once, as short as they can be.
+3. **A tool that can only refuse is not listed.** Where the service runs no command (`TALLY_COMMANDS=agent`), `land_run` is not registered. `evidence_run` stays, because it answers the runner line there.
+4. **Descriptions.**
+   - A new tool's description holds at most 300 characters: what it does, who may call it, and what it refuses. What a parameter means goes in the parameter's text.
+   - The ten longest descriptions that exist are tightened, with no fact dropped that an agent needs to choose the tool or to call it right.
+
+**The floor.** If a release still does not fit after all four, the builder neither raises the number nor cuts a description below what an agent needs. It stops before that release's last part, records `NEEDS THE PLANNER` with the sizes, and goes on to nothing else in that release.
+
+### Part U. A count of what is called
+
+So that the operator can see which tools earn their place, and remove tools by use at the next upgrade.
+
+- **What is counted.** Every call that reaches a tool, for each tool:
+  - `calls`; `refused`, the calls answered with an error; `cut`, the answers shortened by the size limit;
+  - `first` and `last`, the times; `days`, the number of days with a call;
+  - `by`, the calls by scope: `operator`, `track`, or `none` for a call with no session;
+  - `via`, from 0.8.0, the calls by address: `whole`, `builder` or `reviewer`;
+  - `repos`, the calls by repository.
+- **A call the schema refuses** before the tool runs is counted as `invalid` wherever the server can see it: a tool that is often called wrongly is a tool whose description fails. If the SDK gives no place to see it, say so under `DEVIATION` and count the rest.
+- **Nothing else is kept:** no argument, no answer, no session id.
+- **Where.** It is not a record and not in git, because it is about tally's tools and not about a repository's work.
+  - The service keeps one file for every repository: `<TALLY_HOME>/usage.json`.
+  - A server of one repository keeps `usage.json` in that repository's state folder.
+  - Counts are held in memory and written at most every 30 seconds, and when the server stops, atomically. A crash loses at most that.
+- **Reading.** No MCP tool is added for it: the list is what is being kept small.
+  - `GET /api/usage` and the command `tally usage` answer the ranking: the tools by calls, the most called first, each with its counts and `chars`, the characters its entry costs in `tools/list`.
+  - Beside it, `never`: the listed tools with no call since counting began, and the characters they cost together.
+  - And `since`, when counting began, with each version served since then.
+  - The Overview page gains a table, "Tools by use", with the same.
+  - A tool that is counted and no longer listed stays in the file, marked as not listed.
+- **Tests first:** a read, a write, a refusal and a cut answer are each counted; the file is written, and read back after a restart; two repositories are counted apart; the ranking's order, `never` and `chars`; no argument reaches the file.
+
 ### 0.7.0, the surface
 
-- **Tools:** 72. New: `cycle_list`, `cycle_close`, `milestone_edit`, `milestone_remove`, `track_edit`.
+- **Tools:** 72 (71 listed where the service runs no command). New: `cycle_list`, `cycle_close`, `milestone_edit`, `milestone_remove`, `track_edit`.
 - **Parameters added:** `cycle` on nine reads; `track_close.endSessions`; `review_record.text`; `scope` on `evidence_record`.
-- **Stored:** `cycles.json` and the cycles folder; a deliverable's `dropped`; a track's `widened`; a run's `label` and `scope`.
-- **`tools/list`:** at most 84,000 characters; the test's number changes with this release, and the reason goes in its commit.
+- **Stored:** `cycles.json` and the cycles folder; a deliverable's `dropped`; a track's `widened`; a run's `label` and `scope`. Outside git: `usage.json`.
+- **The command line:** `tally usage`.
+- **`tools/list`:** at most 77,000 characters, the number unchanged.
 
 ## 5. Release 0.8.0: the operator's word over MCP, decision links, work orders and role surfaces
 
@@ -332,11 +376,10 @@ An order carries a cited decision's text and `accept` exactly as stored, and the
   - **builder:** `session_open`, `session_close`, `task_claim`, `task_release`, `task_wait`, `task_unwait`, `evidence_record`, `evidence_list`, `land_start`, `land_wait`, `land_cancel`, `handoff_read`, `handoff_write`, `note_post`, `note_reply`, `note_done`, `inbox_get`, `question_add`, `question_list`, `decision_list`, `context_get`, `context_put`, `covering`, `board_get`.
   - **reviewer:** `session_open`, `session_close`, `review_record`, `review_list`, `evidence_list`, `decision_list`, `context_get`, `context_put`, `covering`, `rulebook_get`, `question_add`, `handoff_read`, `note_post`, `inbox_get`, `board_get`.
 - **At a role's address** `session_open`'s `brief` defaults to `order`, and the server's instructions are the role's protocol in order, in at most 1,500 characters.
-- **`role_get({role})`**, a read on the whole surface.
-  - It answers `{role, address, tools, allowedTools, protocol, agentFile}`.
-  - `allowedTools` holds the names a client's allow-list takes.
-  - `agentFile` is a sub-agent definition as text (a name, a description, the tool list and the protocol), for a session of the repository to save where its own tool reads such files.
-  - Tally writes no file. `GET /api/roles/<role>` answers the same.
+- **A role's definition, with no tool added for it.**
+  - `repo_list` answers `roles`: for each role its `address`, its `tools`, and `allowedTools`, the names a client's allow-list takes.
+  - `GET /api/roles/<role>` answers the same with `protocol` and `agentFile`: a sub-agent definition as text (a name, a description, the tool list and the protocol), for a session of the repository to save where its own tool reads such files.
+  - Tally writes no file.
 - **Tests first:** each address lists exactly its set; a tool outside the set cannot be called there; the builder's list is at most 30,000 characters and the reviewer's at most 22,000; `/mcp` lists everything.
 
 ### Part J. What covers these files
@@ -355,10 +398,11 @@ An order carries a cited decision's text and `accept` exactly as stored, and the
 
 ### 0.8.0, the surface
 
-- **Tools:** 77. New: `decision_record`, `decision_status`, `question_answer`, `covering`, `role_get`.
+- **Tools:** 76. New: `decision_record`, `decision_status`, `question_answer`, `covering`.
 - **Parameters added:** `brief: "order"`; `cites` and `accept` on a planned task; `about.record` on `note_post`; `unconfirmed` on `decision_list`.
+- **Answers that gain a field:** `repo_list` (`roles`).
 - **Stored:** a decision's `said`, `via`, `confirmed`, `disputed`, `accept`, `paths`; a task's `cites` and `accept`; a note's `about.record`; two rules in the template.
-- **`tools/list`:** the whole list at most 88,000 characters; the builder's at most 30,000; the reviewer's at most 22,000.
+- **`tools/list`:** the whole list at most 77,000 characters; the builder's at most 30,000; the reviewer's at most 22,000.
 
 ## 6. Release 0.9.0: landing options, a trial tree, manual checks, releases and hints
 
@@ -434,14 +478,14 @@ Each is marked `suggestion: true` where it orders or recommends, and none refuse
   - A task gains `under`, the ids of open questions whose `meanwhile` it was built on. `task_plan`, `land_start` and `task_land` take it.
   - `question_list` answers such tasks as `provisional`, and Done marks them.
   - When the question is answered, by any path, tally posts one note to the main track naming the tasks built under it, so they are checked against the answer.
-- **An order for landings.** `land_order({sessionId?, repo?})`, a read. It answers, for each open track ahead of main, its changed files and the tracks it overlaps, and `order`, a suggestion with a reason for each place: first what others wait on, then the tracks no other track overlaps, then the overlapping ones, the smallest first.
+- **An order for landings, with no tool added for it.** `track_list` takes `order`. With `order: true` it also answers, for each open track ahead of main, its changed files and the tracks it overlaps, and `landOrder`, a suggestion with a reason for each place: first what others wait on, then the tracks no other track overlaps, then the overlapping ones, the smallest first.
 
 ### 0.9.0, the surface
 
-- **Tools:** 83. New: `trial_start`, `trial_end`, `evidence_manual`, `release_mark`, `release_list`, `land_order`.
-- **Parameters added:** `land_start.check`; `under` on three tools.
+- **Tools:** 81. New: `trial_start`, `trial_end`, `evidence_manual`, `release_mark`, `release_list`.
+- **Parameters added:** `land_start.check`; `under` on three tools; `track_list.order`.
 - **Stored:** a task's `checked` and `under`; a run's `trial`; `manual/`; `releases.json`; `commands.landing.tip` and `stop`, `releases.notes` and `questions.nudgeDays` in the config.
-- **`tools/list`:** the whole list at most 94,000 characters; the role lists as in 0.8.0, with `evidence_manual` added to the builder's.
+- **`tools/list`:** the whole list at most 77,000 characters; the role lists as in 0.8.0, with `evidence_manual` added to the builder's.
 
 ## 7. In every release
 
@@ -457,7 +501,7 @@ Each is marked `suggestion: true` where it orders or recommends, and none refuse
 
 ## 8. The order of work
 
-1. 0.7.0: E.6 first (a build keeps what it does not know), because every later part adds fields. Then E.1 to E.5 and E.7, then B, C, D, then A.
+1. 0.7.0: E.6 first (a build keeps what it does not know), because every later part adds fields. Then T.1 to T.3 and the tightening of T.4, because every later part adds to the list, and U, so that counting begins with the release. Then E.1 to E.5 and E.7, then B, C, D, then A.
 2. 0.8.0: F, G, H, J, then I, whose sets name tools of the earlier parts.
 3. 0.9.0: K, M, N, O, then L.
 
@@ -497,7 +541,7 @@ After each part, and after each release, the builder writes one line to the prog
 - **Moving a milestone to another phase**, parts E to G of the third review's plan, and parts H to J of the fourth's (a lane that starts from another lane, records committed by age, a lighter open board).
 - **An allowance for a known flaky test.** A tip-only landing covers the case the reviews met.
 - **A host-side runner that executes a landing for the service.** The command line's `tally land` already queues, runs and waits in one step when it talks to the service (section 12).
-- **Removing tools, and one way to do each thing.** The operator names that point.
+- **Removing tools, and one way to do each thing.** The operator does that at the next upgrade, from the ranking of Part U; nothing is removed here.
 - **Pruning notes and the activity log** in a repository that never closes a cycle.
 
 ## 12. What only the operator orders
