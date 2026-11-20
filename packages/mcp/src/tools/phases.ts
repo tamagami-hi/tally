@@ -32,7 +32,7 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "phase_close",
     {
-      description: "Close a phase (operator session only, and only on the operator's word: a phase's end is their gate). Refused while a task of the phase is not landed, while main holds a commit the ledger does not record, while ledger_check lists a gap in one of its milestones, or while one of its tracks is landing: phase_list's `left` names each. It closes the phase's landed tracks, removing their worktrees, and commits every waiting record as one commit. `withoutBuildLog` lists its milestones with no build-log section, for a project that keeps one; it stops nothing. A closed phase takes no new milestone or task.",
+      description: "Close a phase: an operator session's, on the operator's word only. Refused while a task of the phase is not landed, main holds a commit the ledger does not record, ledger_check lists a gap in one of its milestones, or one of its tracks is landing; phase_list's `left` names each. It closes its landed tracks, removing their worktrees, and commits every waiting record as one commit. `withoutBuildLog` names its milestones with no build-log section, and stops nothing. A closed phase takes no new milestone or task.",
       inputSchema: {
         sessionId: z.string(),
         phase: z.string().describe("the phase's id, as phase_list shows it, for example G"),

@@ -9,7 +9,7 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "track_open",
     {
-      description: "Open a new track: tally makes the branch track/<name> at main's tip and a worktree for it, writes the runner there and records who opened it and why. The helper starts in the answer's `worktree` and calls session_open there; `scratch` is its folder for notes. An operator session opens any track; a track's session opens only a child of its own, and may then write that child's tasks, evidence and hand-offs. `plan` plans its tasks in the same call (`planned`): a plan that cannot be made is refused before anything is, and one that fails after leaves the track open with `planProblem`. Every track lands on main through land_start.",
+      description: "Open a track: tally makes the branch track/<name> at main's tip and its worktree, writes the runner there and records who opened it and why. The helper opens its session in the answer's `worktree`; `scratch` is its notes folder. An operator session opens any track; a track's session only a child of its own, whose tasks, evidence and hand-offs it may write. `plan` plans its tasks too (`planned`): refused before anything is done if it cannot be made; if it fails after, the track stays open with `planProblem`. Every track lands via land_start.",
       inputSchema: {
         sessionId: z.string(),
         name: z.string().describe("lowercase letters, digits, - and _; it names the branch track/<name> and the worktree's folder"),
@@ -28,7 +28,7 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "track_close",
     {
-      description: "Close a track that track_open made (an operator session, or a session of its parent): tally removes its landing checkout, worktree and branch and marks it closed. Build output in the worktree is deleted with it (`cleaned`); what the agent kept under .temp/ moves to .temp/closed/<track>/ of the repository (`kept`). Refused, removing nothing, while the track has an open session, an open child, a claimed task, a queued landing, uncommitted work or commits not on main; the refusal names them. Run logs are kept.",
+      description: "Close a track that track_open made (an operator session, or one of its parent): tally removes its landing checkout, worktree and branch and marks it closed. Build output in the worktree goes with it (`cleaned`); what the agent kept under .temp/ moves to the repository's .temp/closed/<track>/ (`kept`). Refused, removing nothing, while the track has an open session, an open child, a claimed task, a queued landing, uncommitted work or commits not on main; the refusal names them. Run logs are kept.",
       inputSchema: { sessionId: z.string(), name: z.string().describe("the track's name, as track_list shows it") },
     },
     ({ sessionId, name }) => inSession(source, sessionId, async (repo, session) => {

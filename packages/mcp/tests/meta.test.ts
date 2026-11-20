@@ -12,11 +12,13 @@ interface Listed {
   inputSchema: { properties?: Record<string, { description?: string }>; additionalProperties?: unknown };
 }
 
-async function listed(): Promise<Listed[]> {
+async function listedAt(place: "service" | "agent"): Promise<Listed[]> {
   const { repo } = await makeTracked();
-  const { client } = await connect(repo);
+  const { client } = await connect(repo, place);
   return (await client.listTools()).tools as Listed[];
 }
+
+const listed = (): Promise<Listed[]> => listedAt("service");
 
 const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
 
@@ -89,6 +91,18 @@ describe("the size of what the tools say", () => {
     expect(["rulebook_get", "rulebook_adopt", "rule_tailor"].filter((name) => length(name) >= MOST_NEW_DESCRIPTION)).toEqual([]);
     expect(length("rulebook_get")).toBeGreaterThan(0);
     expect(length("session_open")).toBeLessThan(MOST_SESSION_OPEN);
+  });
+
+  const TIGHTENED = ["session_open", "track_open", "land_start", "land_run", "phase_close", "ledger_check", "evidence_run", "track_close", "task_land", "board_get"];
+  const TIGHTENED_IN_061 = 6_062;
+  const MOST_TIGHTENED = 5_700;
+
+  test("keeps the ten descriptions that were longest in 0.6.1 together under 5,700 characters, where they were 6,062", async () => {
+    const tools = await listed();
+    const total = tools.filter((tool) => TIGHTENED.includes(tool.name)).reduce((sum, tool) => sum + (tool.description ?? "").length, 0);
+
+    expect(total).toBeLessThan(MOST_TIGHTENED);
+    expect(total).toBeLessThan(TIGHTENED_IN_061);
   });
 });
 
