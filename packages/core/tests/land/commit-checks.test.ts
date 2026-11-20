@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { joinQueue, ticketView } from "../../src/land/queue.ts";
+import { recordLanding } from "../../src/land/record.ts";
 import { advance } from "../../src/land/turn.ts";
 import type { Check } from "../../src/schema/config.ts";
 import { Records, type Repo } from "../../src/store/records.ts";
@@ -81,6 +82,23 @@ describe("a landing that checks its tip only", () => {
     expect(await ticketView(q.repo, ticket.id)).toMatchObject({ state: "landed", check: "tip" });
     expect(await q.runs()).toEqual(["core feat: two", "pages feat: two"]);
     expect((await new Records(q.repo).readLedger()).milestones[0]?.tasks[0]).toMatchObject({ status: "landed", checked: "tip" });
+  });
+
+  test("is refused at land_start without a milestone and task, since the task's record is where the mark lasts", async () => {
+    const q = await checked();
+    await commitOn(q.tree, "src/one.rs", "feat: one");
+
+    await expect(joinQueue(q.repo, q.session, { files: [], check: "tip" })).rejects.toThrow("a landing that checks its tip only is recorded on a task: give the landing its milestone and task");
+  });
+
+  test("names the mark in the line it gives when its task's record fails", async () => {
+    const q = await checked();
+    const head = await q.main();
+
+    const recording = await recordLanding(q.repo, { track: "data", head, commits: [head] }, { milestone: "Z9", task: "x", checked: "tip" }, q.session);
+
+    expect(recording.recorded).toBe(false);
+    expect(recording.message).toMatch(/finish it with tally task land Z9 'x' [0-9a-f]+ --checked tip$/);
   });
 
   test("is refused at land_start where commands.landing.tip is never", async () => {

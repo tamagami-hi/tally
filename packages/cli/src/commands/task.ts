@@ -25,8 +25,10 @@ export async function taskCommand(repo: Repo, argv: readonly string[], io: IO): 
       return 0;
     }
     case "land": {
-      const parsed = parse(rest, { track: { type: "string" }, also: { type: "string", multiple: true } });
-      const input = { milestone: need(parsed, 0, "milestone"), task: need(parsed, 1, "task"), commit: need(parsed, 2, "commit"), also: list(parsed, "also") };
+      const parsed = parse(rest, { track: { type: "string" }, also: { type: "string", multiple: true }, checked: { type: "string" } });
+      const checked = text(parsed, "checked");
+      if (checked !== undefined && checked !== "tip") throw new TallyError(`--checked takes tip, the mark of a landing that checked its tip only, not '${checked}'`, 2);
+      const input = { milestone: need(parsed, 0, "milestone"), task: need(parsed, 1, "task"), commit: need(parsed, 2, "commit"), also: list(parsed, "also"), ...(checked === undefined ? {} : { checked: "tip" as const }) };
       const track = text(parsed, "track");
       const { message, problem } = await recordTask(repo, track === undefined ? input : { ...input, track });
       if (problem !== undefined) io.err(problem);

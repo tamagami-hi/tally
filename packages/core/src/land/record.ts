@@ -88,6 +88,6 @@ export async function recordLanding(repo: Repo, landed: Landed, target: LandingT
     const { message, problem } = await recordTask(repo, { milestone, task, track, commit: head, also: commits.slice(0, -1), deferred, ...(checked === undefined ? {} : { checked }), ...(under === undefined ? {} : { under }) }, session);
     return { recorded: true, message, commit: await commitRecords(repo, message), ...(problem === undefined ? {} : { problem }) };
   } catch (error: unknown) {
-    return { recorded: false, message: `landed at ${head}, but recording ${milestone} '${task}' failed: ${messageOf(error)}; finish it with tally task land ${milestone} '${task}' ${head}`, commit: null };
+    return { recorded: false, message: `landed at ${head}, but recording ${milestone} '${task}' failed: ${messageOf(error)}; finish it with tally task land ${milestone} '${task}' ${head}${checked === "tip" ? " --checked tip" : ""}`, commit: null };
   }
 }

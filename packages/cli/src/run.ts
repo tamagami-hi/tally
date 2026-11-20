@@ -47,7 +47,7 @@ export const USAGE = `tally: the tracking harness
   tally decision setStatus <id> --group G --status ST [--state STATE] [--by WHO | --operator]   STATE: in force | built | partly built | decided, not built | other
   tally milestone add <id> --stage S --name N --track T --weight W [--waits X] [--group G]
   tally task   plan  <milestone> --track <track> <task>...       add tasks, the close last
-  tally task   land  <milestone> <task> <commit> [--track T] [--also C]...
+  tally task   land  <milestone> <task> <commit> [--track T] [--also C]... [--checked tip]
   tally task   wait  <milestone> <task> <what>
   tally task   unwait <milestone> <task>                         clear a task's wait
   tally task   remove <milestone> <task> --why REASON            remove a planned task that will not be done

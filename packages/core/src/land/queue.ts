@@ -120,6 +120,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
   checkTrackPaths(track, input.files);
   if (input.verified !== undefined && input.files.some((name) => !isDocumentation(name, repo.config))) throw new TallyError("--verified-code is only for documentation/evidence on already checked code");
   if (input.check === "tip" && repo.config.commands.landing?.tip === "never") throw new TallyError("this repository checks each commit alone (commands.landing.tip is never), so a landing cannot ask to check its tip only");
+  if (input.check === "tip" && input.target === undefined) throw new TallyError("a landing that checks its tip only is recorded on a task: give the landing its milestone and task");
   const deferred = input.deferred ?? [];
   if (deferred.length > 0 && input.target === undefined) throw new TallyError("deferred parts are recorded on a task: give the landing its milestone and task");
   assertDeferred(deferred);
