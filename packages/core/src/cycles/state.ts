@@ -47,7 +47,9 @@ async function queueBlockers(repo: Repo): Promise<string[]> {
 }
 
 async function owedBlockers(repo: Repo, ledger: Ledger): Promise<string[]> {
-  const hashes = (await owedCommits(repo, ledger)).missing.map((line) => line.split(" ", 1)[0] ?? line);
+  const owed = await owedCommits(repo, ledger);
+  if (owed.problem !== undefined) return [owed.problem];
+  const hashes = owed.missing.map((line) => line.split(" ", 1)[0] ?? line);
   if (hashes.length === 0) return [];
   return [`main has ${hashes.length} ${plural(hashes.length, "commit", "commits")} the ledger does not record (${namedList(hashes, MOST_NAMED)}); record each with task_land or task_other`];
 }

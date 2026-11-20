@@ -1,3 +1,4 @@
+import { provedCommit } from "../git/proved.ts";
 import { logLines } from "../git/refs.ts";
 import { gitMust, gitOut } from "../git/run.ts";
 import { isUnder } from "../land/paths.ts";
@@ -18,6 +19,7 @@ export interface PassedCommit {
 export interface Owed {
   missing: string[];
   passed: PassedCommit[];
+  problem?: string;
 }
 
 export type FilesOf = (commit: string) => Promise<readonly string[]>;
@@ -40,7 +42,9 @@ export function filesOn(root: string): FilesOf {
 
 export async function owedCommits(repo: Repo, ledger: Ledger, filesOf: FilesOf = filesOn(repo.root)): Promise<Owed> {
   const { root, config } = repo;
-  const candidates = unrecorded(ledger, await logLines(root, `${ledger.baseline}..${config.mainBranch}`), config.records.commitPrefix);
+  const baseline = await provedCommit(root, ledger.baseline);
+  if (baseline === null) return { missing: [], passed: [], problem: `the ledger's baseline '${ledger.baseline}' is not a commit of ${repo.name}, so main is not checked against the ledger; set baseline to the commit the ledger starts from` };
+  const candidates = unrecorded(ledger, await logLines(root, `${baseline}..${config.mainBranch}`), config.records.commitPrefix);
   const missing: string[] = [];
   const passed: PassedCommit[] = [];
   for (const line of candidates) {

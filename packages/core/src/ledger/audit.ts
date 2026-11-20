@@ -20,6 +20,7 @@ export interface LedgerCheck {
   gaps: string[];
   parked: number;
   note?: string;
+  problems?: string[];
 }
 
 export interface Checked {
@@ -43,12 +44,14 @@ interface Found {
   missing: string[];
   passed: PassedCommit[];
   recordsDir: string;
+  problem?: string;
 }
 
-function answer({ missing, passed, recordsDir }: Found, gaps: string[], parked: number, covers: string, note?: string): Checked {
+function answer({ missing, passed, recordsDir, problem }: Found, gaps: string[], parked: number, covers: string, note?: string): Checked {
   const passedText = passedLine(passed.length, recordsDir);
-  const check = { missing, covered: missing.length === 0, passed: { total: passed.length, shown: passed.slice(0, MOST_PASSED_SHOWN) }, gaps, parked, ...(note === undefined ? {} : { note }) };
-  return { check, text: [missing.length === 0 ? covers : missing.join("\n"), ...(passedText === undefined ? [] : [passedText]), ...gaps, ...(note === undefined ? [] : [note])].join("\n") };
+  const check = { missing, covered: missing.length === 0 && problem === undefined, passed: { total: passed.length, shown: passed.slice(0, MOST_PASSED_SHOWN) }, gaps, parked, ...(note === undefined ? {} : { note }), ...(problem === undefined ? {} : { problems: [problem] }) };
+  const head = problem ?? (missing.length === 0 ? covers : missing.join("\n"));
+  return { check, text: [head, ...(passedText === undefined ? [] : [passedText]), ...gaps, ...(note === undefined ? [] : [note])].join("\n") };
 }
 
 export async function checkLedger(repo: Repo, ledger: Ledger, track?: string): Promise<Checked> {

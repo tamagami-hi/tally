@@ -18,7 +18,7 @@ const SHORT = 7;
 const commits = (count: number): string => `${count} commit${count === 1 ? "" : "s"}`;
 
 async function beyond(trial: Trial, cwd: string, tip: string): Promise<string[]> {
-  const out = (await gitOut(cwd, ["log", "--format=%H%x09%s", `${trial.head ?? trial.base}..${tip}`])) ?? "";
+  const out = (await gitOut(cwd, ["log", "--format=%H%x09%s", "--end-of-options", `${trial.head ?? trial.base}..${tip}`])) ?? "";
   return out === "" ? [] : out.split("\n");
 }
 

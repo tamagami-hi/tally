@@ -60,7 +60,7 @@ async function fromMain(repo: Repo, session: Session, seen: string | undefined, 
   if (seen === undefined || session.track === repo.config.mainBranch) return [];
   const mine = new Set(await changedFiles(repo, session.track));
   if (mine.size === 0) return [];
-  const log = await gitOut(repo.root, ["log", "--reverse", `--format=${SEPARATOR}%H %s`, "--name-only", `${seen}..${repo.config.mainBranch}`]);
+  const log = await gitOut(repo.root, ["log", "--reverse", `--format=${SEPARATOR}%H %s`, "--name-only", "--end-of-options", `${seen}..${repo.config.mainBranch}`]);
   if (log === null) return [];
   const prefix = repo.config.records.commitPrefix;
   return log.split(SEPARATOR).filter((block) => block.trim() !== "").flatMap((block) => {

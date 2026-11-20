@@ -1,3 +1,4 @@
+import { provedCommit } from "../git/proved.ts";
 import { gitOut } from "../git/run.ts";
 import type { Repo } from "../store/records.ts";
 
@@ -12,7 +13,9 @@ function parsed(line: string): readonly [string, string] | undefined {
 }
 
 export async function commitDates(repo: Repo, baseline: string): Promise<CommitDates> {
-  const out = await gitOut(repo.root, ["log", "--format=%H %cI", `${baseline}..${repo.config.mainBranch}`]);
+  const from = await provedCommit(repo.root, baseline);
+  if (from === null) return new Map();
+  const out = await gitOut(repo.root, ["log", "--format=%H %cI", "--end-of-options", `${from}..${repo.config.mainBranch}`]);
   const dated = (out ?? "").split("\n").flatMap((line) => {
     const pair = parsed(line);
     return pair === undefined ? [] : [pair];

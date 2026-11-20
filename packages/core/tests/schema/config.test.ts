@@ -53,4 +53,15 @@ describe("the config schema", () => {
     const twice = { ...minimal, tracks: [minimal.tracks[0], minimal.tracks[0]] };
     expect(() => configSchema.parse(twice)).toThrow(/track/);
   });
+
+  test("refuses a branch name git would take as an option, for main and for a track", () => {
+    const base = { schema: 1, name: "x", tracks: [], stages: [], commands: { test: ["true"] }, fingerprint: { paths: ["src"] }, identity: { name: "a", email: "a@b" } };
+
+    const main = configSchema.safeParse({ ...base, mainBranch: "--exec=touch x" });
+    const track = configSchema.safeParse({ ...base, tracks: [{ name: "data", worktree: ".temp/worktrees/data", branch: "-x" }] });
+
+    expect([main.success, track.success]).toEqual([false, false]);
+    expect(JSON.stringify(main.error?.issues)).toContain("a branch name neither begins with - nor holds a space");
+    expect(configSchema.safeParse({ ...base, mainBranch: "release/1.x", tracks: [{ name: "data", worktree: ".temp/worktrees/data", branch: "track/data" }] }).success).toBe(true);
+  });
 });

@@ -66,8 +66,9 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
   const { root, config } = repo;
   const main = config.mainBranch;
   const summary = await summarize(ledger, config.stages, onMainOf(repo), needingReview(ledger, await reviewsWhenRequired(repo), config.reviews));
-  const { missing } = repo.cycle === undefined ? await owedCommits(repo, ledger) : { missing: [] };
-  const problems = [...(repo.problems ?? []), ...summary.problems];
+  const owed = repo.cycle === undefined ? await owedCommits(repo, ledger) : { missing: [] };
+  const { missing } = owed;
+  const problems = [...(repo.problems ?? []), ...summary.problems, ...("problem" in owed && owed.problem !== undefined ? [owed.problem] : [])];
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);
   const decisions = await tolerated(readDecisions(repo), { schema: 1 as const, decisions: [], replaced: [] });
   problems.push(...(decisions.problem === undefined ? [] : [decisions.problem]), ...disputedProblems(decisions.value));

@@ -3,11 +3,11 @@ import type { ResolveCommit } from "../ledger/ops.ts";
 import { git, gitMust, gitOut } from "./run.ts";
 
 export async function verifyCommit(cwd: string, ref: string): Promise<string | null> {
-  return gitOut(cwd, ["rev-parse", "--verify", "-q", `${ref}^{commit}`]);
+  return gitOut(cwd, ["rev-parse", "--verify", "-q", "--end-of-options", `${ref}^{commit}`]);
 }
 
 export async function isAncestor(cwd: string, commit: string, ref: string): Promise<boolean> {
-  return (await git(cwd, ["merge-base", "--is-ancestor", commit, ref])).code === 0;
+  return (await git(cwd, ["merge-base", "--is-ancestor", "--end-of-options", commit, ref])).code === 0;
 }
 
 export async function shortOf(cwd: string, sha: string, length = 7): Promise<string> {
@@ -26,7 +26,7 @@ export function resolveOnMain(cwd: string, mainBranch: string): ResolveCommit {
 }
 
 export async function logLines(cwd: string, range: string, format = "%h %s"): Promise<string[]> {
-  const out = await gitOut(cwd, ["log", `--format=${format}`, "--abbrev=7", range]);
+  const out = await gitOut(cwd, ["log", `--format=${format}`, "--abbrev=7", "--end-of-options", range]);
   return out === null || out === "" ? [] : out.split("\n");
 }
 
@@ -57,6 +57,6 @@ export async function worktrees(cwd: string): Promise<Map<string, string>> {
 }
 
 export async function revCount(cwd: string, range: string): Promise<number> {
-  const out = await gitOut(cwd, ["rev-list", "--count", range]);
+  const out = await gitOut(cwd, ["rev-list", "--count", "--end-of-options", range]);
   return out === null ? 0 : Number(out);
 }

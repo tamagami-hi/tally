@@ -1,4 +1,5 @@
 import { TallyError } from "../errors.ts";
+import { provedCommit } from "../git/proved.ts";
 import { gitOut } from "../git/run.ts";
 import { closedLedgers } from "../records/cited.ts";
 import type { Ledger } from "../schema/ledger.ts";
@@ -13,7 +14,7 @@ export interface ReleaseTasks {
   milestones: { milestone: string; ids: string[] }[];
 }
 
-export type ListedRelease = Release & { tasks: ReleaseTasks; whatsNew?: boolean };
+export type ListedRelease = Release & ({ tasks: ReleaseTasks; whatsNew?: boolean } | { problem: string });
 
 export interface ReleaseList {
   releases: ListedRelease[];
@@ -30,7 +31,7 @@ interface Landed {
 const landedIn = (ledgers: readonly Ledger[]): Landed[] => ledgers.flatMap((ledger) => ledger.milestones.flatMap((milestone) => milestone.tasks.flatMap((task) => (task.status === "landed" && task.commit !== undefined ? [{ milestone: milestone.id, id: task.id, commit: task.commit }] : []))));
 
 async function commitsBetween(repo: Repo, from: string | undefined, to: string): Promise<string[]> {
-  const out = await gitOut(repo.root, ["rev-list", from === undefined ? to : `${from}..${to}`]);
+  const out = await gitOut(repo.root, ["rev-list", "--end-of-options", from === undefined ? to : `${from}..${to}`]);
   return out === null || out === "" ? [] : out.split("\n");
 }
 
@@ -40,11 +41,11 @@ function counted(landed: readonly Landed[], commits: readonly string[]): Release
   return { count: inRange.length, milestones };
 }
 
-async function whatsNew(repo: Repo, release: Release): Promise<{ whatsNew?: boolean }> {
+async function whatsNew(repo: Repo, release: Release, full: string): Promise<{ whatsNew?: boolean }> {
   const notes = repo.config.releases?.notes;
   if (notes === undefined) return {};
   const path = notes.replaceAll(VERSION_MARK, release.version);
-  return { whatsNew: (await gitOut(repo.root, ["cat-file", "-e", `${release.commit}:${path}`])) !== null };
+  return { whatsNew: (await gitOut(repo.root, ["cat-file", "-e", "--end-of-options", `${full}:${path}`])) !== null };
 }
 
 function asked(releases: readonly Release[], version: string | undefined): Release[] {
@@ -59,11 +60,16 @@ export async function listReleases(repo: Repo, ask: { version?: string | undefin
   const landed = landedIn([await new Records(repo).readLedger(), ...(await closedLedgers(repo)).ledgers]);
   const chosen = new Set(asked(releases, ask.version).slice(-(ask.limit ?? DEFAULT_RELEASES)).map((one) => one.version));
   const listed: ListedRelease[] = [];
-  for (const [index, release] of releases.entries()) {
-    if (!chosen.has(release.version)) continue;
-    const commits = await commitsBetween(repo, releases[index - 1]?.commit, release.commit);
-    listed.push({ ...release, tasks: counted(landed, commits), ...(await whatsNew(repo, release)) });
+  let previous: string | undefined;
+  for (const release of releases) {
+    const full = await provedCommit(repo.root, release.commit);
+    if (full === null) {
+      if (chosen.has(release.version)) listed.push({ ...release, problem: `its commit '${release.commit}' is not a commit of ${repo.name}` });
+      continue;
+    }
+    if (chosen.has(release.version)) listed.push({ ...release, tasks: counted(landed, await commitsBetween(repo, previous, full)), ...(await whatsNew(repo, release, full)) });
+    previous = full;
   }
-  const after = await commitsBetween(repo, releases.at(-1)?.commit, repo.config.mainBranch);
+  const after = await commitsBetween(repo, previous, repo.config.mainBranch);
   return { releases: listed.reverse(), matched: chosen.size, unreleased: counted(landed, after) };
 }

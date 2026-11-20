@@ -23,6 +23,11 @@ const SCOPE = z.enum(["all", "mine"]).default("all");
 
 const ROWS = z.enum(["all", "open"]).optional().describe("'open': unfinished rows only; finishedRows counts the rest");
 
+function problemsOf(...lists: readonly (readonly string[] | undefined)[]): { problems?: string[] } {
+  const problems = [...new Set(lists.flatMap((list) => list ?? []))];
+  return problems.length === 0 ? {} : { problems };
+}
+
 function boardOf<B extends { rows: readonly MilestoneRow[] }>(board: B, rows: "all" | "open" | undefined, fields: readonly string[] | undefined): Readonly<Record<string, unknown>> {
   if (rows !== "open") return pickKnown(board, fields, "the board");
   const open = board.rows.filter((row) => !row.finished);
@@ -75,7 +80,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
       const line = checkoutLine(repo, checkout);
       const marked = await decisionsToMark(repo, ledger);
       const tipOnly = ledger.milestones.flatMap((one) => one.tasks).filter((one) => one.status === "landed" && one.checked === "tip").length;
-      return ok({ ...check, recordsWaiting: await recordsWaiting(repo), checkout, ...(marked.toMark.length === 0 ? {} : { decisionsToMark: marked.toMark }), ...(tipOnly === 0 ? {} : { tipOnly }), ...(marked.problems.length === 0 ? {} : { problems: marked.problems }) }, line === undefined ? text : `${text}\n${line}`);
+      return ok({ ...check, recordsWaiting: await recordsWaiting(repo), checkout, ...(marked.toMark.length === 0 ? {} : { decisionsToMark: marked.toMark }), ...(tipOnly === 0 ? {} : { tipOnly }), ...(problemsOf(check.problems, marked.problems)) }, line === undefined ? text : `${text}\n${line}`);
     }),
   );
   server.registerTool(

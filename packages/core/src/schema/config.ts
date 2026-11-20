@@ -1,9 +1,12 @@
 import { z } from "zod";
 
+const isBranchName = (name: string): boolean => !name.startsWith("-") && !/\s/.test(name);
+const branchName = z.string().min(1).refine(isBranchName, "a branch name neither begins with - nor holds a space");
+
 export const trackSchema = z.object({
   name: z.string().min(1),
   worktree: z.string().min(1),
-  branch: z.string().min(1),
+  branch: branchName,
   test: z.array(z.string()).min(1).optional(),
   paths: z.array(z.string().min(1)).optional(),
   parent: z.string().min(1).optional(),
@@ -39,7 +42,7 @@ export const CONTEXT_AS_RECORDS = "records";
 export const configSchema = z.object({
   schema: z.literal(1),
   name: z.string().min(1),
-  mainBranch: z.string().min(1).default("main"),
+  mainBranch: branchName.default("main"),
   docsDir: z.string().min(1).default("docs"),
   extraDocs: z.array(z.string().min(1)).optional(),
   worktreeRoot: z.string().min(1).refine(isOwnFolder, "worktreeRoot is a folder inside the repository, given relative to it, and not under .git").optional(),
