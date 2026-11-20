@@ -39,6 +39,17 @@ describe("what a tool's entry in the list holds", () => {
     expect(nested.text).toContain("extra");
   });
 
+    test("no integer bound that only restates the safe integer range, while a number past it is still refused", async () => {
+    const { tools, call } = await entries();
+
+    const listed = JSON.stringify(tools);
+    const refused = await call("cycle_list", { n: 2 ** 60 });
+
+    expect(listed).not.toContain("9007199254740991");
+    expect(listed).toContain('"type":"integer"');
+    expect(refused.isError).toBe(true);
+  });
+
     test("a hint only where it differs from the protocol's default, and a read lists only what a read needs", async () => {
     const { tools } = await entries();
 

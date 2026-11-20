@@ -23,10 +23,12 @@ export function hintsOf(annotations: ToolAnnotations): ToolAnnotations {
   return Object.fromEntries(said.map((hint) => [hint, annotations[hint]]));
 }
 
+const SAYS_NOTHING: Readonly<Record<string, unknown>> = { additionalProperties: false, maximum: Number.MAX_SAFE_INTEGER, minimum: Number.MIN_SAFE_INTEGER };
+
 function withoutClosed(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutClosed);
   if (typeof value !== "object" || value === null) return value;
-  return Object.fromEntries(Object.entries(value).filter(([key, held]) => !(key === "additionalProperties" && held === false)).map(([key, held]) => [key, withoutClosed(held)]));
+  return Object.fromEntries(Object.entries(value).filter(([key, held]) => !(key in SAYS_NOTHING && SAYS_NOTHING[key] === held)).map(([key, held]) => [key, withoutClosed(held)]));
 }
 
 export function inputOf(schema: z.ZodObject): Tool["inputSchema"] {
