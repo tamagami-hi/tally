@@ -125,7 +125,18 @@ export interface DecisionInput {
   state?: DecisionState;
 }
 
-export const stateFor = (input: { status: string; state?: DecisionState | undefined }): DecisionState => input.state ?? stateOf(input.status);
+const WITHDRAWN = /^\s*withdrawn/i;
+const WITHDRAWN_STATE: DecisionState = "other";
+
+export const isWithdrawal = (status: string): boolean => WITHDRAWN.test(status);
+
+export const isWithdrawn = (decision: Pick<Decision, "status" | "state">): boolean => isWithdrawal(decision.status) && decision.state === WITHDRAWN_STATE;
+
+export function stateFor(input: { status: string; state?: DecisionState | undefined }): DecisionState {
+  if (!isWithdrawal(input.status)) return input.state ?? stateOf(input.status);
+  if (input.state !== undefined && input.state !== WITHDRAWN_STATE) throw new TallyError(`a status that begins with withdrawn takes the state ${WITHDRAWN_STATE}; leave state out, or give ${WITHDRAWN_STATE}`);
+  return WITHDRAWN_STATE;
+}
 
 export async function changeDecisions<R>(repo: Repo, change: (file: DecisionsFile) => { file: DecisionsFile; result: R }): Promise<R> {
   assertCurrent(repo);

@@ -3,7 +3,9 @@ import { isOperator, type Session } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
 import { checkedAccept } from "./accept.ts";
-import { changeDecisions, knownIn, stateFor, type Decision, type DecisionState, type DecisionsFile, type Replaced } from "./decisions.ts";
+import { changeDecisions, isWithdrawn, knownIn, stateFor, type Decision, type DecisionState, type DecisionsFile, type Replaced } from "./decisions.ts";
+
+export { isWithdrawn };
 
 export const MOST_SAID = 2000;
 
@@ -34,7 +36,6 @@ const IN_FORCE = "in force";
 
 export const isUnconfirmed = (decision: Decision): boolean => decision.via !== undefined && decision.confirmed === undefined;
 
-export const isWithdrawn = (decision: Decision): boolean => /withdrawn/i.test(decision.status);
 
 export const isDisputed = (decision: Decision): boolean => decision.disputed !== undefined && !isWithdrawn(decision);
 

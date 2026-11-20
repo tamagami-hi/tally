@@ -3,8 +3,8 @@ import { andList } from "../phases/rows.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
-import { checkedSaid } from "./decision-record.ts";
-import { changeDecisions, knownIn, readDecisions, stateFor, type Decision, type DecisionState, type DecisionsFile } from "./decisions.ts";
+import { checkedSaid, isDisputed } from "./decision-record.ts";
+import { changeDecisions, isWithdrawal, knownIn, readDecisions, stateFor, type Decision, type DecisionState, type DecisionsFile } from "./decisions.ts";
 import { answerQuestion, rowOf, type Question } from "./questions.ts";
 
 export interface StatusInput {
@@ -34,6 +34,7 @@ export async function setStatusBySession(repo: Repo, session: Session, input: St
   if (!isOperator(repo, session)) throw new TallyError("only an operator session sets a decision's status; a track says what it built with task_land");
   const decision = await changeDecisions(repo, (file) => {
     const old = oneDecision(file, input.id, input.group);
+    if (isDisputed(old) && !isWithdrawal(input.status)) throw new TallyError(`${old.id} (${old.group}) is disputed: it stops being disputed when it is replaced with decision_record, confirmed by the operator on the board, or withdrawn: a status that begins with withdrawn`);
     const next: Decision = { ...old, status: input.status, state: stateFor(input), by: "operator", on: now.toISOString() };
     return { file: { ...file, decisions: file.decisions.map((one) => (one === old ? next : one)) }, result: next };
   });
