@@ -41,6 +41,7 @@ export interface OrderBrief {
   cited: OrderCited[];
   citedLeftOut?: { ids: string[]; read: string };
   rules: BriefRule[];
+  rulesLeftOut?: { ids: string[]; read: string };
   entries: { id: string; kind: EntryKind; title: string }[];
   working: Working[];
   others: number;
@@ -50,6 +51,7 @@ export interface OrderBrief {
 
 const RULE: EntryKind = "rule";
 const WITH_TEXT: readonly string[] = ["authority", "safety"];
+const READ_RULES = "each is read whole by its id: rulebook_get answers every rule, context_get one";
 const READ_WHOLE = "each is read whole by its id: decision_list, context_get, question_list, note_list or review_list, with cycle for one a closed cycle holds";
 const EMPTY_DECISIONS: DecisionsFile = { schema: 1, decisions: [], replaced: [] };
 
@@ -99,12 +101,24 @@ function inOrder(ids: readonly string[], lookup: Lookup, decisions: DecisionsFil
   });
 }
 
-function fitted(cited: readonly OrderCited[], rules: readonly BriefRule[], room: number): { cited: OrderCited[]; leftOut: string[] } {
-  const sizes = cited.map((one) => JSON.stringify(one).length + 1);
-  const fixed = JSON.stringify(rules).length + 2;
-  const fits = sizes.reduce<number[]>((ends, size) => [...ends, (ends.at(-1) ?? fixed) + size], []).findIndex((end) => end > room);
-  const kept = fits < 0 ? cited.length : fits;
-  return { cited: cited.slice(0, kept), leftOut: [...new Set(cited.slice(kept).map((one) => one.id))] };
+function prefixWithin<T>(items: readonly T[], used: number, room: number): number {
+  const ends = items.map((one) => JSON.stringify(one).length + 1).reduce<number[]>((all, size) => [...all, (all.at(-1) ?? used) + size], []);
+  const past = ends.findIndex((end) => end > room);
+  return past < 0 ? items.length : past;
+}
+
+interface Fitted {
+  cited: OrderCited[];
+  leftOut: string[];
+  rules: BriefRule[];
+  rulesLeftOut: string[];
+}
+
+function fitted(cited: readonly OrderCited[], rules: readonly BriefRule[], room: number): Fitted {
+  const ruleCount = prefixWithin(rules, 2, room);
+  const keptRules = rules.slice(0, ruleCount);
+  const citedCount = prefixWithin(cited, JSON.stringify(keptRules).length + 2, room);
+  return { cited: cited.slice(0, citedCount), leftOut: [...new Set(cited.slice(citedCount).map((one) => one.id))], rules: keptRules, rulesLeftOut: rules.slice(ruleCount).map((rule) => rule.id) };
 }
 
 async function changedFiles(repo: Repo, rows: Awaited<ReturnType<typeof branches>>, branch: string): Promise<Set<string>> {
@@ -141,15 +155,16 @@ export async function orderBrief(repo: Repo, session: Session, options: OrderOpt
   const citedIds = new Set(ids);
   const ruleEntries = inRulebookOrder(inForce.filter((entry) => entry.kind === RULE));
   const rules = ruleEntries.map(({ id, section, title, text }): BriefRule => ({ id, ...(section === undefined ? {} : { section }), title, ...(WITH_TEXT.includes(section ?? "") || citedIds.has(id) ? { text } : {}) }));
-  const { cited, leftOut } = fitted(await citedRecords(repo, ids), rules, options.room ?? ORDER_ROOM);
+  const fit = fitted(await citedRecords(repo, ids), rules, options.room ?? ORDER_ROOM);
   const handoff = await readHandoff(repo, session.track);
   const near = await overlapping(repo, session, claims);
   return {
     level: "order",
     track: { name: session.track, handoff: handoff.current ?? null, tasks },
-    cited,
-    ...(leftOut.length === 0 ? {} : { citedLeftOut: { ids: leftOut, read: READ_WHOLE } }),
-    rules,
+    cited: fit.cited,
+    ...(fit.leftOut.length === 0 ? {} : { citedLeftOut: { ids: fit.leftOut, read: READ_WHOLE } }),
+    rules: fit.rules,
+    ...(fit.rulesLeftOut.length === 0 ? {} : { rulesLeftOut: { ids: fit.rulesLeftOut, read: READ_RULES } }),
     entries: applying(repo, session.track, inForce).filter((entry) => !citedIds.has(entry.id)).map(({ id, kind, title }) => ({ id, kind, title })),
     ...near,
     rulebook: rulebookOf(all, ruleEntries.length),

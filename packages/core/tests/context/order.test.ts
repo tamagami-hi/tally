@@ -122,4 +122,18 @@ describe("the work order's cited records, when the records move or grow", () => 
     expect(citedOf(order, "review-1")).toMatchObject({ id: "review-1", missing: expect.stringContaining("could not be read") });
     expect(citedOf(order, "DEC-1")).toMatchObject({ text: DECISION });
   });
+
+  test("leaves out whole rules from the end when the rules alone pass the room, names them, and slices none", async () => {
+    const made = await ordered(["DEC-1"]);
+    for (const n of Array.from({ length: 12 }, (_, index) => index)) await putEntry(made.repo, made.operator, { kind: "rule", title: `Safety ${n}`, text: `${n % 10}`.repeat(590), section: "safety", source: "the operator" });
+
+    const order = await orderOf(made.repo, made.eng, 5_000);
+    const texts = (order.rules ?? []).filter((rule) => rule.title.startsWith("Safety")).map((rule) => rule.text?.length);
+
+    expect(order.rulesLeftOut?.ids.length).toBeGreaterThan(0);
+    expect(order.rulesLeftOut?.read).toContain("rulebook_get");
+    expect(texts.every((length) => length === 590)).toBe(true);
+    expect(JSON.stringify(order.rules).length).toBeLessThanOrEqual(5_000);
+    expect([...(order.rules ?? []).map((rule) => rule.id), ...(order.rulesLeftOut?.ids ?? [])]).toHaveLength(15);
+  });
 });
