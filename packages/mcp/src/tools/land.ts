@@ -1,7 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { z } from "zod";
-import { TallyError, advance, cancelTicket, joinQueue, landingTarget, ticketStates, ticketView, waitForTicket } from "@tally/core";
+import { TallyError, advance, cancelLanding, joinQueue, landingTarget, ticketStates, ticketView, waitForTicket } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
@@ -44,9 +44,9 @@ export function registerLandTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "land_cancel",
-    { description: "Take a ticket that has not had its turn out of the landing queue.", inputSchema: { sessionId: z.string(), ticket: z.string() } },
+    { description: "Take a ticket out of the landing queue, or stop one at its turn: its commit is undone, and the script runs no more commits and stops the running check and what it started in its process group. Refused once the ticket has landed.", inputSchema: { sessionId: z.string(), ticket: z.string() } },
     ({ sessionId, ticket }) => inSession(source, sessionId, async (repo, session) => {
-      await cancelTicket(repo, session, ticket);
+      await cancelLanding(repo, session, ticket);
       return ok(await ticketView(repo, ticket));
     }),
   );

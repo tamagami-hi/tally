@@ -213,6 +213,8 @@ A landing refuses a commit that changes `docs/records/`: records change only thr
 git status -- . ':(exclude)docs/records'
 ```
 
+**Checks, the tip, and a cancel.** Where the config lists checks by path, each commit of your landing runs the checks its own files choose; a commit no check covers is refused before any check runs, so add a check that covers it. `land_start` with `check: "tip"` checks only the last commit, with every check your landing's files choose, and its record says so (a repository may refuse it). `land_cancel` stops a landing even at its turn: your commit is undone, and the script runs no more commits and stops the check that is running, first with TERM and ten seconds later with KILL, along with what that check started in its own process group. It cannot stop what the check started elsewhere (a container, a server, a daemon that left the group), and where `setsid` is missing it stops only the check's own process and says so in the log; `commands.landing.stop`, if the repository sets it, runs once after a cancelled or failed turn, for those.
+
 ### 10.4 What the other tracks are doing
 
 - **Overlaps.** The answers of `session_open`, `task_claim` and `land_start` carry `overlaps` when another track has changed a file yours also changes: the file, the track and who is on it.

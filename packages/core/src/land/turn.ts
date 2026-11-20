@@ -41,7 +41,7 @@ interface Result {
 
 const short = (sha: string): string => sha.slice(0, SHORT_HASH);
 
-const ownerFile = (ticket: Ticket): string => join(ticket.worktree, LANDING_DIR, "owner");
+export const ownerFile = (ticket: Pick<Ticket, "worktree">): string => join(ticket.worktree, LANDING_DIR, "owner");
 
 const ended = (ticket: Ticket, state: "landed" | "failed", now: Date, more: Partial<Ticket>): Ticket => {
   const { turn: _turn, ...rest } = ticket;

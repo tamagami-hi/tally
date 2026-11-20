@@ -110,14 +110,16 @@ describe("landing through the queue", () => {
     expect(refused.text).toContain("no ticket nope");
   });
 
-  test("land_cancel takes a waiting ticket out of the queue", async () => {
+  test("land_cancel stops a ticket at its turn and undoes its commit", async () => {
     const s = await serving();
     await edit(s.tree, "src/a.rs");
     const first = await s.call("land_start", { sessionId: s.session, files: ["src/a.rs"], message: "feat(data): one\n" });
 
-    const refused = await s.call("land_cancel", { sessionId: s.session, ticket: first.structured["ticket"] });
+    const cancelled = await s.call("land_cancel", { sessionId: s.session, ticket: first.structured["ticket"] });
 
-    expect(refused.isError).toBe(true);
-    expect(refused.text).toContain("only a ticket that has not had its turn can be cancelled");
+    expect(first.structured["state"]).toBe("turn");
+    expect(cancelled.isError).toBe(false);
+    expect(cancelled.structured["state"]).toBe("cancelled");
+    expect(await sh(s.tree, ["status", "--porcelain"])).toBe("A  src/a.rs");
   });
 });

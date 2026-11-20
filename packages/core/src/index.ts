@@ -101,6 +101,7 @@ export { renderTerminal } from "./status/terminal.ts";
 export { renderMarkdown } from "./status/markdown.ts";
 export { defaultDeps, landTrack, spawnTests } from "./land/run.ts";
 export { landingLog, loggedTests } from "./land/run-tests.ts";
+export { cancelLanding } from "./land/cancel.ts";
 export { cancelTicket, findTicket, isActive, joinQueue, queueFile, swapTicket, ticketSchema, ticketStates, ticketView, trackSession, turnInProgress } from "./land/queue.ts";
 export type { JoinInput, Queue, Ticket, TicketView, Turn } from "./land/queue.ts";
 export { LANDING_DIR, advance, waitForTicket } from "./land/turn.ts";
