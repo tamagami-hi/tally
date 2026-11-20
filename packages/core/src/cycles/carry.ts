@@ -14,6 +14,7 @@ import { LEDGER_FILE, type Repo } from "../store/records.ts";
 import { isOpen, isPresent, tracksPath } from "../tracks/file.ts";
 import { cycleDir, cyclesFileSchema, cyclesPath, readCycles } from "./file.ts";
 import type { ClosePlan, Move } from "./plan.ts";
+import { moveKept } from "./kept.ts";
 
 type Step = (repo: Repo, plan: ClosePlan) => Promise<void>;
 
@@ -156,6 +157,8 @@ const moved = (move: Move): Step => async (repo) => {
   await rename(from, to);
 };
 
+const keptMoved = (move: Move): Step => (repo) => moveKept(repo, move);
+
 const recorded: Step = async (repo, plan) => {
   const file = await readCycles(repo.recordsDir);
   if (file.cycles.some((cycle) => cycle.n === plan.n)) return;
@@ -164,7 +167,7 @@ const recorded: Step = async (repo, plan) => {
 
 const operationsOf = (plan: ClosePlan): Step[] => [
   ledgerArchive, ledgerPrune, archiving(TRACKS), pruning(TRACKS), phasesArchive, phasesPrune, archiving(REVIEWS), pruning(REVIEWS),
-  archiving(BUILDLOG), pruning(BUILDLOG), archiving(NOTES), notesPrune, ...plan.moves.map(moved), recorded,
+  archiving(BUILDLOG), pruning(BUILDLOG), archiving(NOTES), notesPrune, ...plan.moves.map(moved), ...(plan.kept ?? []).map(keptMoved), recorded,
 ];
 
 export async function carryOut(repo: Repo, plan: ClosePlan, steps = Number.POSITIVE_INFINITY): Promise<void> {

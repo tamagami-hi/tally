@@ -1,3 +1,4 @@
+import { relative } from "node:path";
 import { TallyError, namedList } from "../errors.ts";
 import { gitMust, gitOut } from "../git/run.ts";
 import { statusEntries } from "../git/status.ts";
@@ -145,7 +146,7 @@ export async function closedIn(repo: Repo, file: TracksFile, name: string, optio
   await assertLanded(repo, open.branch);
   const cleaned = (await isPresent(tree)) ? await assertNothingToLose(repo, open, tree) : { names: [], total: 0 };
   const kept = await removed(repo, open, tree, now);
-  const closed: OpenedTrack = { ...open, closedAt: now.toISOString(), closedBy: options.by, ...(options.why === undefined ? {} : { closedWhy: options.why }) };
+  const closed: OpenedTrack = { ...open, closedAt: now.toISOString(), closedBy: options.by, ...(options.why === undefined ? {} : { closedWhy: options.why }), keptFolders: kept === undefined ? [] : [relative(repo.root, kept)] };
   return { file: { ...file, tracks: file.tracks.map((one) => (one === open ? closed : one)) }, result: { track: closed, cleaned, kept } };
 }
 

@@ -51,6 +51,7 @@ function Closed({ cycle }: { cycle: ClosedCycle }) {
       <p className="faint small">{`closed ${when(cycle.closedAt)} by ${cycle.closedBy.agent} · ${cycle.milestones} milestones · ${cycle.tasks} tasks · ${cycle.from}..${cycle.to}`}</p>
       <p>{cycle.summary}</p>
       <Releases releases={cycle.releases} />
+      {cycle.kept === undefined ? null : <p className="faint small">{"what its closed lanes kept: "}<span className="mono">{cycle.kept}</span></p>}
       {cycle.said === undefined ? null : <blockquote className="cycle-said small">{`“${cycle.said}”`}</blockquote>}
       <details onToggle={(event) => setOpen(event.currentTarget.open)}>
         <summary className="small">Phases, milestones and tasks</summary>

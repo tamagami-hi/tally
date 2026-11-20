@@ -17,6 +17,7 @@ export const openedTrackSchema = z.looseObject({
   closedAt: z.string().optional(),
   closedBy: z.object({ track: z.string().min(1), agent: z.string().min(1) }).optional(),
   closedWhy: z.string().optional(),
+  keptFolders: z.array(z.string().min(1)).optional(),
   widened: z.array(z.looseObject({ paths: z.array(z.string().min(1)), by: z.object({ track: z.string().min(1), agent: z.string().min(1) }), at: z.string() })).optional(),
 });
 

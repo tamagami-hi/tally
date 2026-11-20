@@ -57,6 +57,15 @@ describe("the Cycles page", () => {
     expect(screen.getByRole("group", { name: "Cycle 1" })).not.toHaveTextContent("released");
   });
 
+  test("shows under a closed cycle the folder that holds what its closed lanes kept", async () => {
+    serving({ "/cycles": json({ ...listing, closed: [{ ...listing.closed[0]!, kept: ".temp/closed/cycle-2" }, listing.closed[1]!] }) });
+
+    render(<Cycles version="v1" />);
+
+    expect(await screen.findByRole("group", { name: "Cycle 2" })).toHaveTextContent("what its closed lanes kept: .temp/closed/cycle-2");
+    expect(screen.getByRole("group", { name: "Cycle 1" })).not.toHaveTextContent("closed lanes kept");
+  });
+
   test("unfolds a closed cycle into its phases, milestones and tasks, read when it is opened", async () => {
     const server = serving({ "/cycles": json(listing), "/cycles/2/done": json(work) });
     render(<Cycles version="v1" />);

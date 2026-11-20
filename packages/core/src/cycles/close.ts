@@ -13,7 +13,7 @@ import { writeJsonAtomic } from "../store/json.ts";
 import { LANDING_RETRIES, LockBusy, RETRIES, withLock, withLocks, type Retries } from "../store/lock.ts";
 import { Records, assertCurrent, type Repo } from "../store/records.ts";
 import { closedIn } from "../tracks/close.ts";
-import { isOpen, readTracks, tracksPath } from "../tracks/file.ts";
+import { isOpen, isPresent, readTracks, tracksPath } from "../tracks/file.ts";
 import { assertReadable, carryOut, ledgerLock, moveLocks, recordLocks } from "./carry.ts";
 import { closingPath, cycleDir, readCycles } from "./file.ts";
 import { committed, finishHeld } from "./finish.ts";
@@ -31,6 +31,7 @@ export interface CycleClosed {
   archived: { milestones: string[]; tasks: number; tracks: string[]; files: number };
   carried: { milestones: string[]; tracks: string[]; notes: number; parked: Parked[]; unbuilt: string[]; openQuestions: string[] };
   tracksClosed: string[];
+  keptMoved?: string[];
   commit: string | null;
   next: number;
 }
@@ -142,7 +143,14 @@ async function carried(repo: Repo, closing: Closing, read: Read): Promise<CycleC
   await writeJsonAtomic(closingPath(repo.recordsDir, plan.n), plan);
   await carryOut(repo, plan);
   await rm(closingPath(repo.recordsDir, plan.n), { force: true });
-  return answer;
+  const moved = await movedKept(repo, plan);
+  return moved.length === 0 ? answer : { ...answer, keptMoved: moved };
+}
+
+async function movedKept(repo: Repo, plan: ClosePlan): Promise<string[]> {
+  const moves = plan.kept ?? [];
+  const there = await Promise.all(moves.map((move) => isPresent(join(repo.root, move.to))));
+  return moves.filter((_, index) => there[index] === true).map((move) => move.to);
 }
 
 async function readFor(repo: Repo, n: number): Promise<Read> {

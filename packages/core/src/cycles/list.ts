@@ -9,6 +9,7 @@ import { ledgerSchema, type Ledger } from "../schema/ledger.ts";
 import { readJson } from "../store/json.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { readTracks, isPresent } from "../tracks/file.ts";
+import { keptFolder } from "./kept.ts";
 import { cycleDir, readCycles, type CycleRecord } from "./file.ts";
 import { askOf, cycleComplete, cycleState, isCarried } from "./state.ts";
 import { cycleView } from "./view.ts";
@@ -26,7 +27,7 @@ export interface CurrentCycle {
   ask?: string;
 }
 
-export type ClosedCycle = Pick<CycleRecord, "n" | "name" | "closedAt" | "closedBy" | "summary" | "said" | "from" | "to"> & { milestones: number; tasks: number };
+export type ClosedCycle = Pick<CycleRecord, "n" | "name" | "closedAt" | "closedBy" | "summary" | "said" | "from" | "to"> & { milestones: number; tasks: number; kept?: string };
 
 export interface CycleList {
   current: CurrentCycle;
@@ -78,7 +79,7 @@ export async function cycleList(repo: Repo, asked: { limit?: number | undefined 
   for (const cycle of newest.slice(0, asked.limit ?? DEFAULT_CYCLES)) {
     const ledger = await closedLedger(repo, cycle.n);
     const { n, name, closedAt, closedBy, summary, said, from, to } = cycle;
-    closed.push({ n, ...(name === undefined ? {} : { name }), closedAt, closedBy, summary, said, from, to, milestones: ledger?.milestones.length ?? 0, tasks: ledger === undefined ? 0 : tasksIn(ledger) });
+    closed.push({ n, ...(name === undefined ? {} : { name }), closedAt, closedBy, summary, said, from, to, milestones: ledger?.milestones.length ?? 0, tasks: ledger === undefined ? 0 : tasksIn(ledger), ...(await keptOf(repo, n)) });
   }
   return { current: await current(repo, file.current, newest[0]?.closedAt), closed, matched: file.cycles.length };
 }
@@ -90,7 +91,11 @@ async function count(folder: string): Promise<number> {
 const parkedIn = (ledger: Ledger): Parked[] => ledger.milestones.filter((one) => !isCarried(one)).flatMap((milestone) => milestone.tasks.flatMap((task) =>
   (task.deferred ?? []).flatMap((part) => (part.parked === undefined ? [] : [{ task: `${milestone.id}:${task.id}`, what: part.what, why: part.parked.why }]))));
 
-export async function cycleOne(repo: Repo, n: number): Promise<CycleRecord & { totals: CycleTotals; parked: Parked[] }> {
+async function keptOf(repo: Repo, n: number): Promise<{ kept?: string }> {
+  return (await isPresent(join(repo.root, keptFolder(n)))) ? { kept: keptFolder(n) } : {};
+}
+
+export async function cycleOne(repo: Repo, n: number): Promise<CycleRecord & { totals: CycleTotals; parked: Parked[]; kept?: string }> {
   const view = await cycleView(repo, n);
   const record = (await readCycles(repo.recordsDir)).cycles.find((cycle) => cycle.n === n);
   const ledger = await new Records(view).readLedger();
@@ -104,5 +109,5 @@ export async function cycleOne(repo: Repo, n: number): Promise<CycleRecord & { t
     notes: (await readNotes(view)).notes.length,
     days: await count(join(view.recordsDir, ACTIVITY_DIR)),
   };
-  return { ...(record as CycleRecord), totals, parked: parkedIn(ledger) };
+  return { ...(record as CycleRecord), totals, parked: parkedIn(ledger), ...(await keptOf(repo, n)) };
 }

@@ -367,6 +367,7 @@ export interface ClosedCycle {
   milestones: number;
   tasks: number;
   releases?: Released[];
+  kept?: string;
 }
 
 export interface CycleListing {

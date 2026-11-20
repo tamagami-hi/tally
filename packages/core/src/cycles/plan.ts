@@ -19,6 +19,7 @@ import { CONFIG_FILE, RECORDS_DIR, type Repo } from "../store/records.ts";
 import { isOpen, isPresent, readTracks } from "../tracks/file.ts";
 import { CYCLES_DIR, cycleSchema, readCycles, type CycleRecord } from "./file.ts";
 import { isCarried } from "./state.ts";
+import { keptMovesOf } from "./kept.ts";
 
 export const moveSchema = z.object({ from: z.string().min(1), to: z.string().min(1) });
 
@@ -32,6 +33,7 @@ export const planSchema = z.object({
   notes: z.array(z.string().min(1)),
   note: z.string().min(1),
   moves: z.array(moveSchema),
+  kept: z.array(moveSchema).optional(),
 });
 
 export type Move = Exact<z.infer<typeof moveSchema>>;
@@ -104,5 +106,6 @@ export async function planClose(repo: Repo, ledger: Ledger, context: PlanContext
   const moves = context.moves ?? (await movesOf(repo, n, milestones, tracks, []));
   const record: CycleRecord = { n, ...(input.name === undefined ? {} : { name: input.name }), from: ledger.baseline, to: tip, closedAt: now.toISOString(), closedBy: by, said: input.said, ...(input.decision === undefined ? {} : { decision: input.decision }), summary: input.summary };
   const phases = await phasePlan(repo, ledger, new Set(milestones));
-  return { schema: 1, n, record, milestones, tracks: [...tracks], phases, notes: await archivedNotes(repo, new Set(tracks)), note: closeText(n, by.agent, input.summary), moves: [...moves] };
+  const kept = await keptMovesOf(repo, n, tracks);
+  return { schema: 1, n, record, milestones, tracks: [...tracks], phases, notes: await archivedNotes(repo, new Set(tracks)), note: closeText(n, by.agent, input.summary), moves: [...moves], ...(kept.length === 0 ? {} : { kept }) };
 }
