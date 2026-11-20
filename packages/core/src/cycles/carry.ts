@@ -148,9 +148,10 @@ const notesPrune: Step = async (repo, plan) => {
 };
 
 const moved = (move: Move): Step => async (repo) => {
+  const to = join(repo.recordsDir, move.to);
+  if (await isPresent(to)) return;
   const from = join(repo.recordsDir, move.from);
   if (!(await isPresent(from))) return;
-  const to = join(repo.recordsDir, move.to);
   await mkdir(dirname(to), { recursive: true });
   await rename(from, to);
 };
