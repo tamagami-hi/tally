@@ -64,23 +64,30 @@ async function untilIndexFree(root: string, args: readonly string[]): Promise<Gi
   }
 }
 
+export const landingLockPath = (repo: Repo): string => statePath(repo, "locks", "landing.lock");
+
 export async function commitStaged(repo: Repo, subject: Subject, body?: string): Promise<Staged> {
   assertCurrent(repo);
-  const { config, root } = repo;
-  return withLock(statePath(repo, "locks", "landing.lock"), async () => {
+  return withLock(landingLockPath(repo), async () => {
     if (await turnInProgress(repo)) return WAITS;
-    const added = await untilIndexFree(root, ["add", ...recordsOnly(config.records.dir)]);
-    if (added.code !== 0) throw new TallyError(`git add -- ${config.records.dir} failed in ${root}:\n${added.stderr.trim()}`);
-    const staged = await git(root, ["diff", "--cached", "--name-only", "--", config.records.dir]);
-    const files = staged.stdout.split("\n").filter((line) => line !== "").length;
-    if (files === 0) return NOTHING;
-    const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
-    const fitted = fittedSubject(config.records.commitPrefix, subject(files, head));
-    const message = ["-m", fitted.subject, ...[fitted.moved, body].flatMap((part) => (part === undefined ? [] : ["-m", part]))];
-    const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", ...message, ...recordsOnly(config.records.dir)]);
-    if (committed.code !== 0) throw new TallyError(`git commit failed in ${root}:\n${committed.stderr.trim()}`);
-    return { commit: await gitMust(root, ["rev-parse", "--short=7", "HEAD"]), files };
+    return commitHeld(repo, subject, body);
   }, LANDING_RETRIES);
+}
+
+export async function commitHeld(repo: Repo, subject: Subject, body?: string): Promise<Staged> {
+  assertCurrent(repo);
+  const { config, root } = repo;
+  const added = await untilIndexFree(root, ["add", ...recordsOnly(config.records.dir)]);
+  if (added.code !== 0) throw new TallyError(`git add -- ${config.records.dir} failed in ${root}:\n${added.stderr.trim()}`);
+  const staged = await git(root, ["diff", "--cached", "--name-only", "--", config.records.dir]);
+  const files = staged.stdout.split("\n").filter((line) => line !== "").length;
+  if (files === 0) return NOTHING;
+  const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
+  const fitted = fittedSubject(config.records.commitPrefix, subject(files, head));
+  const message = ["-m", fitted.subject, ...[fitted.moved, body].flatMap((part) => (part === undefined ? [] : ["-m", part]))];
+  const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", ...message, ...recordsOnly(config.records.dir)]);
+  if (committed.code !== 0) throw new TallyError(`git commit failed in ${root}:\n${committed.stderr.trim()}`);
+  return { commit: await gitMust(root, ["rev-parse", "--short=7", "HEAD"]), files };
 }
 
 async function leftWhenBusy(committing: Promise<Staged>): Promise<Staged> {

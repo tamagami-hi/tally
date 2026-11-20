@@ -40,6 +40,7 @@ export interface CloseOptions {
   now?: Date;
   why?: string;
   check?: (track: OpenedTrack) => void;
+  commit?: boolean;
 }
 
 const IGNORED = "!!";
@@ -111,6 +112,21 @@ async function removed(repo: Repo, track: OpenedTrack, tree: string, now: Date):
   return kept;
 }
 
+export async function closeBlocker(repo: Repo, name: string): Promise<string | undefined> {
+  try {
+    const file = await readTracks(repo.recordsDir);
+    const open = openTrackNamed(repo, file, name);
+    const tree = worktreeOf(repo, open);
+    await assertIdle(repo, file, name);
+    await assertLanded(repo, open.branch);
+    if (await isPresent(tree)) await assertNothingToLose(repo, open, tree);
+    return undefined;
+  } catch (error: unknown) {
+    if (error instanceof TallyError) return error.message;
+    throw error;
+  }
+}
+
 export async function closeOpened(repo: Repo, name: string, options: CloseOptions): Promise<TrackClosed> {
   const now = options.now ?? new Date();
   const done = await changeTracks(repo.recordsDir, async (file) => {
@@ -125,7 +141,7 @@ export async function closeOpened(repo: Repo, name: string, options: CloseOption
     return { file: { ...file, tracks: file.tracks.map((one) => (one === open ? closed : one)) }, result: { track: closed, cleaned, kept } };
   });
   await clearRest(repo, name);
-  const commit = await commitRecords(repo, `track ${name} closed by ${options.by.agent}`);
+  const commit = options.commit === false ? null : await commitRecords(repo, `track ${name} closed by ${options.by.agent}`);
   return { track: done.track, commit, cleaned: done.cleaned, ...(done.kept === undefined ? {} : { kept: done.kept }) };
 }
 

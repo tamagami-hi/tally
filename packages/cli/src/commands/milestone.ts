@@ -1,4 +1,4 @@
-import { Records, TallyError, addMilestone, assertStageOpen, commitRecords, type Repo } from "@tally/core";
+import { Records, TallyError, addMilestone, assertNewMilestone, assertStageOpen, commitRecords, type Repo } from "@tally/core";
 import { need, parse, text } from "../args.ts";
 import type { IO } from "../io.ts";
 
@@ -34,6 +34,7 @@ export async function milestoneCommand(repo: Repo, argv: readonly string[], io: 
   };
   await assertStageOpen(repo, stage);
   const stages = repo.config.stages.map((s) => s.id);
+  await assertNewMilestone(repo, input.id);
   const message = await new Records(repo).update((ledger) => addMilestone(ledger, input, stages));
   io.out(message);
   const sha = await commitRecords(repo, message);

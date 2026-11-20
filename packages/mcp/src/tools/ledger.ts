@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  addMilestone, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  addMilestone, assertNewMilestone, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, plannedOnMainNotice, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
@@ -74,6 +74,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
       const records = new Records(repo);
       if (!isOperator(repo, session)) throw new TallyError("only an operator session adds milestones");
       await assertStageOpen(repo, input.stage);
+      await assertNewMilestone(repo, input.id);
       const milestone = { ...input, delivers, ...(waits === undefined ? {} : { waits }), ...(group === undefined ? {} : { group }) };
       const message = await records.update((ledger) => addMilestone(ledger, milestone, repo.config.stages.map((s) => s.id)));
       return ok(await recorded(repo, message));
