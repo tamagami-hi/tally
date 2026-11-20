@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { claimTask } from "../../src/state/claims.ts";
@@ -6,6 +7,7 @@ import { Records } from "../../src/store/records.ts";
 import { closeTrack } from "../../src/tracks/close.ts";
 import { openTrack } from "../../src/tracks/open.ts";
 import { opening } from "../support/opening.ts";
+import { sh } from "../support/repo.ts";
 
 const NOW = new Date("2026-11-20T10:00:00.000Z");
 
@@ -41,6 +43,17 @@ describe("closing a track with endSessions", () => {
 
     await expect(closeTrack(repo, operator, "docs", NOW, { endSessions: true })).rejects.toThrow(`track docs has a session that holds a claim ('9 docs' in B2, held by claude, session ${holder.id}); it releases the task or closes first`);
     expect(await onDocs(repo)).toHaveLength(2);
+  });
+
+  test("refuses, ending nothing, while the track has a commit that has not landed", async () => {
+    const { repo, operator, tree } = await withDocs();
+    await openSession(repo, { worktree: tree, agent: "claude" });
+    await writeFile(join(tree, "page.md"), "half a page\n");
+    await sh(tree, ["add", "page.md"]);
+    await sh(tree, ["commit", "-q", "-m", "docs: half a page"]);
+
+    await expect(closeTrack(repo, operator, "docs", NOW, { endSessions: true })).rejects.toThrow("1 commit ahead of main; land its work first");
+    expect(await onDocs(repo)).toHaveLength(1);
   });
 
   test("refuses a session that may not close the track before ending anything", async () => {

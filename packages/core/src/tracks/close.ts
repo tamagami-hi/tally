@@ -71,6 +71,10 @@ export function assertMayClose(repo: Repo, session: Pick<Session, "track">, trac
 async function assertIdle(repo: Repo, file: TracksFile, name: string): Promise<void> {
   const session = (await listSessions(repo)).find((open) => open.track === name);
   if (session !== undefined) throw new TallyError(`track ${name} has an open session (${session.agent}, ${session.id}); close it first, or pass endSessions: true to end the sessions that hold no claim`);
+  await assertOthersIdle(repo, file, name);
+}
+
+async function assertOthersIdle(repo: Repo, file: TracksFile, name: string): Promise<void> {
   const claim = (await listClaims(repo)).find((held) => held.track === name);
   if (claim !== undefined) throw new TallyError(`track ${name} has a claimed task ('${claim.task}' in ${claim.milestone}, held by ${claim.agent}); release it first`);
   const ticket = (await queueFile(repo).read()).tickets.find((one) => one.track === name && isActive(one));
@@ -152,14 +156,23 @@ export async function closeOpened(repo: Repo, name: string, options: CloseOption
   return { track: done.track, commit, cleaned: done.cleaned, ...(done.kept === undefined ? {} : { kept: done.kept }) };
 }
 
+async function assertClosableBesidesSessions(repo: Repo, file: TracksFile, track: OpenedTrack): Promise<void> {
+  await assertOthersIdle(repo, file, track.name);
+  await assertLanded(repo, track.branch);
+  const tree = worktreeOf(repo, track);
+  if (await isPresent(tree)) await assertNothingToLose(repo, track, tree);
+}
+
 async function endClaimless(repo: Repo, session: Session, name: string, now: Date): Promise<Session[]> {
-  const track = openTrackNamed(repo, await readTracks(repo.recordsDir), name);
+  const file = await readTracks(repo.recordsDir);
+  const track = openTrackNamed(repo, file, name);
   assertMayClose(repo, session, track);
   const open = (await listSessions(repo)).filter((one) => one.track === name);
   const claims = await listClaims(repo);
   const holding = open.find((one) => claims.some((claim) => claim.sessionId === one.id));
   const claim = claims.find((one) => one.sessionId === holding?.id);
   if (holding !== undefined && claim !== undefined) throw new TallyError(`track ${name} has a session that holds a claim ('${claim.task}' in ${claim.milestone}, held by ${holding.agent}, session ${holding.id}); it releases the task or closes first`);
+  await assertClosableBesidesSessions(repo, file, track);
   for (const one of open) await endSession(repo, one.id, now);
   return open;
 }
