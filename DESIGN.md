@@ -1033,4 +1033,72 @@ Built from section 5 of the same plan, the second of its three releases, with th
 
 - Asking the operator through the client's own dialog (the plan's section 11).
 - Command-line verbs for the new tools: the command line keeps what it has, and its decisions need no confirming.
-- Strict planned tasks: an unknown key inside a planned task is still dropped, as before.
+- Nothing else: the strict planned tasks first left out here were built before the release (24.7, what changes for a caller).
+
+## 25. Landing options, checks made by hand, releases, a trial tree and hints (0.9.0), with its fix round (0.9.1, built 2026-11-21)
+
+Built from section 6 of the same plan, the last of its three releases, with the planner's notes on it, and then from the fix round that followed the review of 0.8.0. 0.9.0 was not released by itself: the parts and the fix round ship together as 0.9.1.
+
+### 25.1 The decisions
+
+1. **Each commit is checked alone,** with the checks its own files choose, unless a landing asks for its tip only, which its record says; a repository can refuse that. This rewords `RULES.md` rule 9 and 14.1.
+2. **A cancel and the advance of main are decided under one lock,** the landing lock: a cancel either wins (main is not advanced) or is refused as landed, never both.
+3. **The script signals only a process group it made for the check,** proved neither its own nor 0 or 1; where it cannot make one, it signals the check's one process and says what it could not stop.
+4. **A release is marked in main's order:** one at a commit before the latest release's is refused, not reordered, since a release's tasks are counted from the one before it.
+5. **Tally removes only what it made:** a trial is recorded before anything is made, and its end removes only what the record names.
+6. **A hint never refuses,** and one that orders is marked `suggestion: true`.
+7. **The whole tool list may hold 80,000 characters** for this release (25.9).
+8. **The version is 0.9.1.**
+
+### 25.2 Landings that cost less, and one that can be stopped (Part K)
+
+- **Checks chosen for each commit** (`core/src/land/path-checks.ts`): with `commands.checks`, each commit runs the checks whose paths match the files it changes against its first parent (`git diff -z --name-only --no-renames <commit>^1 <commit>`), so a merge in the range is checked by the commits the rebase leaves. A commit no check covers is refused when the turn is prepared, before any check runs, naming it and its files.
+- **The tip only:** `land_start` takes `check: "tip"`; the script checks the last commit with every check the landing's files choose. The ticket, the landed task (`checked: "tip"`) and Done say so, and `ledger_check` answers `tipOnly` when there is one. `commands.landing.tip: "never"` refuses it at `land_start`. With no `commands.checks`, a tip landing runs the track's test on its last commit.
+- **A cancel at the turn** (`core/src/land/cancel.ts`, `land-stop.ts`): `land_cancel` takes a ticket at its turn under the landing lock, writes `cancelled` to the turn's owner file, undoes the landing's own commit as after a failure, and refuses a ticket already landed. The script learns of it at its 5-second beat: it stops the running check (TERM to the check's own process group, KILL ten seconds later), runs no further commit, exits 3, and never advances main, which only the service does when it takes the result. Each check runs under `setsid`, with `--wait` where the installed one takes it; with no `setsid` it signals the check's process alone and says so in the log. `commands.landing.stop`, run once after a cancelled or failed turn with a 60-second limit, is for what a check started elsewhere; its failure is reported and changes nothing else.
+
+### 25.3 A check made by hand (Part M)
+
+`evidence_manual({sessionId, milestone, task, who, result, steps, device?, build?, note?, attachments?})` records into `docs/records/manual/<milestone>.json`, a new file with its own lock, under which a check's id (`manual-<n>`, per milestone) is taken. Each attachment resolves, links followed, to a file under the repository's `.temp/`, at most 200 MB and 10 to a check; its size is read before a streamed hash, and it is never copied. `evidence_list` answers `manual`, the count for what was asked, and with `kind: "manual"` the checks. A cycle's close moves an archived milestone's file and leaves a carried one's. The builder's address lists the tool; the Evidence page lists checks under their task.
+
+### 25.4 Releases (Part N)
+
+- **`release_mark({sessionId, version, commit?, notes?})`**, an operator session's (`core/src/releases/`): the version matches a strict pattern (letters, digits, `.`, `_`, `+`, `-`; no `/`, no `..`, no leading `-`) before it is stored or put into a path; the commit is proved a commit as `covering` proves a side (now `core/src/git/proved.ts`, shared) and must be on main. `docs/records/releases.json` is a new file under its own lock; it stays in the current folder at a cycle's close.
+- **`release_list({version?, limit?, sessionId?, repo?})`** answers the releases newest first, 10 unless `limit` says, each with its tasks computed from the current ledger and the closed cycles' (landed on main after the release before it and at or before its commit, by milestone), `whatsNew` where `releases.notes` names a path holding `{version}`, and `unreleased`.
+- `/api/cycles` and the Cycles page name each cycle's releases, those whose commit lies in its range.
+
+### 25.5 Hints (Part O)
+
+- **`oldestQuestion: {id, days}`** on `board_get` and an operator session's brief, once an open question is older than `questions.nudgeDays` (2 unless the config says). A question with no time it was asked is passed over.
+- **`under`** on a task: the open questions whose meanwhile it was built on, from `task_plan`, `land_start` (carried on the ticket to the recorded task; refused without a milestone and task) and `task_land`; an id that is not an open question is refused by name, and one given again replaces the list. `question_list` answers `provisional` beside each open question, and Done marks such tasks. Answering the question, by `question_answer`, the command line or the operator's route, posts one note from tally to the main track naming that work, inside `answerQuestion` after its commit, so the command line prints what it printed before.
+- **`track_list` with `order: true`** answers `ahead` (each open track ahead of main: its commits, changed files and the tracks it overlaps), `landOrder` (what others wait on first, then a track no other overlaps, then the overlapping ones, the smallest first, each with its reason) and `suggestion: true`. Its git calls carry the limits of 23's E.3, and the answer goes through the size cut.
+
+### 25.6 A trial tree (Part L)
+
+- **`trial_start({sessionId, name, tracks})`**, an operator session's (`core/src/trials/`): the trial is recorded in the runtime state (`trials.json`, beside the landing queue) before anything is made, then the branch `trial/<name>` at main's tip, a checkout under `.temp/tally/trials/<name>`, and each named track's commits ahead of main (`--no-merges`) picked in the order given as tally's own commits (its identity, no hooks, git's long limit), each pick recorded. A track is matched against the open tracks and never passed to git unproved. A branch or folder of that name tally did not record is refused by name. At a conflict the picks are aborted and everything named in the record removed, and the refusal names the track, the commit and the files.
+- **A stop halfway** leaves the record; the next `trial_start` of the name, or `trial_end`, removes what it names.
+- **Runs** in a trial go through its own runner, which needs `--task`; each is recorded against that task with `trial: {name, head}`, by a runner session on the main track. No session opens in a trial's checkout, so a trial lands nothing. `track_list` answers the open trials, and one open for more than a day is a problem.
+- **`trial_end({sessionId, name})`** follows `track_close`'s rule: uncommitted work in the checkout (outside tally's own `.temp/tally/`), or commits on the branch or in the checkout beyond the picks, are named and the end refused. Otherwise it removes the checkout and the branch; run logs stay under `.temp/tally/logs/`.
+
+### 25.7 The surface
+
+- **MCP tools:** 81 (80 where the service runs no command). New: `evidence_manual`, `release_mark`, `release_list`, `trial_start`, `trial_end`.
+- **Parameters added:** `land_start.check`; `under` on `task_plan`'s tasks, `land_start` and `task_land`; `track_list.order`; `kind: "manual"` on `evidence_list`.
+- **Stored:** a task's `checked` and `under`; a run's `trial`; `manual/`; `releases.json`; a decision's `statusVia`; an answered question's `via`; a closed track's `keptFolders`; `kept` in `closing.json`; `commands.landing.tip` and `stop`, `releases.notes` and `questions.nudgeDays` in the config. Each record has a loose schema and an exact type in the guard.
+- **`tools/list`:** 79,623 characters with 81 tools (78,313 with 80 where no command runs); the builder's 25,647 (25 tools) and the reviewer's 18,094 (15). The listed inputs leave out zod's safe-integer bounds, as they leave out `additionalProperties: false`; a number past them is still refused.
+
+### 25.8 Left out
+
+- A release's tasks counted for a release marked out of main's order: such a release is refused instead.
+- Command-line verbs for the new tools.
+
+### 25.9 The fix round (0.9.1), and the limit of 80,000
+
+- **A dispute cannot vanish while the decision stays in force.** Withdrawn is decided in one function from the status and the state together: a status that begins with `withdrawn`, in any case, and the state `other`. Setting such a status stores `other` and refuses another explicit state, through `decision_status` and the command line alike. On a disputed decision `decision_status` refuses any status that is not a withdrawal and names the three ways a dispute ends: a replacement through `decision_record`, the operator's Confirm, or a withdrawal.
+- **A builder sees which decisions are unconfirmed or disputed:** the work order's `cited` and `covering` mark them (`unconfirmed: true`, `disputed: true`), a withdrawn one cited says so in `changed`, and both role protocols say a disputed decision is not built to.
+- **A file that does not parse no longer refuses `ledger_check` or an operator's `session_open`:** both name it among their `problems`. Whatever else makes a brief fail, `session_open` answers the session it opened with `briefProblem`, and ends the session before refusing if its runner or scratch folder cannot be made.
+- **A status change or an answer over MCP is traced on the record:** `statusVia: {session, track, agent, at}` on the decision, `via` on the answered question; the command line writes neither, and its status setting drops an earlier session's `statusVia`. This adds to what 24.2 guarantees: a status change made by a session is traced, and is not put to the operator for confirming as a decision's words are.
+- **Small:** `decision_record` refuses an id that differs from one of its group's only by letter case; `covering`'s two guards on a range's sides each have a test that fails without it; the cited records' reads return their problems instead of pushing onto their caller's list. `decisionsToMark` already left out a withdrawn decision, whose state is `other`.
+- **What closed lanes kept is grouped by cycle** (the operator's ask): a track's close stores its kept folders on its record (`keptFolders`); a cycle's close moves those of every archived track to `.temp/closed/cycle-<n>/` under their own names, one decision in `closing.json` and one step per folder, never replacing a folder there and finished after any stop; a track closed earlier is matched by its exact name and the stamp's own form. `cycle_close` answers `keptMoved`, `cycle_list` a closed cycle's `kept`, and the Cycles page shows it. Nothing of it is in git.
+- **The landing script** removes a check's group and pid files as soon as the check returns, so a stop between two checks signals nothing, and uses `setsid --wait` where it can.
+- **The limit.** With the five tools of 0.9.0 the whole list could not stay within 77,000 characters: after the planner's T.5 and T.6 and the bounds it held 76,292 with 77 tools, and the hints' parameters and the four tools of releases and the trial tree needed about 3,300 more. The operator raised the limit to 80,000 for this release on 2026-11-21; it is to come down again when tools are removed by their use at the next upgrade. The role lists stay within 30,000 and 22,000.
+

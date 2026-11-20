@@ -59,4 +59,16 @@
     <question>When Lumen's data track opens with its work order, which task cites a record, and what does that task say done looks like? Answer as MILESTONE / TASK, a colon, and its line, for example: A1 / 1 x: the y holds</question>
     <answer>X2a / 3 parse quotes: a quoted comma stays in its field</answer>
   </qa_pair>
+  <qa_pair>
+    <question>Someone checked Lumen's snapshots by hand. On what device was it done, and did it pass? Answer as the device, a colon, and pass or fail, for example: a phone: pass</question>
+    <answer>a laptop with a full disk: fail</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Lumen has marked one release. How many landed tasks does it hold? Answer with the number only.</question>
+    <answer>4</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>One of Lumen's tasks is built on an open question's meanwhile. Which task, and which question? Answer as MILESTONE / TASK, a colon, and the question's id, for example: A1 / 1 x: Q-9</question>
+    <answer>B2 / 2 compaction: Q-2</answer>
+  </qa_pair>
 </evaluation>

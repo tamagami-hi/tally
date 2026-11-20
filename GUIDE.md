@@ -344,7 +344,9 @@ Everything a build makes stays inside the repository's own `.temp/`, which git i
 | `<worktree>/.temp/<track>/landing/` | the landing's clean checkout | the landing |
 | `<worktree>/.temp/<track>/tally/landings/*.log` | a landing's test log, when tally runs the tests | `land_run` |
 | `<repo>/.temp/closed/<track>/` | the notes of a closed track, moved there from its worktree's `.temp/` (build output is deleted with the worktree) | `track_close`, the service |
-| `<repo>/.temp/tally/state/` | sessions, claims and locks, only for a repository served alone with `--repo` | the server |
+| `<repo>/.temp/closed/cycle-<n>/` | the closed tracks' notes, grouped when cycle `n` closes: each track archived with it moves its folders there under their own names | `cycle_close` |
+| `<repo>/.temp/tally/trials/<name>/` | a trial's checkout, on branch `trial/<name>`, until `trial_end` | `trial_start` |
+| `<repo>/.temp/tally/state/` | sessions, claims, locks, the landing queue and open trials, only for a repository served alone with `--repo` | the server |
 
 The service keeps its live state in its own data volume, outside every repository.
 
@@ -467,3 +469,34 @@ tally counts the calls each tool receives, and nothing else: per tool, the calls
 ### 10.23 A builder's and a reviewer's address
 
 Register a building session at `/mcp/builder` and a reviewing one at `/mcp/reviewer` (or `/r/<name>/mcp/builder` and `/r/<name>/mcp/reviewer`): each lists only its role's tools, opens with the work order, and carries the role's protocol as the server's instructions. `repo_list` answers each role's tools and the names an allow-list takes; `GET /api/roles/<role>` answers the protocol and a sub-agent definition to save where your client reads them. The plain `/mcp` keeps every tool.
+
+### 10.24 A check made by hand
+
+`evidence_manual` records what a person did on a device and no command can show: `who` in words, `steps` (1 to 30 lines), `result` pass or fail, and `device`, `build` and `note` if you have them. Attachments, such as screenshots, are files under the repository's `.temp/`, at most 200 MB each and 10 to a check: tally keeps their path, hash and size and never copies or moves them. Checks are kept per milestone in `docs/records/manual/<milestone>.json`; `evidence_list` counts them as `manual`, and with `kind: "manual"` answers them. A builder's address has the tool.
+
+### 10.25 Releases
+
+- An operator session marks a release with `release_mark`: a `version` such as `1.4.0` (no `/`, no `..`, no leading `-`), at main's tip unless `commit` names an earlier commit on main. A version is recorded once, and releases are marked in main's order: a release on a commit before the latest release's is refused.
+- `release_list` answers each release's tasks, computed and never stored: those landed on main after the release before it and at or before its commit, by milestone, from the current ledger and the closed cycles'. `unreleased` lists the tasks landed since the last release. With `releases.notes` in the config, a path holding `{version}` such as `docs/releases/{version}.md`, each release says whether that file is in its commit (`whatsNew`).
+- The Cycles page names the releases marked in each cycle.
+
+### 10.26 A trial tree
+
+To check several lanes together before any of them lands, an operator session calls `trial_start` with a `name` and the `tracks`, in the order their commits should go. Tally makes the branch `trial/<name>` at main's tip and a checkout under `.temp/tally/trials/<name>`, and picks each track's commits ahead of main onto it. At a conflict it leaves nothing behind and names the track, the commit and the files.
+
+- Run checks there with the trial's own runner, which needs `--task`: each run is recorded against that task with `trial: {name, head}`.
+- A trial lands nothing, and no session opens in its checkout. `track_list` answers the open trials; one left open for more than a day is a problem on the board.
+- `trial_end` removes the checkout and the branch, and nothing tally did not make. It refuses while the checkout holds uncommitted work or the branch has commits beyond the picks: move a fix made there to a lane first. Run logs stay under `.temp/tally/logs/`.
+
+### 10.27 Hints
+
+None of these refuses anything.
+
+- **The oldest question.** `board_get` and an operator session's brief answer `oldestQuestion: {id, days}` once an open question is older than `questions.nudgeDays` (2 unless the config says).
+- **Work built on a question's meanwhile.** Give a task `under`, the open questions whose meanwhile it is built on, with `task_plan`, `land_start` or `task_land`. `question_list` answers such tasks as `provisional` beside each open question, Done marks them, and when the question is answered tally posts one note to the main track naming them, so they are checked against the answer.
+- **An order for landings.** `track_list` with `order: true` adds each open track ahead of main with its changed files and the tracks it overlaps, and `landOrder`, a suggestion with a reason for each place: first what others wait on, then the tracks no other overlaps, then the overlapping ones, the smallest first.
+
+### 10.28 Decisions marked for a builder
+
+In a work order's `cited` records and in `covering`, a decision carries `unconfirmed: true` while the operator has not confirmed it, or `disputed: true` once they said it is not theirs; a withdrawn one says so in `changed`. Do not build to a disputed decision: tell the main track with `note_post`. A decision is withdrawn by a status that begins with `withdrawn`, which stores the state `other`; a disputed decision takes no other status through `decision_status` until it is replaced, confirmed or withdrawn. `decision_status` and `question_answer` keep which session made the change (`statusVia`, `via`).
+

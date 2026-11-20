@@ -28,6 +28,8 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 
 **0.8.0** (2026-11-21, [DESIGN.md](DESIGN.md) §24): an operator session records a decision or an answer over MCP with the operator's own words (`decision_record`, `decision_status`, `question_answer`), and the operator confirms it on the board; a decision says what makes it built and which paths it governs, and a task cites the records it is built to; a track session opens with its work order (`brief: "order"`), the cited records word for word; `covering` answers what covers a diff's files; and a builder and a reviewer each have their own MCP address with their own tools (`/mcp/builder`, `/mcp/reviewer`). The MCP server has 76 tools, 75 where the service runs no command; `tools/list` stays under 77,000 characters, the builder's under 30,000 and the reviewer's under 22,000.
 
+**0.9.1** (2026-11-21, [DESIGN.md](DESIGN.md) §25): a landing checks each commit with the checks its own files choose, or its tip only when asked, and can be cancelled at its turn; a person's check on a device is recorded with `evidence_manual`; releases are marked and their tasks counted (`release_mark`, `release_list`); an operator checks several lanes together in a trial tree before any lands (`trial_start`, `trial_end`); and hints name the oldest open question, the work built on a question's meanwhile and an order for landings. The fix round after it keeps a dispute from vanishing, marks unconfirmed and disputed decisions for builders, and groups what closed lanes kept by cycle. The MCP server has 81 tools, 80 where the service runs no command; `tools/list` stays under 80,000 characters for this release, the builder's under 30,000 and the reviewer's under 22,000.
+
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config
 docker compose up -d --build
@@ -80,7 +82,7 @@ tally views claude --check         # CLAUDE.md's standing block; exit 1 when sta
 
 ## Evaluating the MCP server
 
-`evaluations/tally.xml` holds twelve questions an agent should be able to answer with the read-only tools, each with one checked answer. They are asked about a small repository that `evaluations/fixture.py` builds the same way every time:
+`evaluations/tally.xml` holds eighteen questions an agent should be able to answer with the read-only tools, each with one checked answer. They are asked about a small repository that `evaluations/fixture.py` builds the same way every time:
 
 ```bash
 python3 evaluations/fixture.py /tmp/lumen
@@ -99,7 +101,9 @@ Then run an MCP evaluation harness over stdio against `node packages/cli/dist/ma
 | `packages/core/src/status` | the summary (with each milestone's `finished`), tracks, questions, the tables |
 | `packages/core/src/done` | the Done answer: closed phases, finished milestones and landed tasks with their dates, and the ended sessions read back from the activity log |
 | `packages/core/src/land` | the landing protocol and its refusals, the clean checkout, the tests' log |
-| `packages/core/src/records` | the records commit; decisions, questions, checks, build logs, evidence (and the index of existing run records), plans, report manifests, hand-offs |
+| `packages/core/src/records` | the records commit; decisions, questions, checks, build logs, evidence (and the index of existing run records), checks made by hand, plans, report manifests, hand-offs |
+| `packages/core/src/releases` | releases: the file, the mark, the tasks each holds, a cycle's releases |
+| `packages/core/src/trials` | the trial tree: its record, its start, its end and what it removes |
 | `packages/core/src/views` | the standing block CLAUDE.md carries between its markers |
 | `packages/server/src` | Hono: the API, the event stream, the git watcher, the commit graph layout, static serving of the web build |
 | `packages/web/src` | Vite + React, hand-written CSS: the board (`Shell`, `Header`, `Stats`, `Board` of open work, `Tracks`, `Graph`, `Done` with `DonePhases` and `DoneSessions`, `Evidence` with its logs, `Docs` with its reader), what the board shows (`open.ts`), the fork lanes (`lanes.ts`), the branch colours and ranks (`branches.ts`), the live hooks, the two layouts in `styles.css` and Done's in `done.css` |

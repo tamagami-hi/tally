@@ -150,6 +150,9 @@ m.call("decision_record", sessionId=op, group="exports", text="A csv file is UTF
 m.call("task_plan", sessionId=op, milestone="X2a", track="data", tasks=[{"id": "3 parse quotes", "cites": ["DEC-1"], "accept": ["a quoted comma stays in its field"]}])
 m.call("task_land", sessionId=op, milestone="X1a", task="1 write csv", commit=exports)
 m.call("phase_close", sessionId=op, phase="X1", summary="Csv export ships.")
+m.call("evidence_manual", sessionId=op, milestone="A1", task="2 snapshots", who="the operator", device="a laptop with a full disk", result="fail", steps=["fill the disk", "write a snapshot", "read it back"])
+m.call("task_plan", sessionId=op, milestone="B2", track="data", tasks=[{"id": "2 compaction", "under": ["Q-2"]}])
+m.call("release_mark", sessionId=op, version="0.1.0", notes="the first release")
 m.call("repo_configure", sessionId=op, config={"reviews": {"required": True, "from": "2026-03-01T00:00:00Z"}})
 first = m.call("review_record", sessionId=op, milestone="A1", task="1 log format", commit=log_format, reviewer="a second model", verdict="fix", blocking=2, findings={"high": 2}, summary="Two records can share an offset.")["review"]["id"]
 m.call("review_record", sessionId=op, milestone="A1", task="1 log format", commit=log_format, reviewer="a second model", verdict="land", blocking=0, summary="Offsets are unique now.", follows=first)
