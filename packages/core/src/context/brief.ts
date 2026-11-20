@@ -18,6 +18,7 @@ import { readCycles } from "../cycles/file.ts";
 import { isComplete } from "../cycles/list.ts";
 import { askOf } from "../cycles/state.ts";
 import { decisionsToMark, type ToMark } from "../records/cited.ts";
+import { oldestQuestion, type OldestQuestion } from "../records/oldest-question.ts";
 import { confirmingOf } from "../records/decision-record.ts";
 import { readDecisions } from "../records/decisions.ts";
 
@@ -84,6 +85,11 @@ async function marking(repo: Repo): Promise<{ decisionsToMark?: ToMark[] }> {
   return marked.length === 0 ? {} : { decisionsToMark: marked };
 }
 
+async function nudging(repo: Repo): Promise<{ oldestQuestion?: OldestQuestion }> {
+  const oldest = await oldestQuestion(repo);
+  return oldest === undefined ? {} : { oldestQuestion: oldest };
+}
+
 export type { Brief, BriefCycle, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
 
 export async function sessionBrief(repo: Repo, session: Session, level: BriefLevel = "full", options: OrderOptions = {}): Promise<Brief | OrderBrief> {
@@ -92,7 +98,7 @@ export async function sessionBrief(repo: Repo, session: Session, level: BriefLev
   const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);
   const rules = inForce.filter((entry) => entry.kind === RULE);
-  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo), decisions: confirmingOf(await readDecisions(repo)), ...(await marking(repo)) } : {};
+  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo), decisions: confirmingOf(await readDecisions(repo)), ...(await marking(repo)), ...(await nudging(repo)) } : {};
   const ledger = await new Records(repo).readLedger();
   const tasks = unlandedTasks(ledger, session.track, claims);
   const cycle = await briefCycle(repo, session, ledger);

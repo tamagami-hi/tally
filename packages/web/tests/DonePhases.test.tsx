@@ -74,4 +74,11 @@ describe("the phases and tasks in Done", () => {
 
     expect(within(block("H")).getByText("tip only")).toHaveAttribute("title", "its landing checked the last commit alone, as it was asked to");
   });
+
+  test("mark a task built under an open question's meanwhile, naming the questions", () => {
+    const phases = work.phases.map((phase) => ({ ...phase, rows: phase.rows.map((row) => ({ ...row, tasks: row.tasks.map((task) => (task.id === "1 csv" ? { ...task, under: ["Q-4", "Q-7"] } : task)) })) }));
+    render(<DonePhases work={{ ...work, phases }} />);
+
+    expect(within(block("H")).getByText("under Q-4, Q-7")).toHaveAttribute("title", "built on these questions' meanwhile: check it against their answers");
+  });
 });

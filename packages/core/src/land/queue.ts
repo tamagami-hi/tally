@@ -35,7 +35,7 @@ export const ticketSchema = z.object({
   worktree: z.string().min(1),
   files: z.array(z.string()),
   message: z.string().optional(),
-  target: z.object({ milestone: z.string().min(1), task: z.string().min(1) }).optional(),
+  target: z.object({ milestone: z.string().min(1), task: z.string().min(1), under: z.array(z.string().min(1)).optional() }).optional(),
   verified: z.string().optional(),
   deferred: z.array(deferredSchema).optional(),
   check: z.enum(["each", "tip"]).optional(),
@@ -59,7 +59,7 @@ export type Queue = z.infer<typeof queueSchema>;
 export interface JoinInput {
   files: readonly string[];
   message?: string;
-  target?: { milestone: string; task: string };
+  target?: { milestone: string; task: string; under?: readonly string[] | undefined };
   verified?: string;
   deferred?: readonly Deferred[] | undefined;
   check?: "each" | "tip" | undefined;
@@ -134,7 +134,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     worktree: session.worktree,
     files: [...input.files],
     ...(input.message === undefined ? {} : { message: input.message }),
-    ...(input.target === undefined ? {} : { target: input.target }),
+    ...(input.target === undefined ? {} : { target: { milestone: input.target.milestone, task: input.target.task, ...(input.target.under === undefined ? {} : { under: [...input.target.under] }) } }),
     ...(input.verified === undefined ? {} : { verified: input.verified }),
     ...(deferred.length === 0 ? {} : { deferred: deferred.map(copyPart) }),
     ...(input.check === "tip" ? { check: "tip" as const } : {}),

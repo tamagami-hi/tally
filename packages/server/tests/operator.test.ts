@@ -2,6 +2,9 @@ import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { addQuestion, readQuestions } from "../../core/src/records/questions.ts";
+import { plan } from "../../core/src/ledger/ops.ts";
+import { readNotes } from "../../core/src/records/notes.ts";
+import { Records } from "../../core/src/store/records.ts";
 import { readDecisions } from "../../core/src/records/decisions.ts";
 import { readRepoList } from "../../core/src/repos/list.ts";
 import { listSessions, openSession } from "../../core/src/state/sessions.ts";
@@ -180,6 +183,20 @@ describe("the operator's actions in one repository", () => {
     const file = await readQuestions(repo);
     expect(file?.open).toEqual([]);
     expect(file?.answered[0]?.decision).toBe("Keep 47560.");
+  });
+
+  test("answering a question with work built under it posts tally's note naming that work, once", async () => {
+    const { app, hub } = await service();
+    const repo = await hub.repos.get("alpha");
+    const { question } = await addQuestion(repo, { group: "platform", question: "Which port?", meanwhile: "47560" });
+    const milestone = (await new Records(repo).readLedger()).milestones[0];
+    await new Records(repo).update((ledger) => plan(ledger, { milestone: milestone?.id ?? "", track: milestone?.track.split("+")[0] ?? "", tasks: [{ id: "port kept", under: [`Q-${question.row}`] }] }));
+
+    await act(app, "POST", `/api/r/alpha/operator/questions/${question.row}/answer`, { decision: "Keep 47560." });
+    const again = await act(app, "POST", `/api/r/alpha/operator/questions/${question.row}/answer`, { decision: "Change it." });
+
+    expect(again.status).toBe(400);
+    expect((await readNotes(repo)).notes.filter((note) => note.about?.record === `Q-${question.row}`).map((note) => note.text)).toEqual([`Q-${question.row} is answered by Keep 47560.: check the work built under its meanwhile against the answer: ${milestone?.id ?? ""} 'port kept'`]);
   });
 
   test("answering a question takes its id as Q-24 too", async () => {

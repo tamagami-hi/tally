@@ -5,6 +5,7 @@ import type { Confirming } from "../records/decision-record.ts";
 import type { Waiting } from "../records/waiting.ts";
 import type { Entry, EntryKind } from "./entries.ts";
 import type { Project } from "./project.ts";
+import type { OldestQuestion } from "../records/oldest-question.ts";
 
 export const briefLevels = ["full", "work", "land", "order"] as const;
 export type BriefLevel = (typeof briefLevels)[number];
@@ -59,6 +60,7 @@ export interface FullBrief {
   checkout?: CheckoutState;
   decisions?: Confirming;
   decisionsToMark?: ToMark[];
+  oldestQuestion?: OldestQuestion;
   cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff: HandoffNote | null };
   entries: { id: string; kind: EntryKind; title: string }[];
@@ -78,6 +80,7 @@ export interface Brief {
   checkout?: CheckoutState;
   decisions?: Confirming;
   decisionsToMark?: ToMark[];
+  oldestQuestion?: OldestQuestion;
   cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff?: HandoffNote | null };
   entries?: { id: string; kind: EntryKind; title: string }[];

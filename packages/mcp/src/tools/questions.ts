@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MOST_EDIT_WHY, MOST_QUESTION_TEXT, addQuestion, editQuestion, isOperator, questionId, readQuestions, rowOf, type Question } from "@tally/core";
+import { MOST_EDIT_WHY, MOST_QUESTION_TEXT, Records, addQuestion, editQuestion, isOperator, questionId, readQuestions, rowOf, type Ledger, type Question } from "@tally/core";
 import { LIMIT, latest } from "../filters.ts";
 import { limitedText } from "../limited.ts";
 import { ok } from "../respond.ts";
@@ -12,6 +12,13 @@ function shown<T extends Question>(row: T, history: boolean): Omit<T, "edits"> &
   const { edits, ...rest } = row;
   const count = edits?.length ?? 0;
   return { id: questionId(row.row), ...rest, ...(count === 0 ? {} : { edited: count }), ...(history && edits !== undefined ? { edits } : {}) };
+}
+
+const builtUnder = (ledger: Ledger, id: string): string[] => ledger.milestones.flatMap((milestone) => milestone.tasks.filter((task) => (task.under ?? []).includes(id)).map((task) => `${milestone.id} '${task.id}'`));
+
+function provisional<T extends { id: string }>(ledger: Ledger, row: T): T & { provisional?: string[] } {
+  const built = builtUnder(ledger, row.id);
+  return built.length === 0 ? row : { ...row, provisional: built };
 }
 
 export function registerQuestionTools(server: ToolHost, source: RepoSource): void {
@@ -33,7 +40,8 @@ export function registerQuestionTools(server: ToolHost, source: RepoSource): voi
       const rows = ids?.map(rowOf);
       const { answered: done, open, ...rest } = (await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] };
       const keep = <T extends Question>(all: T[]) => latest(all.filter((q) => (rows === undefined || rows.includes(q.row)) && (group === undefined || q.group === group)), limit).map((q) => shown(q, history));
-      return ok({ ...rest, open: keep(open), answeredCount: done.length, ...(answered ? { answered: keep(done) } : {}) });
+      const ledger = await new Records(repo).readLedger();
+      return ok({ ...rest, open: keep(open).map((row) => provisional(ledger, row)), answeredCount: done.length, ...(answered ? { answered: keep(done) } : {}) });
     }),
   );
   server.registerTool(

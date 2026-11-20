@@ -27,6 +27,7 @@ export interface LandInput {
   deferred?: readonly Deferred[] | undefined;
   at?: string | undefined;
   checked?: "tip" | undefined;
+  under?: readonly string[] | undefined;
 }
 
 export interface WaitInput {
@@ -135,7 +136,7 @@ export async function land(ledger: Ledger, input: LandInput, resolve: ResolveCom
     if (task.id !== input.task) return task;
     const merged = [...new Set([...task.also, ...also])].sort();
     const at = task.status === "landed" ? task.landedAt : input.at;
-    return withDeferred({ ...withoutWaits(task), status: "landed", commit, also: merged, ...(at === undefined ? {} : { landedAt: at }), ...(input.checked === undefined ? {} : { checked: input.checked }) }, input.deferred);
+    return withDeferred({ ...withoutWaits(task), status: "landed", commit, also: merged, ...(at === undefined ? {} : { landedAt: at }), ...(input.checked === undefined ? {} : { checked: input.checked }), ...(input.under === undefined ? {} : { under: [...input.under] }) }, input.deferred);
   });
   const parts = landed.find((task) => task.id === input.task)?.deferred ?? [];
   const parked = parts.filter((part) => part.parked !== undefined).length;

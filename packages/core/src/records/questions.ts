@@ -5,6 +5,7 @@ import { TallyError } from "../errors.ts";
 import { assertCurrent, type Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
+import { tellBuiltUnder } from "./answered-note.ts";
 import { commitRecords } from "./commit.ts";
 import { parseTables, renderRow } from "./markdown.ts";
 import type { Exact } from "../schema/kept.ts";
@@ -160,12 +161,13 @@ export async function addQuestion(repo: Repo, input: QuestionInput, authority: {
   return { question, id: questionId(question.row), commit };
 }
 
-export async function answerQuestion(repo: Repo, row: number, decision: string, now = new Date(), words: { said?: string } = {}): Promise<{ question: Question; commit: string | null }> {
+export async function answerQuestion(repo: Repo, row: number, decision: string, now = new Date(), words: { said?: string } = {}): Promise<{ question: Question; commit: string | null; problem?: string }> {
   const question = await changeQuestions(repo, (current) => {
     const found = current.open.find((q) => q.row === row);
     if (found === undefined) throw new TallyError(`no open question ${row}; open: ${current.open.map((q) => q.row).join(", ") || "none"}`);
     return { file: { ...current, open: current.open.filter((q) => q.row !== row), answered: [...current.answered, { ...found, answeredAt: now.toISOString(), decision, ...(words.said === undefined ? {} : { said: words.said }) }] }, result: found };
   });
   const commit = await commitRecords(repo, `${questionId(row)} answered: ${decision}`);
-  return { question, commit };
+  const problem = await tellBuiltUnder(repo, questionId(row), decision, now);
+  return { question, commit, ...(problem === undefined ? {} : { problem }) };
 }

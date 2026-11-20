@@ -78,6 +78,7 @@ export const configSchema = z.object({
   worktrees: z.object({ idleMinutes: z.number().positive().optional(), keep: z.boolean().optional() }).optional(),
   context: z.literal(CONTEXT_AS_RECORDS).optional(),
   reviews: z.object({ required: z.boolean(), from: z.iso.datetime({ offset: true }).optional() }).optional(),
+  questions: z.object({ nudgeDays: z.number().int().positive() }).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

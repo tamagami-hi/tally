@@ -1,13 +1,19 @@
 import { readFile, realpath } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { z } from "zod";
-import { TallyError, advance, cancelLanding, joinQueue, landingTarget, ticketStates, ticketView, waitForTicket } from "@tally/core";
+import { TallyError, advance, cancelLanding, joinQueue, landingTarget, ticketStates, ticketView, underOf, waitForTicket, type LandingTarget, type Repo } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const MAX_WAIT_SECONDS = 30;
+
+async function underTarget(repo: Repo, target: LandingTarget | undefined, under: readonly string[] | undefined): Promise<{ milestone: string; task: string; under?: string[] } | undefined> {
+  if (under === undefined) return target === undefined ? undefined : { milestone: target.milestone, task: target.task };
+  if (target === undefined) throw new TallyError("under is recorded on a task: give the landing its milestone and task");
+  return { milestone: target.milestone, task: target.task, under: await underOf(repo, under) };
+}
 
 async function messageOfLanding(worktree: string, message: string | undefined, messageFile: string | undefined): Promise<string | undefined> {
   if (message !== undefined && messageFile !== undefined) throw new TallyError("give the message or a file that holds it, not both");
@@ -24,10 +30,10 @@ export function registerLandTools(server: ToolHost, source: RepoSource): void {
     "land_start",
     {
       description: "Join the landing queue with the session's track; it never blocks. Answers a ticket: state, position, who is ahead. At `turn` tally has committed the named files, rebased the track onto main in a clean checkout and written a script: run `run` in your shell (in the background if long), then land_wait. With no files and no message it lands the track's commits; with milestone and task it records that task, and `deferred` as task_land does. Refused at once, naming the files, if the operator checkout is off main or holds uncommitted changes to a file the landing changes.",
-      inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), message: z.string().optional().describe("the commit message"), messageFile: z.string().optional().describe("a file in the worktree that holds the commit message"), milestone: z.string().optional(), task: z.string().optional(), deferred: z.array(deferredInput).optional().describe("the parts this landing leaves undone"), check: z.enum(["each", "tip"]).optional() },
+      inputSchema: { sessionId: z.string(), files: z.array(z.string()).default([]), message: z.string().optional().describe("the commit message"), messageFile: z.string().optional().describe("a file in the worktree that holds the commit message"), milestone: z.string().optional(), task: z.string().optional(), deferred: z.array(deferredInput).optional().describe("the parts this landing leaves undone"), check: z.enum(["each", "tip"]).optional(), under: z.array(z.string()).optional() },
     },
-    ({ sessionId, files, message, messageFile, milestone, task, deferred, check }) => inSession(source, sessionId, async (repo, session) => {
-      const target = landingTarget(milestone, task);
+    ({ sessionId, files, message, messageFile, milestone, task, deferred, check, under }) => inSession(source, sessionId, async (repo, session) => {
+      const target = await underTarget(repo, landingTarget(milestone, task), under);
       const text = await messageOfLanding(session.worktree, message, messageFile);
       const ticket = await joinQueue(repo, session, { files, deferred, check, ...(text === undefined ? {} : { message: text }), ...(target === undefined ? {} : { target }) });
       await advance(repo);

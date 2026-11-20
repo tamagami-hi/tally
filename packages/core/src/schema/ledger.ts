@@ -53,6 +53,7 @@ export const taskSchema = z
     covers: z.array(z.string().min(1)).optional(),
     cites: z.array(z.string().min(1)).optional(),
     checked: z.enum(["tip"]).optional(),
+    under: z.array(z.string().min(1)).optional(),
     accept: z.array(z.string()).optional(),
     waitsOn: z.array(waitOnSchema).optional(),
     deferred: z.array(deferredSchema).optional(),

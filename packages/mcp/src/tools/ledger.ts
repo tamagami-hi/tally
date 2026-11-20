@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
-  addMilestone, askOf, assertCited, decisionsToMark, assertNewMilestone, isComplete, readCycles, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  oldestQuestion, underOf, addMilestone, askOf, assertCited, decisionsToMark, assertNewMilestone, isComplete, readCycles, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, plannedOnMainNotice, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
 import { FIELDS, pickKnown } from "../filters.ts";
-import { citedBy, plannedTasks } from "../planned-task.ts";
+import { citedBy, plannedTasks, underIn } from "../planned-task.ts";
 import { ok } from "../respond.ts";
 import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -55,7 +55,8 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
     ({ scope, rows, fields, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
       const ledger = await new Records(repo).readLedger();
       const status = await collect(repo, ledger);
-      const board = { ...status, claims: await listClaims(repo), locks: await listLocks(repo), ...(await cycleOf(repo, ledger)) };
+      const oldest = await oldestQuestion(repo);
+      const board = { ...status, claims: await listClaims(repo), locks: await listLocks(repo), ...(await cycleOf(repo, ledger)), ...(oldest === undefined ? {} : { oldestQuestion: oldest }) };
       if (scope === "all") return ok(boardOf(board, rows, fields));
       const session = await own(repo, sessionId);
       const needing = needingReview(ledger, await reviewsWhenRequired(repo), repo.config.reviews);
@@ -101,13 +102,14 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_plan",
-    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's (an operator session's is main: `notice` says so while a lane is open). A task is its name, or {id, brief?, paths?, covers?, cites?, accept?}: what to do, the files it should touch, the deliverables it covers, the ids of the records it is built to, and what done looks like. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: plannedTasks } },
+    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's (an operator session's is main: `notice` says so while a lane is open). A task is its name, or {id, brief?, paths?, covers?, cites?, accept?, under?}: what to do, the files it should touch, the deliverables it covers, the ids of the records it is built to, what done looks like, and the open questions whose meanwhile it is built on. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: plannedTasks } },
     ({ sessionId, milestone, track, tasks }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       const scoped = scopedTrack(repo, session, track);
       await assertCited(repo, citedBy(tasks));
       await assertMilestoneOpen(repo, await records.readLedger(), milestone);
-      const message = await records.update((ledger) => plan(ledger, { milestone, track: scoped, tasks }));
+      const given = await underIn(repo, tasks);
+      const message = await records.update((ledger) => plan(ledger, { milestone, track: scoped, tasks: given }));
       const notice = await plannedOnMainNotice(repo, session, track);
       return ok({ ...(await recorded(repo, message)), ...(notice === undefined ? {} : { notice }) });
     }),
@@ -160,10 +162,11 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_land",
-    { description: "Record the commit on main that landed a task (land_start and land_run can do it for you); follow-up commits go in `also`. The task's claim is released, whoever holds it (`problem` if it could not be). `deferred` lists the parts that did not land (parking is an operator session's, or under a decision); until their tasks land the board shows it landed in part. Tasks that waited on it stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional() } },
-    ({ sessionId, milestone, task, commit, also, track, deferred }) => inSession(source, sessionId, async (repo, session) => {
+    { description: "Record the commit on main that landed a task (land_start and land_run can do it for you); follow-up commits go in `also`. The task's claim is released, whoever holds it (`problem` if it could not be). `deferred` lists the parts that did not land (parking is an operator session's, or under a decision); until their tasks land the board shows it landed in part. Tasks that waited on it stop waiting, and the message names them.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), commit: z.string(), also: z.array(z.string()).optional(), track: z.string().optional(), deferred: z.array(deferredInput).optional(), under: z.array(z.string()).optional() } },
+    ({ sessionId, milestone, task, commit, also, track, deferred, under }) => inSession(source, sessionId, async (repo, session) => {
       await assertMayPark(repo, session, deferred ?? []);
-      const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, deferred, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
+      const built = under === undefined ? {} : { under: await underOf(repo, under) };
+      const { message, ...outcome } = await recordTask(repo, { milestone, task, commit, deferred, ...built, ...(track === undefined ? {} : { track }), ...(also === undefined ? {} : { also }) }, session);
       return ok({ ...(await recorded(repo, message)), ...outcome });
     }),
   );

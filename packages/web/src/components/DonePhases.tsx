@@ -20,6 +20,7 @@ function Task({ task }: { task: DoneTask }) {
         <span className="mono">{task.commit}</span>
         {task.also.length === 0 ? null : <span className="faint small">{`+${task.also.length} more`}</span>}
         {task.checked === "tip" ? <span className="faint small" title="its landing checked the last commit alone, as it was asked to">tip only</span> : null}
+        {task.under === undefined ? null : <span className="faint small" title="built on these questions' meanwhile: check it against their answers">under {task.under.join(", ")}</span>}
         <When task={task} />
       </div>
       {task.deferred === undefined ? null : (

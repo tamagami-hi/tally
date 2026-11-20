@@ -72,6 +72,16 @@ describe("the Done answer", () => {
     expect(done.phases[2]!.rows[0]!.tasks[0]).not.toHaveProperty("deferred");
   });
 
+  test("marks a landed task built under a question's meanwhile with the questions, and leaves others unmarked", async () => {
+    const made = await finishedWork();
+    await new Records(made.repo).update((ledger) => ({ ledger: { ...ledger, milestones: ledger.milestones.map((milestone) => ({ ...milestone, tasks: milestone.tasks.map((task) => (task.id === "1 csv" ? { ...task, under: ["Q-4"] } : task)) })) }, message: "under" }));
+    const done = await doneWork(made.repo, await collect(made.repo, await new Records(made.repo).readLedger()));
+    const tasks = done.phases.flatMap((phase) => phase.rows.flatMap((row) => row.tasks));
+
+    expect(tasks.find((task) => task.id === "1 csv")).toMatchObject({ under: ["Q-4"] });
+    expect(tasks.filter((task) => task.under !== undefined)).toHaveLength(1);
+  });
+
   test("keeps a closed phase listed when a milestone of it is unfinished again, and says so by the row", async () => {
     const { repo, status } = await answered();
     const reopened = { ...status, rows: status.rows.map((row) => (row.id === "G1" ? { ...row, finished: false } : row)) };

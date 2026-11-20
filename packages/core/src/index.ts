@@ -150,6 +150,11 @@ export { evidenceFiles, evidenceKinds, findEvidence, judgeRun, listEvidence, rea
 export type { EvidenceInput, EvidenceKind, Kept, MilestoneEvidence, RunRecord } from "./records/evidence.ts";
 export { MOST_ATTACHMENT_MB, MOST_STEPS, listManual, manualFiles, manualPath, manualResults, readAllManual, readManual, recordManual } from "./records/manual.ts";
 export { evidenceIndex } from "./records/evidence-index.ts";
+export { NUDGE_DAYS, oldestQuestion } from "./records/oldest-question.ts";
+export { underOf } from "./records/under.ts";
+export { landOrder } from "./tracks/land-order.ts";
+export type { AheadTrack, LandOrder, Place } from "./tracks/land-order.ts";
+export type { OldestQuestion } from "./records/oldest-question.ts";
 export type { IndexedMilestone } from "./records/evidence-index.ts";
 export type { ManualCheck, ManualFile, ManualInput } from "./records/manual.ts";
 export { runEvidence, runnerInstead } from "./records/run.ts";

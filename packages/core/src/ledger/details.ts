@@ -9,9 +9,10 @@ export interface PlannedTask {
   covers?: readonly string[] | undefined;
   cites?: readonly string[] | undefined;
   accept?: readonly string[] | undefined;
+  under?: readonly string[] | undefined;
 }
 
-export const hasDetails = (task: PlannedTask): boolean => task.brief !== undefined || task.paths !== undefined || task.covers !== undefined || task.cites !== undefined || task.accept !== undefined;
+export const hasDetails = (task: PlannedTask): boolean => task.brief !== undefined || task.paths !== undefined || task.covers !== undefined || task.cites !== undefined || task.accept !== undefined || task.under !== undefined;
 
 export function distinctDeliverables(milestone: string, held: readonly Deliverable[], added: readonly Deliverable[]): Deliverable[] {
   const seen = new Set<string>();
@@ -34,12 +35,13 @@ function assertCovers(milestone: Milestone, covers: readonly string[]): void {
 export function withDetails(milestone: Milestone, task: Task, given: PlannedTask): Task {
   assertCovers(milestone, given.covers ?? []);
   if (given.accept !== undefined) checkedAccept(given.accept);
-  const { brief: heldBrief, paths: heldPaths, covers: heldCovers, cites: heldCites, accept: heldAccept, ...rest } = task;
+  const { brief: heldBrief, paths: heldPaths, covers: heldCovers, cites: heldCites, accept: heldAccept, under: heldUnder, ...rest } = task;
   const brief = given.brief ?? heldBrief;
   const paths = given.paths ?? heldPaths;
   const covers = given.covers ?? heldCovers;
   const cites = given.cites ?? heldCites;
   const accept = given.accept ?? heldAccept;
+  const under = given.under ?? heldUnder;
   return {
     ...rest,
     ...(brief === undefined || brief === "" ? {} : { brief }),
@@ -47,5 +49,6 @@ export function withDetails(milestone: Milestone, task: Task, given: PlannedTask
     ...(covers === undefined || covers.length === 0 ? {} : { covers: [...new Set(covers)] }),
     ...(cites === undefined || cites.length === 0 ? {} : { cites: [...new Set(cites)] }),
     ...(accept === undefined || accept.length === 0 ? {} : { accept: [...accept] }),
+    ...(under === undefined || under.length === 0 ? {} : { under: [...new Set(under)] }),
   };
 }
