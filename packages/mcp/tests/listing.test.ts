@@ -26,7 +26,20 @@ describe("what a tool's entry in the list holds", () => {
     expect(tools.filter((tool) => "execution" in tool).map((tool) => tool.name)).toEqual([]);
   });
 
-  test("a hint only where it differs from the protocol's default, and a read lists only what a read needs", async () => {
+  test("no additionalProperties false at any depth of an input, while an argument the tool does not take is still refused, naming those it takes", async () => {
+    const { tools, call } = await entries();
+
+    const saying = tools.filter((tool) => JSON.stringify(tool.inputSchema).includes('"additionalProperties":false')).map((tool) => tool.name);
+    const refused = await call("decision_list", { groups: ["core"] });
+    const nested = await call("track_open", { sessionId: "s-none", name: "lane", purpose: "a lane", plan: { milestone: "B2", tasks: ["t"], extra: true } });
+
+    expect(saying).toEqual([]);
+    expect(refused).toMatchObject({ isError: true, text: "Invalid arguments for tool decision_list: decision_list takes no 'groups'; it takes group, ids, unconfirmed, limit, sessionId, repo" });
+    expect(nested.isError).toBe(true);
+    expect(nested.text).toContain("extra");
+  });
+
+    test("a hint only where it differs from the protocol's default, and a read lists only what a read needs", async () => {
     const { tools } = await entries();
 
     const restated = tools.flatMap((tool) => HINTS.filter((hint) => said(tool, hint) === PROTOCOL_DEFAULTS[hint]).map((hint) => `${tool.name}.${hint}`));

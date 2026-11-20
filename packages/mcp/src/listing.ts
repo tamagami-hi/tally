@@ -23,9 +23,15 @@ export function hintsOf(annotations: ToolAnnotations): ToolAnnotations {
   return Object.fromEntries(said.map((hint) => [hint, annotations[hint]]));
 }
 
+function withoutClosed(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutClosed);
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(Object.entries(value).filter(([key, held]) => !(key === "additionalProperties" && held === false)).map(([key, held]) => [key, withoutClosed(held)]));
+}
+
 export function inputOf(schema: z.ZodObject): Tool["inputSchema"] {
   const { $schema: _left, ...input } = toJsonSchemaCompat(schema, { strictUnions: true, pipeStrategy: "input" });
-  return input as Tool["inputSchema"];
+  return withoutClosed(input) as Tool["inputSchema"];
 }
 
 export function listEntry(tool: ListedTool): Tool {
