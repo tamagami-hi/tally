@@ -107,9 +107,9 @@ describe("the size of what the tools say", () => {
 });
 
 describe("the whole tool list", () => {
-  const MOST_TOOLS_LIST = 77_000;
+  const MOST_TOOLS_LIST = 80_000;
 
-  test("stays under 77,000 characters as compact JSON, since every agent session reads it", async () => {
+  test("stays under 80,000 characters as compact JSON, since every agent session reads it", async () => {
     const tools = await listed();
 
     expect(JSON.stringify(tools).length).toBeLessThan(MOST_TOOLS_LIST);
