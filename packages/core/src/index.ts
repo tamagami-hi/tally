@@ -151,7 +151,7 @@ export type { EvidenceInput, EvidenceKind, Kept, MilestoneEvidence, RunRecord } 
 export { MOST_ATTACHMENT_MB, MOST_STEPS, listManual, manualFiles, manualPath, manualResults, readAllManual, readManual, recordManual } from "./records/manual.ts";
 export { evidenceIndex } from "./records/evidence-index.ts";
 export { NUDGE_DAYS, oldestQuestion } from "./records/oldest-question.ts";
-export { underOf } from "./records/under.ts";
+export { builtUnder, underOf } from "./records/under.ts";
 export { landOrder } from "./tracks/land-order.ts";
 export { MOST_RELEASE_NOTES, RELEASES_FILE, assertVersion, readReleases, releasesPath } from "./releases/file.ts";
 export type { Release, ReleasesFile } from "./releases/file.ts";

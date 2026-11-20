@@ -120,14 +120,27 @@ export interface ClosedLedgers {
   problems: string[];
 }
 
-export async function closedLedgers(repo: Repo): Promise<ClosedLedgers> {
+export interface CycleLedgers {
+  ledgers: { n: number; ledger: Ledger }[];
+  problems: string[];
+}
+
+export async function closedLedgersByCycle(repo: Repo): Promise<CycleLedgers> {
   const cycles = await closedCycles(repo);
   const read = await Promise.all(cycles.value.map(async (n) => {
     const path = join(cycleDir(repo.recordsDir, n), "ledger.json");
-    return (await isPresent(path)) ? [await tolerated(readJson(path, ledgerSchema), undefined)] : [];
+    return (await isPresent(path)) ? [{ n, read: await tolerated(readJson(path, ledgerSchema), undefined) }] : [];
   }));
   const found = read.flat();
-  return { ledgers: found.flatMap((one) => (one.value === undefined ? [] : [one.value])), problems: [...cycles.problems, ...found.flatMap((one) => (one.problem === undefined ? [] : [one.problem]))] };
+  return {
+    ledgers: found.flatMap(({ n, read: one }) => (one.value === undefined ? [] : [{ n, ledger: one.value }])),
+    problems: [...cycles.problems, ...found.flatMap(({ read: one }) => (one.problem === undefined ? [] : [one.problem]))],
+  };
+}
+
+export async function closedLedgers(repo: Repo): Promise<ClosedLedgers> {
+  const byCycle = await closedLedgersByCycle(repo);
+  return { ledgers: byCycle.ledgers.map((one) => one.ledger), problems: byCycle.problems };
 }
 
 export interface Marking {
