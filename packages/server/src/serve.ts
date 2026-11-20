@@ -2,7 +2,8 @@ import type { Server } from "node:http";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import type { Hono } from "hono";
-import { LiveRepo, Repos, type Repo, type StartDefaults } from "@tally/core";
+import { LiveRepo, Repos, Usage, usagePathOf, type Repo, type StartDefaults } from "@tally/core";
+import { SERVER_VERSION } from "@tally/mcp";
 import { createApp } from "./app.ts";
 import type { CliRunner } from "./cli-api.ts";
 import { Hub } from "./hub.ts";
@@ -59,15 +60,26 @@ function listen(app: Hono, options: Listening, started: () => void, stopping: ()
   });
 }
 
-export function startServer(options: ServeOptions): Promise<Running> {
+export async function startServer(options: ServeOptions): Promise<Running> {
   const live = new LiveRepo(options.repo);
   const watcher = new Watcher(() => live.current(), interval(options));
-  const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir() });
-  return listen(app, options, () => watcher.start(), () => watcher.stop());
+  const usage = await Usage.open(usagePathOf({ stateDir: options.repo.stateDir }), SERVER_VERSION);
+  const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir(), usage });
+  return listen(app, options, () => {
+    watcher.start();
+    usage.start();
+  }, async () => {
+    await watcher.stop();
+    await usage.stop();
+  });
 }
 
-export function startService(options: ServiceStart): Promise<Running> {
+export async function startService(options: ServiceStart): Promise<Running> {
   const hub = new Hub(new Repos(options.home), interval(options));
-  const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, ...(options.defaults === undefined ? {} : { defaults: options.defaults }), ...(options.cli === undefined ? {} : { cli: options.cli }) });
-  return listen(app, options, () => undefined, () => hub.stop());
+  const usage = await Usage.open(usagePathOf({ home: options.home }), SERVER_VERSION);
+  const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, usage, ...(options.defaults === undefined ? {} : { defaults: options.defaults }), ...(options.cli === undefined ? {} : { cli: options.cli }) });
+  return listen(app, options, () => usage.start(), async () => {
+    await hub.stop();
+    await usage.stop();
+  });
 }

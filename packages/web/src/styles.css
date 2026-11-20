@@ -311,3 +311,7 @@ h1, h2, h3, p { margin: 0; }
 .frame.portrait .sidebar { position: static; height: auto; width: auto; border-right: 0; border-bottom: 1px solid var(--line); }
 .frame.portrait .sidebar.collapsed { flex-direction: row; }
 .frame.portrait .sidebar.collapsed .repos { display: flex; }
+.usage-scroll { overflow-x: auto; max-width: 100%; }
+.usage-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.usage-table th, .usage-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.usage-table .num { text-align: right; font-variant-numeric: tabular-nums; }

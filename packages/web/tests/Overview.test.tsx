@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Overview } from "../src/components/Overview.tsx";
 import { index } from "./repos-fixture.ts";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("the overview", () => {
   test("shows each repository's project, progress and counts, with a link to its board", () => {
@@ -36,5 +39,13 @@ describe("the overview", () => {
     render(<Overview index={{ workspace: "/work", repos: [] }} />);
 
     expect(screen.getByText("No repository is listed yet. Add one from the sidebar: tally can track any git repository under /work.")).toBeInTheDocument();
+  });
+
+  test("shows the tools by use below the repositories", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ since: "2026-11-20T09:00:00.000Z", versions: [], tools: [], never: { tools: ["board_get"], chars: 900 } })))));
+
+    render(<Overview index={index} />);
+
+    expect(await screen.findByRole("region", { name: "Tools by use" })).toHaveTextContent("Never called: 1 tools");
   });
 });

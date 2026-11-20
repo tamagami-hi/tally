@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { NotListed, TallyError, messageOf, type StartDefaults } from "@tally/core";
-import { SERVER_VERSION, manyRepos, mcpHandler } from "@tally/mcp";
+import { NotListed, TallyError, messageOf, type StartDefaults, type Usage } from "@tally/core";
+import { SERVER_VERSION, manyRepos, mcpHandler, usageNow } from "@tally/mcp";
 import { cliRoutes, type CliRunner } from "./cli-api.ts";
 import { listFolders } from "./folders.ts";
 import { Forbidden, loopbackOnly } from "./guard.ts";
@@ -15,11 +15,12 @@ export interface ServiceOptions {
   workspace: string;
   defaults?: StartDefaults;
   cli?: CliRunner;
+  usage?: Usage;
 }
 
 const statusOf = (error: TallyError): 400 | 403 | 404 => (error instanceof NotListed ? 404 : error instanceof Forbidden ? 403 : 400);
 
-export function createServiceApp({ hub, webDir, workspace, defaults, cli }: ServiceOptions): Hono {
+export function createServiceApp({ hub, webDir, workspace, defaults, cli, usage }: ServiceOptions): Hono {
   const app = new Hono();
   app.use("*", loopbackOnly());
   app.onError((error, c) => {
@@ -28,6 +29,7 @@ export function createServiceApp({ hub, webDir, workspace, defaults, cli }: Serv
     return c.json({ error: "tally failed; the service's log has the detail" }, 500);
   });
   app.get("/api/health", (c) => c.json({ ok: true, version: SERVER_VERSION }));
+  app.get("/api/usage", (c) => c.json(usageNow(usage)));
   app.get("/api/repos", async (c) => {
     const repos = await hub.overview();
     const problem = hub.repos.listProblem();
@@ -39,7 +41,7 @@ export function createServiceApp({ hub, webDir, workspace, defaults, cli }: Serv
   app.route("/api", cliRoutes(hub, cli, workspace));
   app.route("/api", repoRoutes(() => hub.default()));
   app.all("/api/*", (c) => c.json({ error: "not found" }, 404));
-  const mcp = mcpHandler(manyRepos(hub.repos));
+  const mcp = mcpHandler(manyRepos(hub.repos), usage);
   app.all("/mcp", (c) => mcp(c.req.raw));
   app.get("/events", async (c) => eventStream(c, (await hub.default()).watcher));
   app.get("/*", staticFiles(webDir));

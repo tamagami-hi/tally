@@ -286,3 +286,26 @@ export interface FolderListing {
   parent: string | null;
   folders: Folder[];
 }
+
+export interface RankedTool {
+  name: string;
+  listed: boolean;
+  chars: number;
+  calls: number;
+  refused: number;
+  cut: number;
+  invalid: number;
+  first: string;
+  last: string;
+  days: number;
+  by: Record<string, number>;
+  via: Record<string, number>;
+  repos: Record<string, number>;
+}
+
+export interface UsageRanking {
+  since: string;
+  versions: { version: string; since: string }[];
+  tools: RankedTool[];
+  never: { tools: string[]; chars: number };
+}

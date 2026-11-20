@@ -1,6 +1,7 @@
 import type { RepoIndex } from "../types.ts";
 import { Progress } from "./Progress.tsx";
 import { RepoCounts } from "./RepoCounts.tsx";
+import { ToolsByUse } from "./ToolsByUse.tsx";
 
 export function Overview({ index }: { index: RepoIndex }) {
   return (
@@ -24,6 +25,7 @@ export function Overview({ index }: { index: RepoIndex }) {
           </article>
         ))}
       </div>
+      <ToolsByUse />
     </main>
   );
 }

@@ -19,6 +19,7 @@ import { serveCommand, serveListCommand } from "./commands/serve.ts";
 import { milestoneCommand } from "./commands/milestone.ts";
 import { statusCommand } from "./commands/status.ts";
 import { taskCommand } from "./commands/task.ts";
+import { usageCommand } from "./commands/usage.ts";
 import { versionCommand } from "./commands/version.ts";
 import { viewsCommand } from "./commands/views.ts";
 import { buildPlaceOf } from "./build-stamp.ts";
@@ -57,13 +58,14 @@ export const USAGE = `tally: the tracking harness
   tally repo   add PATH [--name NAME] | remove NAME | default NAME | list   the repositories this tally serves
   tally serve  [--port 47560] [--host 127.0.0.1] [--web-dir DIR] [--workspace DIR]   the live board, the API and /mcp: every listed repository, or the one --repo names
   tally mcp                                                      the MCP server on stdio: every listed repository, or the one --repo names (or, with nothing listed, the one above the current folder)
+  tally usage  [--json]                                          the tools by calls since counting began, what each costs in the tool list, and those never called
   tally version                                                  this source's version, its build's and, with TALLY_URL, the service's; exits 1 when the build is older
   tally <command> [<verb>] --help                                that command's lines of this list
 
   --repo PATH names the tracked repository; otherwise the one above the current folder.
   With TALLY_URL set to the service's address, every command but serve and mcp is carried out by the service.`;
 
-const LOCAL = new Set(["serve", "mcp", "version"]);
+const LOCAL = new Set(["serve", "mcp", "version", "usage"]);
 
 const commandsIn = (line: string): string[] => [...line.matchAll(/\btally ([a-z]+)/g)].flatMap(([, word]) => word ?? []);
 
@@ -110,8 +112,9 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
     if (command === "init") return await initCommand(repoOption === undefined ? io.cwd : resolve(io.cwd, repoOption), args, io);
     if (command === "repo") return await repoCommand(args, io);
     const home = tallyHome(io.env);
+    if (command === "usage") return await usageCommand(args, io, async () => ((await servesTheList(repoOption, io)) ? { home } : { stateDir: (await openAt(home, await locate(repoOption, io))).stateDir }));
     const everyRepo = (command === "mcp" || command === "serve") && (await servesTheList(repoOption, io));
-    if (everyRepo && command === "mcp") return await mcpCommand(manyRepos(new Repos(home)), "every listed repository", io);
+    if (everyRepo && command === "mcp") return await mcpCommand(manyRepos(new Repos(home)), "every listed repository", io, { home });
     if (everyRepo) return await serveListCommand(args, io, serviceCli(run, io.env));
     const repo = await openAt(home, await locate(repoOption, io));
     switch (command) {
@@ -130,7 +133,7 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
       case "serve":
         return await serveCommand(repo, args, io);
       case "mcp":
-        return await mcpCommand(repo, repo.config.name, io);
+        return await mcpCommand(repo, repo.config.name, io, { stateDir: repo.stateDir });
       case "question":
         return await questionCommand(repo, args, io);
       case "checks":
