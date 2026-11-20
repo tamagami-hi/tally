@@ -29,6 +29,7 @@ export const decisionSchema = z.looseObject({
   disputed: z.object({ at: z.string() }).optional(),
   accept: z.array(z.string()).optional(),
   paths: z.array(z.string().min(1)).optional(),
+  statusVia: z.looseObject({ session: z.string().min(1), track: z.string().min(1), agent: z.string().min(1), at: z.string() }).optional(),
 });
 
 export const replacedSchema = z.looseObject({
@@ -184,7 +185,8 @@ export async function setDecisionStatus(repo: Repo, input: { id: string; group: 
   const decision = await changeDecisions(repo, (file) => {
     const old = file.decisions.find((d) => d.group === input.group && d.id === input.id);
     if (old === undefined) throw new TallyError(`${input.group} has no decision ${input.id}; known: ${knownIn(file, input.group)}`);
-    const next: Decision = { ...old, status: input.status, state: stateFor(input), by: recorder.by, on: now.toISOString() };
+    const { statusVia: _statusVia, ...kept } = old;
+    const next: Decision = { ...kept, status: input.status, state: stateFor(input), by: recorder.by, on: now.toISOString() };
     return { file: { ...file, decisions: file.decisions.map((d) => (d === old ? next : d)) }, result: next };
   });
   const commit = await commitRecords(repo, `decision ${input.id} (${input.group}): ${input.status}`);

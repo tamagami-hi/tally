@@ -35,7 +35,7 @@ export async function setStatusBySession(repo: Repo, session: Session, input: St
   const decision = await changeDecisions(repo, (file) => {
     const old = oneDecision(file, input.id, input.group);
     if (isDisputed(old) && !isWithdrawal(input.status)) throw new TallyError(`${old.id} (${old.group}) is disputed: it stops being disputed when it is replaced with decision_record, confirmed by the operator on the board, or withdrawn: a status that begins with withdrawn`);
-    const next: Decision = { ...old, status: input.status, state: stateFor(input), by: "operator", on: now.toISOString() };
+    const next: Decision = { ...old, status: input.status, state: stateFor(input), by: "operator", on: now.toISOString(), statusVia: { session: session.id, track: session.track, agent: session.agent, at: now.toISOString() } };
     return { file: { ...file, decisions: file.decisions.map((one) => (one === old ? next : one)) }, result: next };
   });
   const commit = await commitRecords(repo, `decision ${decision.id} (${decision.group}): ${decision.status}`);
@@ -48,5 +48,6 @@ export async function answerWithDecision(repo: Repo, session: Session, input: An
   const said = input.said === undefined ? undefined : checkedSaid(input.said);
   const file = await readDecisions(repo);
   if (!file.decisions.some((one) => one.id === input.decision)) throw new TallyError(`no decision ${input.decision}; the decisions are ${everyId(file)}`);
-  return answerQuestion(repo, row, input.decision, now, said === undefined ? {} : { said });
+  const via = { session: session.id, track: session.track, agent: session.agent };
+  return answerQuestion(repo, row, input.decision, now, said === undefined ? { via } : { said, via });
 }

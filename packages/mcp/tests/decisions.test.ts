@@ -80,4 +80,18 @@ describe("the three while a cycle close is pending", () => {
 
     expect(answers.map((one) => one.text)).toEqual([CLOSE_BUSY, CLOSE_BUSY, CLOSE_BUSY]);
   });
+
+  test("decision_list and question_list answer which session set a status or gave an answer", async () => {
+    const { repo, call, operator } = await serving();
+    await addDecision(repo, { id: "DEC-1", group: "core", text: "by hand", since: "2026-11-01", status: "decided, not built" }, { operator: true });
+    await addQuestion(repo, { group: "core", question: "which", meanwhile: "wait" });
+
+    await call("decision_status", { sessionId: operator, id: "DEC-1", status: "built" });
+    await call("question_answer", { sessionId: operator, id: "Q-1", decision: "DEC-1" });
+    const decisions = (await call("decision_list", {})).structured["decisions"] as { id: string; statusVia?: { session: string } }[];
+    const answered = (await call("question_list", { answered: true })).structured["answered"] as { via?: { session: string } }[];
+
+    expect(decisions.find((one) => one.id === "DEC-1")?.statusVia).toMatchObject({ session: operator, track: "main", agent: "operator" });
+    expect(answered[0]?.via).toEqual({ session: operator, track: "main", agent: "operator" });
+  });
 });
