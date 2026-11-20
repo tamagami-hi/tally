@@ -68,6 +68,7 @@ export async function snapshot(repo: Repo): Promise<Snapshot> {
 export type RepoGetter = () => Promise<Repo>;
 
 export const PROBLEM_HOLD_MS = 60 * 60 * 1000;
+export const DEFAULT_INTERVAL_MS = 2_000;
 
 interface Held {
   text: string;
@@ -93,7 +94,7 @@ export class Watcher {
 
   constructor(repo: Repo | RepoGetter, options: { intervalMs?: number; holdMs?: number } = {}) {
     this.source = typeof repo === "function" ? repo : () => Promise.resolve(repo);
-    this.intervalMs = options.intervalMs ?? 2000;
+    this.intervalMs = options.intervalMs ?? DEFAULT_INTERVAL_MS;
     this.holdMs = options.holdMs ?? PROBLEM_HOLD_MS;
   }
 

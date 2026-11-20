@@ -1,6 +1,6 @@
 import { messageOf, type Repos } from "@tally/core";
 import type { Served } from "./repo-api.ts";
-import { Watcher } from "./watcher.ts";
+import { DEFAULT_INTERVAL_MS, Watcher } from "./watcher.ts";
 
 export interface RepoSummary {
   name: string;
@@ -24,6 +24,7 @@ export class Hub {
   readonly repos: Repos;
   private readonly intervalMs: number | undefined;
   private watched: ReadonlyMap<string, Watched> = new Map();
+  private listTimer: NodeJS.Timeout | undefined;
 
   constructor(repos: Repos, options: { intervalMs?: number } = {}) {
     this.repos = repos;
@@ -57,7 +58,25 @@ export class Hub {
     await Promise.all(gone.map(([, watched]) => watched.watcher.stop()));
   }
 
+  start(): void {
+    if (this.listTimer !== undefined) return;
+    void this.watchAll();
+    this.listTimer = setInterval(() => void this.watchAll(), this.intervalMs ?? DEFAULT_INTERVAL_MS);
+    this.listTimer.unref();
+  }
+
+  async watchAll(): Promise<void> {
+    try {
+      await this.sync();
+      for (const entry of await this.repos.entries()) await this.watcherOf(entry.name, entry.root);
+    } catch (error: unknown) {
+      process.stderr.write(`tally could not start watching its listed repositories: ${messageOf(error)}\n`);
+    }
+  }
+
   async stop(): Promise<void> {
+    if (this.listTimer !== undefined) clearInterval(this.listTimer);
+    this.listTimer = undefined;
     const all = [...this.watched.values()];
     this.watched = new Map();
     await Promise.all(all.map((watched) => watched.watcher.stop()));
