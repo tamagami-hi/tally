@@ -34,6 +34,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   const tools = decorating(server, source, { decorators, place, usage });
   registerAll(tools, source, place);
   listing(server, tools.listed());
+  server.server.registerCapabilities({ tools: { listChanged: false } });
   return server;
 }
 

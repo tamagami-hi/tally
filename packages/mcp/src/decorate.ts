@@ -9,7 +9,7 @@ import { sharing } from "./decorators/sharing.ts";
 import { sized } from "./decorators/sized.ts";
 import type { ListedTool } from "./listing.ts";
 import { annotationsOf, metaOf } from "./meta.ts";
-import { invalidInput } from "./invalid.ts";
+import { invalidInput, unknownArguments } from "./invalid.ts";
 import { paramText } from "./params.ts";
 import type { RepoSource } from "./source.ts";
 
@@ -64,7 +64,7 @@ export function decorating(server: McpServer, source: RepoSource, serving: Servi
     const meta = metaOf(name, place);
     if (meta === undefined) throw new TallyError(`the tool ${name} has no title: add it to the table in meta.ts`);
     const shape = described(name, config.inputSchema ?? {});
-    const strict = z.strictObject(shape);
+    const strict = z.strictObject(shape, { error: (issue) => (issue.code === "unrecognized_keys" ? unknownArguments(name, Object.keys(shape), issue.keys) : undefined) });
     const listed = { name, title: meta.title, description: config.description, inputSchema: strict, annotations: annotationsOf(meta) };
     registered.push(listed);
     return register(name, { ...config, title: listed.title, annotations: listed.annotations, inputSchema: ANY_INPUT }, async (args, extra) => {
