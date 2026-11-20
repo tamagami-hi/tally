@@ -180,7 +180,7 @@ A run recorded with `evidence_record` has neither `head` nor `dirty`, and a reco
 cd /path/to/your/worktree && sh .temp/tally/run sweep --task 'B2:4 manifest' -- tools/run.sh 'npm test'
 ```
 
-Run that line in your own shell; the runner records it. `land_run` is refused there too: land with `land_start` (10.3). A server started on the host (the CLI, `tally mcp`, a service run outside Docker) has `TALLY_COMMANDS` unset, which means `service`: `evidence_run` and `land_run` run the command as before.
+Run that line in your own shell; the runner records it. `land_run` is not listed there, since it could only refuse: land with `land_start` (10.3). A server started on the host (the CLI, `tally mcp`, a service run outside Docker) has `TALLY_COMMANDS` unset, which means `service`: `evidence_run` and `land_run` run the command as before.
 
 **A run that could not start is never evidence.** An exit of 127 means the shell did not find a program, and 126 that it could not run it. The runner leaves no result for either, prints why and exits with that code; `evidence_record` refuses them; and `evidence_run` on the host answers `recorded: false` with the log's last line and the runner line.
 

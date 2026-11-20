@@ -49,13 +49,16 @@ describe("a service whose agents run the project's commands", () => {
     expect(tool?.description).toContain("your own shell");
   });
 
-  test("refuses land_run and names land_start, and its description says so", async () => {
-    const { call, client, data } = await serving("agent");
+  test("does not list land_run, which could only refuse there, and a call to it changes nothing", async () => {
+    const { call, client, data, repo } = await serving("agent");
 
-    const refused = await call("land_run", { sessionId: data });
+    const refused = await call("land_run", { sessionId: data, files: [] });
 
-    expect(refused).toMatchObject({ isError: true, text: "this service does not run commands; land with land_start, which commits, rebases and hands you a script to run in your own shell, then land_wait" });
-    expect((await toolNamed(client, "land_run"))?.description).toContain("land_start");
+    expect(await toolNamed(client, "land_run")).toBeUndefined();
+    expect((await client.listTools()).tools.map((tool) => tool.name)).toContain("land_start");
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain("land_run");
+    expect(await listEvidence(repo, "B2")).toEqual([]);
   });
 });
 

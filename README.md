@@ -37,7 +37,7 @@ docker compose up -d --build
 - **Context** is JSON records under `docs/records/context/`, read with `context_get` and written with `context_put`. A session's brief arrives with `session_open`.
 - **Each repository is separate.** A session reads and writes only its own repository's records, state and logs.
 
-The service listens on the host's loopback only and refuses a request from another host or another site's page. The container has git and Node and no other toolchain: it never runs a repository's commands. Its image sets `TALLY_COMMANDS=agent`, so `evidence_run` answers the runner line to run instead and `land_run` points at `land_start`; on the host the variable is unset and both run as before.
+The service listens on the host's loopback only and refuses a request from another host or another site's page. The container has git and Node and no other toolchain: it never runs a repository's commands. Its image sets `TALLY_COMMANDS=agent`, so `evidence_run` answers the runner line to run instead and `land_run` is not listed (land with `land_start`); on the host the variable is unset and both run as before.
 
 The image builds its own git (2.56.1) from kernel.org's source, because a repository can use a format extension that only a newer git reads. If adding a repository fails with `unknown repository extension found`, the git on your machine is newer than the image's: raise `GIT_VERSION` and `GIT_SHA256` in the [Dockerfile](Dockerfile) and rebuild.
 
