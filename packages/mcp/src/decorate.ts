@@ -8,7 +8,8 @@ import { outcome } from "./decorators/outcome.ts";
 import { sharing } from "./decorators/sharing.ts";
 import { sized } from "./decorators/sized.ts";
 import type { ListedTool } from "./listing.ts";
-import { annotationsOf, metaOf } from "./meta.ts";
+import { asCall } from "./calling.ts";
+import { annotationsOf, metaOf, writesNothing } from "./meta.ts";
 import { invalidInput, unknownArguments } from "./invalid.ts";
 import { paramText } from "./params.ts";
 import type { RepoSource } from "./source.ts";
@@ -75,7 +76,7 @@ export function decorating(server: McpServer, source: RepoSource, serving: Servi
         return result;
       }
       const given = parsed.data;
-      let result = await handler(given, extra);
+      let result = await asCall(!writesNothing(name, place), () => handler(given, extra));
       for (const decorate of decorators) result = await decorate({ tool: name, args: given, params: Object.keys(shape), result, source, place });
       await countCall(usage, { tool: name, args: given, result, source });
       return result;

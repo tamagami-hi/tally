@@ -3,10 +3,17 @@ import { basename, dirname } from "node:path";
 import lockfile from "proper-lockfile";
 import { TallyError } from "../errors.ts";
 
-const RETRIES = { retries: 120, minTimeout: 50, maxTimeout: 250 };
+export interface Retries {
+  retries: number;
+  minTimeout: number;
+  maxTimeout: number;
+}
+
+export const RETRIES: Retries = { retries: 120, minTimeout: 50, maxTimeout: 250 };
 const MS_PER_SECOND = 1000;
 
-export const LANDING_RETRIES = { retries: 3600, minTimeout: 250, maxTimeout: 250 };
+export const LANDING_RETRIES: Retries = { retries: 3600, minTimeout: 250, maxTimeout: 250 };
+export const QUICK_RETRIES: Retries = { retries: 2, minTimeout: 50, maxTimeout: 100 };
 const STALE_MS = 30_000;
 
 export class LockBusy extends TallyError {
@@ -25,7 +32,7 @@ export class LockLost extends TallyError {
 
 type OnLost = (error: Error) => void;
 
-async function take(path: string, retries: typeof RETRIES, onLost: OnLost): Promise<() => Promise<void>> {
+async function take(path: string, retries: Retries, onLost: OnLost): Promise<() => Promise<void>> {
   const started = Date.now();
   try {
     return await lockfile.lock(path, { realpath: false, retries, stale: STALE_MS, onCompromised: onLost });
@@ -50,4 +57,9 @@ export async function withLock<T>(path: string, body: () => Promise<T>, retries 
       if (lost === undefined) throw error;
     });
   }
+}
+
+export function withLocks<T>(paths: readonly string[], body: () => Promise<T>, retries = RETRIES): Promise<T> {
+  const [first, ...rest] = paths;
+  return first === undefined ? body() : withLock(first, () => withLocks(rest, body, retries), retries);
 }

@@ -1,48 +1,53 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
 import { describe, expect, test } from "vitest";
-import { carryOut, finishPendingClose } from "../../src/cycles/close.ts";
+import { carryOut } from "../../src/cycles/carry.ts";
 import { closingPath } from "../../src/cycles/file.ts";
-import { planClose, type ClosePlan } from "../../src/cycles/plan.ts";
-import { writeJsonAtomic } from "../../src/store/json.ts";
-import { closeOpened } from "../../src/tracks/close.ts";
+import { finishPendingClose } from "../../src/cycles/finish.ts";
 import { isPresent } from "../../src/tracks/file.ts";
-import { AT, cycling } from "../support/cycling.ts";
+import { cycling } from "../support/cycling.ts";
+import { OPERATIONS, pendingClose } from "../support/pending.ts";
 import { sh } from "../support/repo.ts";
 
-const BY = { track: "main", agent: "operator" };
-const INPUT = { summary: "the reader is built", said: "close it" };
+type Folder = Map<string, string>;
 
-async function killedAfter(steps: number) {
-  const made = await cycling();
-  await closeOpened(made.repo, "docs", { by: BY, now: AT, why: "cycle 1 closed", commit: false });
-  const plan = await planClose(made.repo, { by: BY, now: AT, input: INPUT });
-  await writeJsonAtomic(closingPath(made.repo.recordsDir, 1), plan);
-  await carryOut(made.repo, plan, steps);
-  return { ...made, plan };
+async function filesOf(dir: string, root = dir): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  const nested = await Promise.all(entries.map((entry) => (entry.isDirectory() ? filesOf(join(dir, entry.name), root) : Promise.resolve([relative(root, join(dir, entry.name))]))));
+  return nested.flat().sort();
 }
 
-const operationsOf = (plan: ClosePlan): number => plan.writes.length + plan.moves.length + 1;
+async function snapshot(dir: string): Promise<Folder> {
+  const paths = (await filesOf(dir)).filter((path) => !path.endsWith("closing.json"));
+  return new Map(await Promise.all(paths.map(async (path): Promise<[string, string]> => [path, await readFile(join(dir, path), "utf8")])));
+}
 
-async function asPlanned(recordsDir: string, plan: ClosePlan): Promise<void> {
-  for (const write of [...plan.writes, plan.last]) expect(JSON.parse(await readFile(join(recordsDir, write.path), "utf8"))).toEqual(JSON.parse(JSON.stringify(write.contents)));
-  for (const move of plan.moves) {
-    expect(await isPresent(join(recordsDir, move.from))).toBe(false);
-    expect(await isPresent(join(recordsDir, move.to))).toBe(true);
+async function restore(dir: string, folder: Folder): Promise<void> {
+  await rm(dir, { recursive: true, force: true });
+  for (const [path, text] of folder) {
+    await mkdir(dirname(join(dir, path)), { recursive: true });
+    await writeFile(join(dir, path), text);
   }
 }
 
+const STEPS = Array.from({ length: OPERATIONS + 1 }, (_, index) => index);
+
 describe("a close killed part way", () => {
-  test.each([0, 1, 5, 11, 12, 13, 14, 15, 16])("after %i steps, is finished by the next call as it was planned, and committed once", async (steps) => {
-    const { repo, root, plan } = await killedAfter(steps);
-    expect(operationsOf(plan)).toBe(16);
+  test.each(STEPS)("after %i steps, is finished by the next call exactly as an uninterrupted close, and committed once", async (steps) => {
+    const made = await cycling();
+    const plan = await pendingClose(made);
+    const before = new Map([...(await snapshot(made.repo.recordsDir)), ["cycles/cycle-1/closing.json", await readFile(closingPath(made.repo.recordsDir, 1), "utf8")]]);
+    await carryOut(made.repo, plan);
+    const uninterrupted = await snapshot(made.repo.recordsDir);
+    await restore(made.repo.recordsDir, before);
 
-    await finishPendingClose(repo);
+    await carryOut(made.repo, plan, steps);
+    await finishPendingClose(made.repo);
 
-    await asPlanned(repo.recordsDir, plan);
-    expect(await isPresent(closingPath(repo.recordsDir, 1))).toBe(false);
-    expect(await sh(root, ["log", "-1", "--format=%s%n%b"])).toBe("records: cycle 1 closed\nthe reader is built");
-    expect(await sh(root, ["status", "--porcelain", "--", "docs/records"])).toBe("");
+    expect(await snapshot(made.repo.recordsDir)).toEqual(uninterrupted);
+    expect(await isPresent(closingPath(made.repo.recordsDir, 1))).toBe(false);
+    expect(await sh(made.root, ["log", "-1", "--format=%s%n%b"])).toBe("records: cycle 1 closed\nthe reader is built");
+    expect(await sh(made.root, ["status", "--porcelain", "--", "docs/records"])).toBe("");
   });
 
   test("leaves nothing to do when no close is pending", async () => {

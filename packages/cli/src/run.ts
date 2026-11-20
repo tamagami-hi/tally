@@ -24,6 +24,7 @@ import { versionCommand } from "./commands/version.ts";
 import { viewsCommand } from "./commands/views.ts";
 import { buildPlaceOf } from "./build-stamp.ts";
 import type { IO } from "./io.ts";
+import { finishedFirst, writesRecords } from "./pending.ts";
 import { remoteRun } from "./remote.ts";
 import { serviceCli } from "./service-cli.ts";
 
@@ -117,6 +118,7 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
     if (everyRepo && command === "mcp") return await mcpCommand(manyRepos(new Repos(home)), "every listed repository", io, { home });
     if (everyRepo) return await serveListCommand(args, io, serviceCli(run, io.env));
     const repo = await openAt(home, await locate(repoOption, io));
+    if (writesRecords(command, args)) await finishedFirst(repo, io);
     switch (command) {
       case "task":
         return await taskCommand(repo, args, io);

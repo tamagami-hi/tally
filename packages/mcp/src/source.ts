@@ -1,6 +1,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { LiveRepo, TallyError, cycleView, finishPendingClose, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
+import { isWriting } from "./calling.ts";
 import { SHARED_TEXT } from "./params.ts";
 import { attempt, jsonText } from "./respond.ts";
 
@@ -121,8 +122,12 @@ export function boundRepo(repos: Repos, name: string): RepoSource {
   };
 }
 
-async function finished(repo: Repo): Promise<Repo> {
-  await finishPendingClose(repo).catch(() => undefined);
+export async function finished(repo: Repo): Promise<Repo> {
+  try {
+    await finishPendingClose(repo);
+  } catch (error: unknown) {
+    if (isWriting()) throw error;
+  }
   return repo;
 }
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Records, advance, finishPendingClose, closeIdleSessions, closeIdleTracks, collect, flushPendingPhase, isActive, queueFile, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
+import { CloseBusy, Records, advance, finishPendingClose, closeIdleSessions, closeIdleTracks, collect, flushPendingPhase, isActive, queueFile, evidenceFiles, gitOut, listClaims, listLocks, listSessions, messageOf, statePath, takeResults, worktrees, type Claim, type HeldLock, type Repo, type Session, type StatusData } from "@tally/core";
 import { commitCount, commitGraph, graphBranches, type LaidCommit } from "./graph.ts";
 
 export interface QueuedLanding {
@@ -160,7 +160,7 @@ export class Watcher {
         }
         this.failure = this.failing(idle.problems);
       } catch (error: unknown) {
-        this.failure = this.failing([messageOf(error)]);
+        if (!(error instanceof CloseBusy)) this.failure = this.failing([messageOf(error)]);
       } finally {
         this.busy = false;
       }

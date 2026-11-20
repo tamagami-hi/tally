@@ -127,19 +127,26 @@ export async function closeBlocker(repo: Repo, name: string): Promise<string | u
   }
 }
 
-export async function closeOpened(repo: Repo, name: string, options: CloseOptions): Promise<TrackClosed> {
+interface ClosedIn {
+  file: TracksFile;
+  result: { track: OpenedTrack; cleaned: Cleaned; kept: string | undefined };
+}
+
+export async function closedIn(repo: Repo, file: TracksFile, name: string, options: CloseOptions): Promise<ClosedIn> {
   const now = options.now ?? new Date();
-  const done = await changeTracks(repo.recordsDir, async (file) => {
-    const open = openTrackNamed(repo, file, name);
-    const tree = worktreeOf(repo, open);
-    options.check?.(open);
-    await assertIdle(repo, file, name);
-    await assertLanded(repo, open.branch);
-    const cleaned = (await isPresent(tree)) ? await assertNothingToLose(repo, open, tree) : { names: [], total: 0 };
-    const kept = await removed(repo, open, tree, now);
-    const closed: OpenedTrack = { ...open, closedAt: now.toISOString(), closedBy: options.by, ...(options.why === undefined ? {} : { closedWhy: options.why }) };
-    return { file: { ...file, tracks: file.tracks.map((one) => (one === open ? closed : one)) }, result: { track: closed, cleaned, kept } };
-  });
+  const open = openTrackNamed(repo, file, name);
+  const tree = worktreeOf(repo, open);
+  options.check?.(open);
+  await assertIdle(repo, file, name);
+  await assertLanded(repo, open.branch);
+  const cleaned = (await isPresent(tree)) ? await assertNothingToLose(repo, open, tree) : { names: [], total: 0 };
+  const kept = await removed(repo, open, tree, now);
+  const closed: OpenedTrack = { ...open, closedAt: now.toISOString(), closedBy: options.by, ...(options.why === undefined ? {} : { closedWhy: options.why }) };
+  return { file: { ...file, tracks: file.tracks.map((one) => (one === open ? closed : one)) }, result: { track: closed, cleaned, kept } };
+}
+
+export async function closeOpened(repo: Repo, name: string, options: CloseOptions): Promise<TrackClosed> {
+  const done = await changeTracks(repo.recordsDir, (file) => closedIn(repo, file, name, options));
   await clearRest(repo, name);
   const commit = options.commit === false ? null : await commitRecords(repo, `track ${name} closed by ${options.by.agent}`);
   return { track: done.track, commit, cleaned: done.cleaned, ...(done.kept === undefined ? {} : { kept: done.kept }) };

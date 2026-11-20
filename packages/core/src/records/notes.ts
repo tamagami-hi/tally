@@ -24,10 +24,10 @@ export const noteSchema = z.looseObject({
   doneAt: z.string().optional(),
 });
 
-const notesFileSchema = z.looseObject({ schema: z.literal(1), nextNumber: z.number().int().positive(), notes: z.array(noteSchema) });
+export const notesFileSchema = z.looseObject({ schema: z.literal(1), nextNumber: z.number().int().positive(), notes: z.array(noteSchema) });
 
 export type Note = z.infer<typeof noteSchema>;
-type NotesFile = z.infer<typeof notesFileSchema>;
+export type NotesFile = z.infer<typeof notesFileSchema>;
 
 export interface NoteInput {
   to: "all" | readonly string[];

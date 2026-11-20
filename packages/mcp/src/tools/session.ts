@@ -4,7 +4,7 @@ import { z } from "zod";
 import { TallyError, briefLevels, closedMessage, closedTrackAt, endSession, keepsContextAsRecords, listSessions, openScratch, openSession, sessionBrief, writeRunner } from "@tally/core";
 import type { CommandPlace } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { WHERE, finished, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 import { serverInfo } from "../server-info.ts";
 
@@ -45,6 +45,7 @@ export function registerSessionTools(server: ToolHost, source: RepoSource, place
     },
     ({ worktree, track, agent, brief: level }) => attempt(() => explaining(source, worktree, async () => {
       const opened = await source.forWorktree(worktree);
+      await finished(opened.repo);
       const session = await openSession(opened.repo, { worktree: opened.worktree, agent, ...(track === undefined ? {} : { track }) });
       const runner = await writeRunner(opened.repo, session.worktree, session.track);
       const brief = keepsContextAsRecords(opened.repo.config) ? { brief: await sessionBrief(opened.repo, session, level) } : {};

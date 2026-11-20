@@ -1,11 +1,9 @@
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { closingPath } from "../../core/src/cycles/file.ts";
-import { planClose } from "../../core/src/cycles/plan.ts";
-import { writeJsonAtomic } from "../../core/src/store/json.ts";
-import { closeOpened } from "../../core/src/tracks/close.ts";
 import { isPresent } from "../../core/src/tracks/file.ts";
-import { AT, cycling } from "../../core/tests/support/cycling.ts";
+import { cycling } from "../../core/tests/support/cycling.ts";
+import { pendingClose } from "../../core/tests/support/pending.ts";
 import { connect, keepingContextAsRecords, opened } from "./support/connect.ts";
 
 const SAID = "yes, close cycle one";
@@ -81,8 +79,7 @@ describe("the sentence that asks, and the cycle in a brief", () => {
 describe("a close left part way", () => {
   test("is finished by the next tool call on that repository", async () => {
     const { repo, call } = await serving();
-    await closeOpened(repo, "docs", { by: { track: "main", agent: "operator" }, now: AT, why: "cycle 1 closed", commit: false });
-    await writeJsonAtomic(closingPath(repo.recordsDir, 1), await planClose(repo, { by: { track: "main", agent: "operator" }, now: AT, input: { summary: "done", said: SAID } }));
+    await pendingClose({ repo });
 
     const listed = await call("cycle_list");
 
