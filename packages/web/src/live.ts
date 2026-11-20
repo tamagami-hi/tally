@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { here, type Place } from "./place.ts";
-import type { DocsIndex, DoneWork, EndedSessions, EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
+import type { CycleListing, DocsIndex, DoneWork, EndedSessions, EvidenceIndex, Layout, Live, Snapshot } from "./types.ts";
 
 export const SNAPSHOT_KEY = ["snapshot"];
 
@@ -103,6 +103,10 @@ function useLoaded<T>(url: string | null, version: string): Loaded<T> {
 }
 
 export const useDone = (version: string): Loaded<DoneWork> => useLoaded<DoneWork>(`${here().api}/done`, version);
+
+export const useCycles = (version: string): Loaded<CycleListing> => useLoaded<CycleListing>(`${here().api}/cycles`, version);
+
+export const useCycleDone = (n: number, version: string, shown: boolean): Loaded<DoneWork> => useLoaded<DoneWork>(shown ? `${here().api}/cycles/${n}/done` : null, version);
 
 export const useEndedSessions = (version: string, shown: boolean, limit: number): Loaded<EndedSessions> =>
   useLoaded<EndedSessions>(shown ? `${here().api}/done/sessions?limit=${limit}` : null, version);

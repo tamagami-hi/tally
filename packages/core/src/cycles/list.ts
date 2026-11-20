@@ -26,7 +26,7 @@ export interface CurrentCycle {
   ask?: string;
 }
 
-export type ClosedCycle = Pick<CycleRecord, "n" | "name" | "closedAt" | "closedBy" | "summary" | "from" | "to"> & { milestones: number; tasks: number };
+export type ClosedCycle = Pick<CycleRecord, "n" | "name" | "closedAt" | "closedBy" | "summary" | "said" | "from" | "to"> & { milestones: number; tasks: number };
 
 export interface CycleList {
   current: CurrentCycle;
@@ -77,8 +77,8 @@ export async function cycleList(repo: Repo, asked: { limit?: number | undefined 
   const closed: ClosedCycle[] = [];
   for (const cycle of newest.slice(0, asked.limit ?? DEFAULT_CYCLES)) {
     const ledger = await closedLedger(repo, cycle.n);
-    const { n, name, closedAt, closedBy, summary, from, to } = cycle;
-    closed.push({ n, ...(name === undefined ? {} : { name }), closedAt, closedBy, summary, from, to, milestones: ledger?.milestones.length ?? 0, tasks: ledger === undefined ? 0 : tasksIn(ledger) });
+    const { n, name, closedAt, closedBy, summary, said, from, to } = cycle;
+    closed.push({ n, ...(name === undefined ? {} : { name }), closedAt, closedBy, summary, said, from, to, milestones: ledger?.milestones.length ?? 0, tasks: ledger === undefined ? 0 : tasksIn(ledger) });
   }
   return { current: await current(repo, file.current, newest[0]?.closedAt), closed, matched: file.cycles.length };
 }

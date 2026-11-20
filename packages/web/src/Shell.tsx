@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Board } from "./components/Board.tsx";
 import { Docs } from "./components/Docs.tsx";
+import { Cycles } from "./components/Cycles.tsx";
 import { Done } from "./components/Done.tsx";
 import { Evidence } from "./components/Evidence.tsx";
 import { Graph, Legend } from "./components/Graph.tsx";
@@ -54,14 +55,19 @@ function Failed({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-type MainView = "board" | "done" | "evidence" | "docs";
+type MainView = "board" | "done" | "cycles" | "evidence" | "docs";
 
 const MAIN_VIEWS: { id: MainView; label: string }[] = [
   { id: "board", label: "Board" },
   { id: "done", label: "Done" },
+  { id: "cycles", label: "Cycles" },
   { id: "evidence", label: "Evidence" },
   { id: "docs", label: "Docs" },
 ];
+
+function CyclesLine({ onOpen }: { onOpen: () => void }) {
+  return <p className="cycles-line small"><button type="button" className="link-button" onClick={onOpen}>Cycles: the closed ones and the current one</button></p>;
+}
 
 function MainSwitch({ view, onChange }: { view: MainView; onChange: (view: MainView) => void }) {
   return (
@@ -88,7 +94,8 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
   const reader = <Docs index={docs} selected={openDocument} onSelect={setOpenDocument} />;
   const board = <Board status={status} claims={claims} onOpenDone={openDone} />;
   const done = <Done version={snapshot.takenAt} />;
-  const heroless = main === "docs" || main === "done";
+  const cycles = <Cycles version={snapshot.takenAt} />;
+  const heroless = main === "docs" || main === "done" || main === "cycles";
   const top = <TopBar status={status} live={live} takenAt={snapshot.takenAt} scheme={scheme} onToggleScheme={onToggleScheme} />;
   if (layout === "landscape") {
     return (
@@ -103,6 +110,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
           {heroless ? null : <Hero status={status} />}
           {main === "board" ? <Panel title="Board" detail={<><span>{countsDetail(status)}</span> <MainSwitch view={main} onChange={setMain} /></>}>{board}</Panel> : null}
           {main === "done" ? <Panel title="Done" detail={<MainSwitch view={main} onChange={setMain} />}>{done}</Panel> : null}
+          {main === "cycles" ? <Panel title="Cycles" detail={<MainSwitch view={main} onChange={setMain} />}>{cycles}</Panel> : null}
           {main === "evidence" ? <Panel title="Evidence" detail={<MainSwitch view={main} onChange={setMain} />}><Evidence index={evidence} /></Panel> : null}
           {main === "docs" ? <Panel title="Docs" detail={<MainSwitch view={main} onChange={setMain} />}>{reader}</Panel> : null}
         </div>
@@ -115,18 +123,19 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
       {top}
       <Stats status={status} />
       <Problems problems={status.problems} />
-      {page === "done" ? null : <Hero status={status} />}
+      {page === "done" || page === "cycles" ? null : <Hero status={status} />}
       <main className="page">
         {page === "board" ? <Panel title="Board" detail={countsDetail(status)}>{board}</Panel> : null}
         {page === "tracks" ? <Panel title="Branches" detail={tracksSummary(status)}><Tracks status={status} state={state} evidence={evidence} /></Panel> : null}
         {page === "graph" ? <Panel title="Graph" detail={<Legend commits={graph.commits} />}><Graph view={graph} /></Panel> : null}
-        {page === "done" ? <Panel title="Done">{done}</Panel> : null}
+        {page === "done" ? <Panel title="Done"><CyclesLine onOpen={() => setPage("cycles")} />{done}</Panel> : null}
+        {page === "cycles" ? <Panel title="Cycles">{cycles}</Panel> : null}
         {page === "evidence" ? <Panel title="Evidence"><Evidence index={evidence} /></Panel> : null}
         {page === "docs" ? <Panel title="Docs">{reader}</Panel> : null}
       </main>
       <nav className="bottom-nav" role="radiogroup" aria-label="Pages">
         {PAGES.map((p) => (
-          <button key={p.id} type="button" role="radio" aria-checked={page === p.id} onClick={() => setPage(p.id)}>{p.label}</button>
+          <button key={p.id} type="button" role="radio" aria-checked={page === p.id || (page === "cycles" && p.id === "done")} onClick={() => setPage(p.id)}>{p.label}</button>
         ))}
       </nav>
     </div>

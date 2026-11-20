@@ -315,3 +315,10 @@ h1, h2, h3, p { margin: 0; }
 .usage-table { border-collapse: collapse; font-size: 13px; width: 100%; }
 .usage-table th, .usage-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
 .usage-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.cycles { display: grid; gap: var(--pad); align-content: start; min-width: 0; }
+.cycle { display: grid; gap: var(--pad-s); padding-bottom: var(--pad-s); border-bottom: 1px solid var(--line); min-width: 0; }
+.cycle h3 { font-size: 14px; font-weight: 700; }
+.cycle-ask { font-weight: 600; }
+.cycle-said { margin: 0; padding-left: var(--pad-s); border-left: 2px solid var(--line); }
+.cycles-line { margin: 0 0 var(--pad-s); }
+.link-button { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }

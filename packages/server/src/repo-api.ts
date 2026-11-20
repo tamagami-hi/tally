@@ -3,7 +3,7 @@ import { realpath } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
-import { ENDED_LIMIT, MOST_ENDED, Records, TallyError, doneWork, endedSessions, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
+import { ENDED_LIMIT, MOST_ENDED, Records, TallyError, collect, cycleList, cycleView, doneWork, endedSessions, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
 import { GRAPH_LIMIT, commitCount, commitGraph, graphBranches } from "./graph.ts";
 import { fileOrNull } from "./static.ts";
 import type { Watcher } from "./watcher.ts";
@@ -66,6 +66,17 @@ export function repoRoutes(served: Serve): Hono {
   api.get("/done", async (c) => {
     const { repo, watcher } = await served(c);
     return c.json(await doneWork(repo, (await watcher.current()).status));
+  });
+  api.get("/cycles", async (c) => {
+    const limit = c.req.query("limit");
+    if (limit !== undefined && !WHOLE_NUMBER.test(limit)) return c.json({ error: "limit must be a whole number above zero" }, 400);
+    return c.json(await cycleList((await served(c)).repo, limit === undefined ? {} : { limit: Number(limit) }));
+  });
+  api.get("/cycles/:n/done", async (c) => {
+    const n = c.req.param("n");
+    if (!WHOLE_NUMBER.test(n)) return c.json({ error: "a cycle is named by its number" }, 400);
+    const view = await cycleView((await served(c)).repo, Number(n));
+    return c.json(await doneWork(view, await collect(view, await new Records(view).readLedger())));
   });
   api.get("/done/sessions", async (c) => {
     const limit = c.req.query("limit") ?? String(ENDED_LIMIT);

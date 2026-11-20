@@ -253,7 +253,7 @@ export interface EndedSessions {
 }
 
 export type Live = "connected" | "reconnecting" | "offline";
-export type Page = "board" | "tracks" | "graph" | "done" | "evidence" | "docs";
+export type Page = "board" | "tracks" | "graph" | "done" | "cycles" | "evidence" | "docs";
 export type Layout = "landscape" | "portrait";
 
 export interface RepoSummary {
@@ -310,4 +310,33 @@ export interface UsageRanking {
   versions: { version: string; since: string }[];
   tools: RankedTool[];
   never: { tools: string[]; chars: number };
+}
+
+export interface CurrentCycle {
+  n: number;
+  since?: string;
+  milestones: { open: number; finished: number; carried: number };
+  tasks: { landed: number; total: number };
+  complete: boolean;
+  blockers: string[];
+  ask?: string | undefined;
+}
+
+export interface ClosedCycle {
+  n: number;
+  name?: string;
+  closedAt: string;
+  closedBy: { track: string; agent: string };
+  summary: string;
+  said?: string;
+  from: string;
+  to: string;
+  milestones: number;
+  tasks: number;
+}
+
+export interface CycleListing {
+  current: CurrentCycle;
+  closed: ClosedCycle[];
+  matched: number;
 }
