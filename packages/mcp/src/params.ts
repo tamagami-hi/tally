@@ -37,7 +37,7 @@ const OWN: Readonly<Record<string, string>> = {
   "track_edit.name": "the track's name, as track_list shows it",
   "track_edit.addPaths": "folders or files from the worktree to add to what it may land",
   "track_edit.purpose": "its new purpose, one line",
-  "track_close.endSessions": "true to end first its sessions that hold no claim",
+  "track_close.endSessions": "true to end its sessions that hold no claim, if nothing else stops the close",
   "cycle_list.n": "a closed cycle's number, for that cycle whole",
   "cycle_close.summary": "what the cycle built, at most 500 characters",
   "cycle_close.said": "the operator's own words that close it, quoted",

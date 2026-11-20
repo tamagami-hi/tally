@@ -421,9 +421,10 @@ A repository's work runs in numbered cycles; the current one is what `docs/recor
 
 - **When it is complete.** Once a milestone is finished and nothing would stop a close, `cycle_list`, `board_get` (`cycle`) and an operator session's brief say "everything planned in cycle <n> has landed: ask the operator whether to close it". Ask; tally closes nothing by itself.
 - **Closing.** `cycle_close({ sessionId, summary, said, name?, decision? })` is an operator session's, on the operator's word: put their own words, quoted, in `said`. It is refused, changing nothing, while a landing is queued, main holds a commit the ledger does not record, a milestone with landed work is not finished, a track you opened is neither waiting on work not started nor closable, a milestone not started sits in a closed phase, or nothing is finished; `cycle_list` names each blocker. The finished work moves to `docs/records/cycles/cycle-<n>/`, the tracks that can close are closed, and one commit is made: "records: cycle <n> closed".
-- **What stays.** Milestones not started, with their planned tasks; open tracks, phases and notes; every decision, question, rule and context entry; every counter, so the next review or note takes the next number. A milestone's id is never used again: `milestone_add` refuses one a closed cycle holds.
+- **What stays.** Milestones not started, with their planned tasks; open tracks, open phases and the closed stages the config lists, and open notes; every decision, question, rule and context entry; every counter, so the next review or note takes the next number. A milestone's id is never used again: `milestone_add` refuses one a closed cycle holds.
 - **Reading a closed cycle.** `cycle_list` with `n` answers it whole. `board_get`, `evidence_list`, `review_list`, `handoff_read`, `track_list`, `phase_list`, `activity_get`, `note_list` and `deferred_list` take `cycle` and answer as that cycle was at its close. The Cycles page shows them too.
-- **An interrupted close** is finished by the next tool call on the repository, or the service's next pass.
+- **While a close runs.** A write you make meanwhile waits for the file it needs and is kept, in the current cycle or the closed one, never lost.
+- **An interrupted close** is finished by the next tool call on the repository, the next writing command or the service's next pass. Until it can be, a tool or command that writes is refused with "a cycle close is being finished: try again in a moment", or with the reason it could not be finished: wait a moment and call again, and tell the operator if the reason repeats. Reads still answer.
 
 ### 10.17 Changing a milestone or a track
 
@@ -431,7 +432,7 @@ A repository's work runs in numbered cycles; the current one is what `docs/recor
 - `milestone_remove` (operator): a milestone with no landed, claimed or queued task goes with its planned tasks; its run records stay, and the tracks that waited on it are told.
 - `track_edit` (operator, or a session of the track's parent): `addPaths` widens a track `track_open` made, no wider than its parent; `purpose` replaces its line.
 - `track_open` and `track_edit` answer `declared`: the open tracks whose declared paths overlap this one's. Nothing is refused for it; agree an order before you both change a file.
-- `track_close` with `endSessions: true` first ends the track's sessions that hold no claim.
+- `track_close` with `endSessions: true` ends the track's sessions that hold no claim, but only when nothing else stops the close: a commit not landed, uncommitted work, a queued ticket or an open child refuses first, and no session is ended.
 
 ### 10.18 A review's own text
 
@@ -439,5 +440,5 @@ A repository's work runs in numbered cycles; the current one is what `docs/recor
 
 ### 10.19 What tally counts
 
-tally counts the calls each tool receives, and nothing else: per tool, the calls, those refused, cut or refused by the schema, the days with a call, and the calls by scope and repository. No argument, answer or session id is kept, and nothing of it is in git. `tally usage` prints the ranking (`--json` for the data; with `TALLY_URL` it asks the service), `GET /api/usage` answers it, and the Overview page shows "Tools by use", with the tools never called and the characters they cost in every session's tool list.
+tally counts the calls each tool receives, and nothing else: per tool, the calls, those refused, cut or refused by the schema, the days with a call, and the calls by scope and repository. No argument, answer or session id is kept, and nothing of it is in git. A `usage.json` that cannot be read never stops a server: it is set aside beside itself under a dated name and counting starts again. `tally usage` prints the ranking (`--json` for the data; with `TALLY_URL` it asks the service), `GET /api/usage` answers it, and the Overview page shows "Tools by use", with the tools never called and the characters they cost in every session's tool list.
 
