@@ -5,7 +5,7 @@ import { isOperator, type Session } from "../state/sessions.ts";
 import { withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 import { readTrials, trialNamed, type Trial } from "./file.ts";
-import { isThere, removeTrial } from "./remove.ts";
+import { assertOwn, isThere, removeTrial } from "./remove.ts";
 import { trialsLock } from "./start.ts";
 
 const IGNORED = "!!";
@@ -29,12 +29,19 @@ async function assertNothingToLose(repo: Repo, trial: Trial): Promise<void> {
   throw new TallyError(`the trial ${trial.name} has ${commits(extra.length)} beyond its picks: ${named.join(", ")}; move it to a lane first`);
 }
 
-export async function endTrial(repo: Repo, session: Session, name: string): Promise<{ name: string; removed: { worktree: string; branch: string } }> {
+export interface EndedTrial {
+  name: string;
+  removed: { worktree: string; branch?: string };
+  left?: string[];
+}
+
+export async function endTrial(repo: Repo, session: Session, name: string): Promise<EndedTrial> {
   if (!isOperator(repo, session)) throw new TallyError("only an operator session ends a trial");
   return withLock(trialsLock(repo), async () => {
     const trial = trialNamed(await readTrials(repo), name);
+    assertOwn(repo, trial);
     if (trial.state === "open") await assertNothingToLose(repo, trial);
-    await removeTrial(repo, trial);
-    return { name, removed: { worktree: trial.worktree, branch: trial.branch } };
+    const { left, ...removed } = await removeTrial(repo, trial);
+    return { name, removed, ...(left.length === 0 ? {} : { left }) };
   });
 }

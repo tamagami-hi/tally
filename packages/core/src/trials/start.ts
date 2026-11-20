@@ -36,7 +36,8 @@ function assertTracks(repo: Repo, tracks: readonly string[]): void {
 async function assertFree(repo: Repo, name: string): Promise<void> {
   const held = (await readTrials(repo)).trials.find((trial) => trial.name === name);
   if (held?.state === "open") throw new TallyError(`the trial ${name} is open; end it with trial_end first`);
-  if (held !== undefined) await removeTrial(repo, held);
+  const cleaned = held === undefined ? [] : (await removeTrial(repo, held)).left;
+  if (cleaned.length > 0) throw new TallyError(`the trial ${name}, stopped halfway, could not be cleaned: ${cleaned.join("; ")}`);
   if (await hasBranch(repo, `${TRIAL_BRANCH}${name}`)) throw new TallyError(`a branch ${TRIAL_BRANCH}${name} exists and is not a trial tally made; choose another name, or delete the branch yourself`);
   if (await isThere(trialFolder(repo, name))) throw new TallyError(`a folder ${trialFolder(repo, name)} exists and is not a trial tally made; choose another name, or remove it yourself`);
 }
@@ -59,9 +60,10 @@ async function conflicted(repo: Repo, trial: Trial, track: string, commit: strin
   const files = ((await gitOut(trial.worktree, ["diff", "--name-only", "--diff-filter=U"])) ?? "").split("\n").filter((file) => file !== "");
   const subject = (await gitOut(repo.root, ["log", "-1", "--format=%s", commit])) ?? "";
   await git(trial.worktree, ["cherry-pick", "--abort"]);
-  await removeTrial(repo, trial);
+  const { left } = await removeTrial(repo, trial);
   const where = files.length === 0 ? "though git named no file" : `in ${files.join(", ")}`;
-  return new TallyError(`the trial ${trial.name} stopped at a conflict: track ${track}'s ${commit.slice(0, 7)} (${subject}) does not apply on the picks before it, ${where}; nothing of the trial is left`);
+  const kept = left.length === 0 ? "nothing of the trial is left" : `nothing of the trial is left but ${left.join("; ")}`;
+  return new TallyError(`the trial ${trial.name} stopped at a conflict: track ${track}'s ${commit.slice(0, 7)} (${subject}) does not apply on the picks before it, ${where}; ${kept}`);
 }
 
 function* picks(trial: Trial): Generator<{ track: string; commit: string }> {
