@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { closeTrack, declaredOverlaps, editTrack, landOrder, listTracks, openTrackWithPlan, readTracks } from "@tally/core";
+import { closeTrack, declaredOverlaps, editTrack, landOrder, listTracks, openTrackWithPlan, openTrials, readTracks } from "@tally/core";
 import { plannedTasks } from "../planned-task.ts";
 import { ok } from "../respond.ts";
 import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -49,9 +49,10 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "track_list",
-    { description: "Every track of one repository: its name, branch, worktree and parent, its purpose when an agent opened it, the `paths` it may land if limited, whether it is the config's or opened with track_open (`source`), and whether a session is open on it (`hasSession`).", inputSchema: { order: z.boolean().optional(), cycle: CYCLE, ...WHERE } },
+    { description: "Every track of one repository: its name, branch, worktree and parent, its purpose when an agent opened it, the `paths` it may land if limited, whether it is the config's or opened with track_open (`source`), and whether a session is open on it (`hasSession`); open trials, as `trials`.", inputSchema: { order: z.boolean().optional(), cycle: CYCLE, ...WHERE } },
     ({ order, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
-      const tracks = { tracks: await listTracks(repo) };
+      const trials = await openTrials(repo);
+      const tracks = { tracks: await listTracks(repo), ...(trials.length === 0 ? {} : { trials: trials.map(({ name, branch, worktree, head, startedAt, tracks: picked }) => ({ name, branch, worktree, head, startedAt, tracks: picked.map((one) => one.name) })) }) };
       const listed = cycle === undefined ? tracks : { ...tracks, closed: (await readTracks(repo.recordsDir)).tracks };
       return ok(order === true ? { ...listed, ...(await landOrder(repo)) } : listed);
     }),

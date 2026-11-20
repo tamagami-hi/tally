@@ -13,6 +13,7 @@ import { readDecisions } from "../records/decisions.ts";
 import { tolerated } from "../store/json.ts";
 import { closedState, type GitState } from "./closed.ts";
 import { branches, type TrackRow } from "./tracks.ts";
+import { trialProblems } from "../trials/file.ts";
 
 export interface StageRow {
   id: string;
@@ -70,6 +71,7 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);
   const decisions = await tolerated(readDecisions(repo), { schema: 1 as const, decisions: [], replaced: [] });
   problems.push(...(decisions.problem === undefined ? [] : [decisions.problem]), ...disputedProblems(decisions.value));
+  if (repo.cycle === undefined) problems.push(...(await trialProblems(repo, now)));
   const git = repo.cycle === undefined ? await liveState(repo, now) : await closedState(repo, repo.cycle);
   const questions = await openQuestions(repo);
   return {

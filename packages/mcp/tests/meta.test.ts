@@ -58,7 +58,7 @@ describe("the hints", () => {
     const tools = await listed();
     const destructive = tools.filter((tool) => destroys(tool.annotations)).map((tool) => tool.name).sort();
 
-    expect(destructive).toEqual(["checks_set", "cycle_close", "decision_status", "deferred_set", "evidence_run", "handoff_write", "milestone_remove", "phase_close", "project_set", "repo_configure", "task_remove", "track_close", "views_claude"]);
+    expect(destructive).toEqual(["checks_set", "cycle_close", "decision_status", "deferred_set", "evidence_run", "handoff_write", "milestone_remove", "phase_close", "project_set", "repo_configure", "task_remove", "track_close", "trial_end", "views_claude"]);
   });
 
   test("say that only the two tools that run a command reach outside the repository", async () => {

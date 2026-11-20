@@ -6,9 +6,9 @@ import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
-const RELEASE_MARK = "Record a release, an operator session's: `version` at `commit`, main's tip unless given, which must be on main and at or after the latest release's commit. A version is recorded once.";
+const RELEASE_MARK = "Record a release, an operator session's: `version` at `commit` (main's tip unless given), on main and at or after the latest release. A version is recorded once.";
 
-const RELEASE_LIST = "The releases, newest first, 10 unless `limit` says, with `matched`. Each answers its tasks, computed from the ledgers: those landed on main after the release before it and at or before its commit, by milestone; and `whatsNew`, where the config has releases.notes, whether that file is in its commit. `unreleased`: the tasks landed after the last.";
+const RELEASE_LIST = "The releases, newest first, 10 unless `limit` says, with `matched`; each with its tasks, landed on main after the release before it and by its commit, by milestone, and `whatsNew` where the config has releases.notes. `unreleased`: tasks landed since the last.";
 
 export function registerReleaseTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(

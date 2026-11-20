@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
 import { currentBranch, worktrees } from "../git/refs.ts";
 import { statePath, worktreeOf } from "../land/paths.ts";
 import type { Repo } from "../store/records.ts";
 import { StateFile } from "./file.ts";
+import { TRIALS_DIR } from "../trials/file.ts";
 
 export const sessionSchema = z.object({
   id: z.string().min(1),
@@ -47,6 +48,8 @@ async function expectedBinding(repo: Repo, track: string): Promise<{ worktree: s
 export function trackAt(repo: Repo, worktree: string): string {
   const given = resolve(worktree);
   if (given === resolve(repo.root)) return repo.config.mainBranch;
+  const trial = relative(resolve(repo.root, TRIALS_DIR), given);
+  if (trial !== "" && !trial.startsWith("..") && !isAbsolute(trial)) throw new TallyError(`${given} is the checkout of the trial ${trial.split(sep)[0] ?? trial}: a trial lands nothing and opens no session; run its checks with its runner and --task`);
   const found = repo.config.tracks.find((track) => resolve(worktreeOf(repo, track)) === given);
   if (found === undefined) {
     const known = repo.config.tracks.map((track) => `${track.name} (${worktreeOf(repo, track)})`).join(", ");

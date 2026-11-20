@@ -21,6 +21,7 @@ import { registerRulebookTools } from "./tools/rulebook.ts";
 import { registerQuestionTools } from "./tools/questions.ts";
 import { registerRecordTools } from "./tools/records.ts";
 import { registerReleaseTools } from "./tools/releases.ts";
+import { registerTrialTools } from "./tools/trials.ts";
 import { registerReviewTools } from "./tools/reviews.ts";
 import { registerSessionTools } from "./tools/session.ts";
 import { registerTrackTools } from "./tools/tracks.ts";
@@ -65,6 +66,7 @@ function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace, 
   registerPhaseTools(tools, source);
   registerCycleTools(tools, source);
   registerReleaseTools(tools, source);
+  registerTrialTools(tools, source);
 }
 
 export interface Streams {

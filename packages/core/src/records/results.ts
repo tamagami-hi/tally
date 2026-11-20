@@ -9,6 +9,7 @@ import { LEDGER_FILE, Records, type Repo } from "../store/records.ts";
 import { recordEvidence, storedKind, type RunRecord } from "./evidence.ts";
 import { MAX_NOTE, noteFrom, readNotes } from "./notes.ts";
 import { TALLY } from "./tell.ts";
+import { openTrials } from "../trials/file.ts";
 
 export interface Taken {
   id: string;
@@ -22,6 +23,7 @@ interface Place {
   worktree: string;
   track: string;
   branch: string;
+  trial?: { name: string; head: string };
 }
 
 const TAKEN = "taken";
@@ -34,9 +36,10 @@ const RUNNER_AGENT = "runner";
 
 export const MOST_RETRIED = 20;
 
-const placesOf = (repo: Repo): Place[] => [
+const placesOf = async (repo: Repo): Promise<Place[]> => [
   { worktree: repo.root, track: repo.config.mainBranch, branch: repo.config.mainBranch },
   ...repo.config.tracks.map((track) => ({ worktree: worktreeOf(repo, track), track: track.name, branch: track.branch })),
+  ...(await openTrials(repo)).map((trial) => ({ worktree: trial.worktree, track: repo.config.mainBranch, branch: trial.branch, trial: { name: trial.name, head: trial.head ?? trial.base } })),
 ];
 
 async function waiting(folder: string): Promise<string[]> {
@@ -82,7 +85,7 @@ async function taskOf(repo: Repo, session: Session, named: string): Promise<{ mi
   return { milestone: held.milestone, task: held.task };
 }
 
-async function record(repo: Repo, session: Session, folder: string): Promise<Pick<Taken, "record" | "notice">> {
+async function record(repo: Repo, session: Session, folder: string, trial?: Place["trial"]): Promise<Pick<Taken, "record" | "notice">> {
   const kind = storedKind(await field(folder, "kind"));
   const scope = await field(folder, "scope").catch(() => "");
   const target = await taskOf(repo, session, await field(folder, "task"));
@@ -100,6 +103,7 @@ async function record(repo: Repo, session: Session, folder: string): Promise<Pic
     ...(note === "" ? {} : { note }),
     ...(scope === "" ? {} : { scope }),
     ...(await ranOn(folder)),
+    ...(trial === undefined ? {} : { trial }),
   });
   return { record: kept.record, ...(kept.notice === undefined ? {} : { notice: kept.notice }) };
 }
@@ -181,7 +185,7 @@ async function takeOne(pass: Pass, from: string, id: string): Promise<Taken | un
   const folder = join(results, mine);
   if (from !== results) await utimes(folder, pass.now, pass.now);
   try {
-    const kept = await record(pass.repo, pass.session, folder);
+    const kept = await record(pass.repo, pass.session, folder, pass.place.trial);
     await Promise.all([PROBLEM, UNTOLD].map((name) => rm(join(folder, name), { force: true })));
     await mkdir(join(results, TAKEN), { recursive: true });
     await rename(folder, join(results, TAKEN, id));
@@ -234,6 +238,6 @@ async function takeAt(repo: Repo, place: Place, ledgerAt: number, now: Date): Pr
 export async function takeResults(repo: Repo, now = new Date()): Promise<Taken[]> {
   const ledgerAt = await ledgerChangedAt(repo);
   const taken: Taken[] = [];
-  for (const place of placesOf(repo)) taken.push(...(await takeAt(repo, place, ledgerAt, now)));
+  for (const place of await placesOf(repo)) taken.push(...(await takeAt(repo, place, ledgerAt, now)));
   return taken;
 }

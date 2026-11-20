@@ -10,7 +10,7 @@ const SINCE_0_2 = ["phase_add", "phase_close", "phase_list", "records_commit", "
 const SINCE_0_3 = ["deferred_list", "deferred_set", "question_edit", "review_list", "review_record"];
 const SINCE_0_7 = ["cycle_close", "cycle_list", "milestone_edit", "milestone_remove", "track_edit"];
 const SINCE_0_8 = ["covering", "decision_record", "decision_status", "question_answer"];
-const SINCE_0_9 = ["evidence_manual", "release_list", "release_mark"];
+const SINCE_0_9 = ["evidence_manual", "release_list", "release_mark", "trial_end", "trial_start"];
 
 const versionOf = async (path: string): Promise<string> => (JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { version: string }).version;
 

@@ -35,6 +35,7 @@ export const runRecordSchema = z.looseObject({
   dirty: z.boolean().optional(),
   label: z.string().min(1).optional(),
   scope: z.string().min(1).optional(),
+  trial: z.looseObject({ name: z.string().min(1), head: z.string().min(1) }).optional(),
 });
 
 export const evidenceFileSchema = z.looseObject({
@@ -91,6 +92,7 @@ export interface EvidenceInput {
   dirty?: boolean;
   label?: string | undefined;
   scope?: string | undefined;
+  trial?: { name: string; head: string } | undefined;
 }
 
 const LOGS = ".temp/tally/logs";
@@ -163,6 +165,7 @@ function composeRecord(session: Session, track: string, input: EvidenceInput, lo
     ...(input.dirty === undefined ? {} : { dirty: input.dirty }),
     ...(input.label === undefined ? {} : { label: input.label }),
     ...(input.scope === undefined ? {} : { scope: input.scope }),
+    ...(input.trial === undefined ? {} : { trial: { ...input.trial } }),
   };
 }
 

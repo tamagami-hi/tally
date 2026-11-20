@@ -34,7 +34,9 @@ export function environmentLines(repo: Repo, worktree: string, track: string): s
   return [...lines, `mkdir -p ${quoted(folder)}`, `export TMPDIR=${quoted(folder)}`];
 }
 
-export function runnerScript(repo: Repo, worktree: string, track: string): string {
+const TASK_NEEDED = 'if [ -z "$task" ]; then echo "tally: a run in a trial names its task: --task MILESTONE:TASK" >&2; exit 2; fi';
+
+export function runnerScript(repo: Repo, worktree: string, track: string, options: { requireTask?: boolean } = {}): string {
   return [
     "#!/bin/sh",
     "set -u",
@@ -56,6 +58,7 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     "  esac",
     "done",
     'if [ "$#" -lt 1 ]; then echo "$usage" >&2; exit 2; fi',
+    ...(options.requireTask === true ? [TASK_NEEDED] : []),
     'cwd="$(pwd -P)"',
     'id="$(date -u +%Y%m%dT%H%M%SZ)-$$"',
     `logs="$root/${LOGS}/$track"`,
@@ -96,10 +99,10 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
   ].join("\n");
 }
 
-export async function writeRunner(repo: Repo, worktree: string, track: string): Promise<string> {
+export async function writeRunner(repo: Repo, worktree: string, track: string, options: { requireTask?: boolean } = {}): Promise<string> {
   const path = join(worktree, RUNNER);
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, runnerScript(repo, worktree, track));
+  await writeFile(path, runnerScript(repo, worktree, track, options));
   await chmod(path, 0o755);
   return path;
 }
