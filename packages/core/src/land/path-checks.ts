@@ -46,6 +46,7 @@ export type CheckMode = "each" | "tip";
 export interface CommitChecks {
   commit: string;
   checks: TurnCheck[];
+  note?: string;
 }
 
 const SHORT = 7;
@@ -60,6 +61,7 @@ async function ownChecks(checkout: string, listed: readonly Check[], commit: str
   const chosen = checksFor(listed, files);
   if (chosen.length > 0) return { commit, checks: chosen.map(({ name, command }) => ({ name, command })) };
   const subject = await gitMust(checkout, ["log", "-1", "--format=%s", commit]);
+  if (files.length === 0) return { commit, checks: [], note: `tally: ${commit.slice(0, SHORT)} (${subject}) changes no file, so no check runs for it` };
   throw new TallyError(`no check in commands.checks covers what ${commit.slice(0, SHORT)} (${subject}) changes: ${namedList(files)}; add a check whose paths match them, however small, so that nothing lands unchecked`);
 }
 

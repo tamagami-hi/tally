@@ -42,7 +42,7 @@ function checkLines({ name, command }: TurnCheck): string[] {
 
 export function landScript(input: LandScriptInput): string {
   const { repo, track, tree, checkout, plan, resultDir, log, name, owner } = input;
-  const byCommit = plan.flatMap(({ commit, checks }) => [`    ${quoted(commit)})`, ...checks.flatMap(checkLines).map((line) => `    ${line}`), "      ;;"]);
+  const byCommit = plan.flatMap(({ commit, checks, note }) => [`    ${quoted(commit)})`, ...(note === undefined ? [] : [`      echo ${quoted(note)} >> "$log"`]), ...checks.flatMap(checkLines).map((line) => `    ${line}`), "      ;;"]);
   const links = (repo.config.commands.landing?.link ?? []).map((path) => `  [ "$one" -ne 0 ] || link ${quoted(path)} >> "$log" 2>&1 || one=1`);
   return [
     "#!/bin/sh",

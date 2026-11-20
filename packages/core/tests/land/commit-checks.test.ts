@@ -1,3 +1,5 @@
+import { readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { joinQueue, ticketView } from "../../src/land/queue.ts";
 import { recordLanding } from "../../src/land/record.ts";
@@ -65,6 +67,27 @@ describe("checks chosen for each commit", () => {
     expect(await runHead(q.repo)).toBe(0);
 
     expect(await q.runs()).toEqual(["core feat: one", "pages feat: side"]);
+  });
+});
+
+describe("an empty commit", () => {
+  test("is planned with no check, lands, and the log says it changes no file", async () => {
+    const q = await checked();
+    await commitOn(q.tree, "src/one.rs", "feat: one");
+    await sh(q.tree, ["commit", "-q", "--allow-empty", "-m", "chore: nothing"]);
+    const empty = (await sh(q.tree, ["rev-parse", "--short=7", "HEAD"])).trim();
+    const ticket = await joinQueue(q.repo, q.session, { files: [] });
+    await advance(q.repo);
+
+    expect(await runHead(q.repo)).toBe(0);
+    await advance(q.repo);
+
+    expect((await ticketView(q.repo, ticket.id)).state).toBe("landed");
+    expect(await q.runs()).toEqual(["core feat: one"]);
+    const logs = join(q.root, ".temp/tally/logs/data");
+    const text = (await Promise.all((await readdir(logs)).map((name) => readFile(join(logs, name), "utf8")))).join("");
+    expect(text).toMatch(new RegExp(`tally: [0-9a-f]{7} \\(chore: nothing\\) changes no file, so no check runs for it`));
+    expect(empty).toMatch(/^[0-9a-f]{7}$/);
   });
 });
 
