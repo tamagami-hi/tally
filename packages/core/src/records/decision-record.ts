@@ -105,6 +105,8 @@ function written(input: RecordInput, id: string, old: Decision | undefined, sess
 function placed(file: DecisionsFile, input: RecordInput, session: Session, now: Date): { file: DecisionsFile; result: Omit<Recorded, "commit"> } {
   const id = input.id ?? nextId(file, input.group);
   const old = file.decisions.find((one) => one.group === input.group && one.id === id);
+  const alike = file.decisions.find((one) => one.group === input.group && one.id !== id && one.id.toLowerCase() === id.toLowerCase());
+  if (alike !== undefined) throw new TallyError(`${input.group} already has decision ${alike.id}, which ${id} differs from only by letter case; give ${alike.id} with replaces to replace it, or another id`);
   if (old !== undefined && input.replaces === undefined) throw new TallyError(`${input.group} already has decision ${id}; give replaces with why to replace it`);
   if (old === undefined && input.replaces !== undefined) throw new TallyError(`${input.group} has no decision ${id} to replace; its decisions are ${knownIn(file, input.group)}`);
   const decision = written(input, id, old, session, now);
