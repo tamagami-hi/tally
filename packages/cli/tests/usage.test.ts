@@ -1,6 +1,7 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, test } from "vitest";
+import { mkdir, writeFile } from "node:fs/promises";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Usage, usagePathOf } from "../../core/src/usage/counts.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
@@ -79,5 +80,19 @@ describe("tally usage", () => {
 
     expect((JSON.parse(captured.lines.join("\n")) as { never: { tools: string[] } }).never.tools).not.toContain("land_run");
   });
-});
 
+  test("still answers when usage.json cannot be read", async () => {
+    const { repo, root } = await makeTracked();
+    await mkdir(repo.stateDir, { recursive: true });
+    await writeFile(usagePathOf({ stateDir: repo.stateDir }), "{ not json");
+    const captured = io(root, { TALLY_HOME: await tmpDir("tally-home-") });
+    const quiet = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      expect(await run(["usage", "--json"], captured)).toBe(0);
+    } finally {
+      quiet.mockRestore();
+    }
+
+    expect(JSON.parse(captured.lines.join("\n"))).toMatchObject({ tools: [] });
+  });
+});

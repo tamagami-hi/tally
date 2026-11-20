@@ -1,6 +1,7 @@
+import { rename } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
-import { TallyError } from "../errors.ts";
+import { TallyError, messageOf } from "../errors.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import type { Exact } from "../schema/kept.ts";
 
@@ -51,12 +52,27 @@ export const usagePathOf = (where: { home: string } | { stateDir: string }): str
 
 const emptyFile = (now: Date): UsageFile => ({ schema: 1, since: now.toISOString(), versions: [], tools: {} });
 
+const oneLine = (text: string): string => text.replaceAll(/\s*\n\s*/g, "; ");
+
+async function setAside(path: string, now: Date, error: unknown): Promise<string> {
+  const reason = oneLine(messageOf(error));
+  if (!(error instanceof TallyError)) return `tally could not read ${path} (${reason}); the count starts empty`;
+  const aside = `${path}.${now.toISOString().replaceAll(":", "-")}.unreadable`;
+  try {
+    await rename(path, aside);
+    return `tally could not read ${path} (${reason}); it was moved to ${aside}, and the count starts empty`;
+  } catch (moving: unknown) {
+    return `tally could not read ${path} (${reason}) nor move it aside (${oneLine(messageOf(moving))}); the count starts empty`;
+  }
+}
+
 export async function readUsage(path: string, now = new Date()): Promise<UsageFile> {
   try {
     return await readJson(path, usageFileSchema);
   } catch (error: unknown) {
     if (error instanceof TallyError && error.message.endsWith("does not exist")) return emptyFile(now);
-    throw error;
+    process.stderr.write(`${await setAside(path, now, error)}\n`);
+    return emptyFile(now);
   }
 }
 

@@ -1,4 +1,5 @@
-import { access } from "node:fs/promises";
+import { access, readdir, writeFile } from "node:fs/promises";
+import { vi } from "vitest";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { startServer, startService } from "../src/serve.ts";
@@ -57,5 +58,24 @@ describe("the count of what is called, in the service", () => {
 
     expect(seen.tools.map((tool) => tool.name)).toEqual(["board_get"]);
     await access(join(repo.stateDir, "usage.json"));
+  });
+
+  test("starts with an unreadable usage.json, which it moves aside, and answers /api/usage", async () => {
+    const home = await tmpDir("tally-home-");
+    const { root } = await makeTracked();
+    await addRepo(home, { root, name: "alpha" });
+    await writeFile(join(home, "usage.json"), "{ not json");
+    const quiet = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      const running = await startService({ home, workspace: root, port: 0, host: "127.0.0.1", webDir: root, intervalMs: 50 });
+      await callTool(running.url, "board_get");
+      const seen = await usageAt(running.url);
+      await running.close();
+
+      expect(seen.tools.map((tool) => tool.name)).toEqual(["board_get"]);
+      expect((await readdir(home)).filter((name) => name.endsWith(".unreadable"))).toHaveLength(1);
+    } finally {
+      quiet.mockRestore();
+    }
   });
 });
