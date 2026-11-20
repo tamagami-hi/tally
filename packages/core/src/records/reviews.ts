@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { shortOf, verifyCommit } from "../git/refs.ts";
@@ -14,6 +16,8 @@ import { keptFile, missingFile } from "./kept-file.ts";
 export const MOST_REVIEWER = 120;
 export const MOST_REVIEW_SUMMARY = 1000;
 export const MOST_FINDINGS = 8;
+export const MOST_REVIEW_TEXT = 20_000;
+export const REVIEW_TEXTS = ".temp/tally/reviews";
 
 const NO_BLOCKING: readonly ReviewVerdict[] = ["land", "waived"];
 const SCRATCH = ".temp";
@@ -29,6 +33,7 @@ export interface ReviewInput {
   summary: string;
   follows?: string | undefined;
   report?: string | undefined;
+  text?: string | undefined;
 }
 
 export interface ReviewRecorded {
@@ -108,6 +113,21 @@ async function reportOf(repo: Repo, session: Session, report: string | undefined
   return (await keptFile(report, { base: session.worktree, folders: [session.worktree, scratch], outside, missing: missingFile("the report", session.worktree, scratch) })).file;
 }
 
+function assertText(input: ReviewInput): void {
+  if (input.text === undefined) return;
+  if (input.report !== undefined) throw new TallyError("give the review as text or as a report file, not both");
+  if (input.text.trim() === "") throw new TallyError("a review's text needs some text; leave it out to give none");
+  if (input.text.length > MOST_REVIEW_TEXT) throw new TallyError(`a review's text holds at most ${MOST_REVIEW_TEXT} characters; this one has ${input.text.length}`);
+}
+
+async function textKept(repo: Repo, id: string, text: string): Promise<KeptFile> {
+  const folder = join(repo.root, REVIEW_TEXTS);
+  await mkdir(folder, { recursive: true });
+  const path = join(folder, `${id}.md`);
+  await writeFile(path, text);
+  return { path, sha256: createHash("sha256").update(text).digest("hex"), bytes: Buffer.byteLength(text) };
+}
+
 const told = (review: Review): string => `${review.id}: ${review.milestone} '${review.task}' ${review.verdict}${review.blocking === 0 ? "" : `, ${review.blocking} blocking`}`;
 
 export async function recordReview(repo: Repo, session: Session, input: ReviewInput, now = new Date()): Promise<ReviewRecorded> {
@@ -115,6 +135,7 @@ export async function recordReview(repo: Repo, session: Session, input: ReviewIn
   if (task === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
   assertMayWrite(repo, session, task.track);
   assertFits(input);
+  assertText(input);
   assertWaiver(repo, session, input);
   const commit = await shortCommit(session, input.commit);
   const report = await reportOf(repo, session, input.report);
@@ -122,10 +143,12 @@ export async function recordReview(repo: Repo, session: Session, input: ReviewIn
   const { review, reviews } = await withLock(path, async () => {
     const file = await readReviews(repo);
     assertFollows(file.reviews, input);
+    const id = `review-${file.nextId}`;
+    const kept = input.text === undefined ? report : await textKept(repo, id, input.text);
     const made: Review = {
-      id: `review-${file.nextId}`, milestone: input.milestone, task: input.task, track: task.track, commit, reviewer: input.reviewer, verdict: input.verdict, blocking: input.blocking,
+      id, milestone: input.milestone, task: input.task, track: task.track, commit, reviewer: input.reviewer, verdict: input.verdict, blocking: input.blocking,
       ...(input.findings === undefined ? {} : { findings: { ...input.findings } }), summary: input.summary, ...(input.follows === undefined ? {} : { follows: input.follows }),
-      ...(report === undefined ? {} : { report }), by: { track: session.track, agent: session.agent }, at: now.toISOString(),
+      ...(kept === undefined ? {} : { report: kept }), by: { track: session.track, agent: session.agent }, at: now.toISOString(),
     };
     const next = { ...file, nextId: file.nextId + 1, reviews: [...file.reviews, made] };
     await writeJsonAtomic(path, reviewsFileSchema.parse(next));

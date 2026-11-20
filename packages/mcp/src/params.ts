@@ -119,6 +119,7 @@ const OWN: Readonly<Record<string, string>> = {
   "review_record.summary": "what it found; for waived, why no review is needed",
   "review_record.follows": "the review this one follows up, such as review-7",
   "review_record.report": "the full review as a file in your worktree or under .temp/, kept by hash",
+  "review_record.text": "the full review, at most 20,000 characters, in place of report; tally keeps it as a file",
   "review_list.state": "open or clear: the reviewed task's state",
 };
 
