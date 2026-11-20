@@ -7,9 +7,11 @@ import { listClaims } from "../state/claims.ts";
 import { listSessions, markSeen, type Session } from "../state/sessions.ts";
 import { LEDGER_FILE, Records, type Repo } from "../store/records.ts";
 import { recordEvidence, storedKind, type RunRecord } from "./evidence.ts";
+import { ArchivedMilestone } from "./still-planned.ts";
 import { MAX_NOTE, noteFrom, readNotes } from "./notes.ts";
 import { TALLY } from "./tell.ts";
 import { openTrials } from "../trials/file.ts";
+import { isPresent } from "../tracks/file.ts";
 
 export interface Taken {
   id: string;
@@ -29,6 +31,7 @@ interface Place {
 const TAKEN = "taken";
 const REFUSED = "refused";
 const PROBLEM = "problem";
+const FINAL = "final";
 const PARTIAL = ".tmp";
 const CLAIMED = ".taking";
 const ABANDONED_MS = 60_000;
@@ -140,9 +143,14 @@ async function whatRan(folder: string): Promise<string> {
   return shown === "" ? kind : `${kind}: ${shown}`;
 }
 
+async function againText(kept: string): Promise<string> {
+  if (await isPresent(join(kept, FINAL))) return "; it is not tried again";
+  return (await namesTask(kept)) ? " and tried again when the ledger changes" : "";
+}
+
 async function tellRefused(repo: Repo, place: Place, id: string, problem: string, now: Date): Promise<string> {
   const kept = join(place.worktree, RESULTS, REFUSED, id);
-  const where = `; the result is kept in ${kept}${(await namesTask(kept)) ? " and tried again when the ledger changes" : ""}`;
+  const where = `; the result is kept in ${kept}${await againText(kept)}`;
   const said = `the run ${id} (${await whatRan(kept)}) was not recorded: ${problem}`;
   const text = `${said.slice(0, MAX_NOTE - where.length)}${where}`;
   try {
@@ -166,11 +174,12 @@ interface Pass {
   now: Date;
 }
 
-async function refusedAgain(pass: Pass, id: string, folder: string, problem: string): Promise<Taken> {
+async function refusedAgain(pass: Pass, id: string, folder: string, problem: string, final: boolean): Promise<Taken> {
   const { repo, place, now } = pass;
   const results = join(place.worktree, RESULTS);
   const before = await problemIn(folder);
   await mkdir(join(results, REFUSED), { recursive: true });
+  if (final) await writeFile(join(folder, FINAL), "its milestone was archived\n");
   await writeFile(join(folder, PROBLEM), `${problem}\n`);
   await utimes(join(folder, PROBLEM), now, new Date(pass.ledgerAt));
   await rename(folder, join(results, REFUSED, id));
@@ -192,7 +201,7 @@ async function takeOne(pass: Pass, from: string, id: string): Promise<Taken | un
     return { id, worktree: pass.place.worktree, ...kept };
   } catch (error: unknown) {
     if (!(error instanceof TallyError)) throw error;
-    return refusedAgain(pass, id, folder, messageOf(error));
+    return refusedAgain(pass, id, folder, messageOf(error), error instanceof ArchivedMilestone);
   }
 }
 
@@ -207,7 +216,7 @@ async function dueAgain(results: string, ledgerAt: number): Promise<string[]> {
   for (const id of ids) {
     if (due.length >= MOST_RETRIED) break;
     const refusedAt = await stat(join(folder, id, PROBLEM)).then((file) => Math.floor(file.mtimeMs), () => undefined);
-    if (refusedAt !== undefined && refusedAt < ledgerAt && (await namesTask(join(folder, id)))) due.push(id);
+    if (refusedAt !== undefined && refusedAt < ledgerAt && (await namesTask(join(folder, id))) && !(await isPresent(join(folder, id, FINAL)))) due.push(id);
   }
   return due;
 }

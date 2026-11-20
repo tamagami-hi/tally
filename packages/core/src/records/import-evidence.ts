@@ -10,6 +10,7 @@ import { Records, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
 import { evidencePath, judgeRun, readEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
 import { summarize } from "./totals.ts";
+import { assertStillPlanned } from "./still-planned.ts";
 
 const runShape = z
   .object({
@@ -126,6 +127,7 @@ export async function importEvidence(repo: Repo, dir: string, options: ImportOpt
   }
   const path = evidencePath(repo, options.milestone);
   const counts = await withLock(path, async () => {
+    await assertStillPlanned(repo, options.milestone, options.task);
     const file = await readEvidence(repo, options.milestone);
     const known = new Set(file.records.map((r) => r.id));
     const fresh = candidates.filter((r) => !known.has(r.id)).sort((a, b) => (a.started < b.started ? -1 : a.started > b.started ? 1 : 0));

@@ -10,6 +10,7 @@ import type { Session } from "../state/sessions.ts";
 import { commitRecords } from "./commit.ts";
 import { writableTrack } from "./evidence.ts";
 import { safeName } from "./handoffs.ts";
+import { assertStillPlanned } from "./still-planned.ts";
 import { hashedFile, missingFile } from "./kept-file.ts";
 
 export const MOST_STEPS = 30;
@@ -96,10 +97,12 @@ const optional = (input: ManualInput): Partial<ManualCheck> => ({
 export async function recordManual(repo: Repo, session: Session, input: ManualInput, now = new Date()): Promise<{ check: ManualCheck; commit: string | null }> {
   assertCurrent(repo);
   assertShape(input);
+  await assertStillPlanned(repo, input.milestone, input.task);
   writableTrack(repo, session, await new Records(repo).readLedger(), input);
   const attachments = await attachmentsOf(repo, session, input.attachments ?? []);
   const path = manualPath(repo, input.milestone);
   const check = await withLock(path, async () => {
+    await assertStillPlanned(repo, input.milestone, input.task);
     const file = await readManual(repo, input.milestone);
     const made: ManualCheck = { id: `manual-${file.checks.length + 1}`, task: input.task, who: input.who, ...optional(input), steps: [...input.steps], result: input.result, attachments, by: { session: session.id, track: session.track, agent: session.agent }, at: now.toISOString() };
     await writeJsonAtomic(path, { ...file, checks: [...file.checks, made] });

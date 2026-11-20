@@ -13,7 +13,7 @@ import { AT, type Cycling } from "./cycling.ts";
 
 export const BY = { track: "main", agent: "operator" };
 export const CLOSE_INPUT = { summary: "the reader is built", said: "close it" };
-export const OPERATIONS = 16;
+export const OPERATIONS = 17;
 export const SOON = { retries: 2, minTimeout: 20, maxTimeout: 40 };
 
 export async function pendingClose(made: Pick<Cycling, "repo">, steps = 0): Promise<ClosePlan> {

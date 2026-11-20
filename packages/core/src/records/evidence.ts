@@ -12,6 +12,7 @@ import { assertMayWrite, type Session } from "../state/sessions.ts";
 import { commitRecords } from "./commit.ts";
 import { keptFile, missingFile } from "./kept-file.ts";
 import { safeName } from "./handoffs.ts";
+import { assertStillPlanned } from "./still-planned.ts";
 import { summarize } from "./totals.ts";
 import type { Exact } from "../schema/kept.ts";
 
@@ -177,6 +178,7 @@ async function appendRecord(repo: Repo, milestone: string, record: RunRecord): P
   assertCurrent(repo);
   const path = evidencePath(repo, milestone);
   await withLock(path, async () => {
+    await assertStillPlanned(repo, milestone, record.task);
     const file = await readEvidence(repo, milestone);
     await writeJsonAtomic(path, { ...file, records: [...file.records, record] });
   });
@@ -185,6 +187,7 @@ async function appendRecord(repo: Repo, milestone: string, record: RunRecord): P
 const commitLine = (milestone: string, record: RunRecord): string => `${milestone} '${record.task}': ${record.kind} exit ${record.exit}`;
 
 export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null; notice?: string }> {
+  await assertStillPlanned(repo, input.milestone, input.task);
   const track = writableTrack(repo, session, ledger, input);
   assertStarted(input.exit);
   assertScope(input.scope);

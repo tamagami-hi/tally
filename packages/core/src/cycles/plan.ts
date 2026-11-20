@@ -75,9 +75,11 @@ async function dayFiles(repo: Repo): Promise<string[]> {
 export async function movesOf(repo: Repo, n: number, milestones: readonly string[], tracks: readonly string[], closing: readonly string[]): Promise<Move[]> {
   const open = (await readTracks(repo.recordsDir)).tracks.filter(isOpen).map((track) => track.name).filter((name) => !closing.includes(name));
   const staying = new Set([repo.config.mainBranch, ...(await baseConfig(repo)).tracks.map((track) => track.name), ...open]);
-  const paths = [...milestones.flatMap((id) => [evidencePath(repo, id), manualPath(repo, id)]), ...tracks.filter((name) => !staying.has(name)).map((name) => handoffPath(repo, name)), ...(await dayFiles(repo))];
-  const present = await Promise.all(paths.map(isPresent));
-  return paths.filter((_, index) => present[index] === true).map((path) => relative(repo.recordsDir, path)).map((from) => ({ from, to: inCycle(n, from) }));
+  const always = [...milestones.flatMap((id) => [evidencePath(repo, id), manualPath(repo, id)]), ...tracks.filter((name) => !staying.has(name)).map((name) => handoffPath(repo, name))];
+  const days = await dayFiles(repo);
+  const present = await Promise.all(days.map(isPresent));
+  const paths = [...always, ...days.filter((_, index) => present[index] === true)];
+  return paths.map((path) => relative(repo.recordsDir, path)).map((from) => ({ from, to: inCycle(n, from) }));
 }
 
 async function phasePlan(repo: Repo, ledger: Ledger, archived: ReadonlySet<string>): Promise<ClosePlan["phases"]> {
