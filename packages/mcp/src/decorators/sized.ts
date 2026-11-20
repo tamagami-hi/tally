@@ -13,6 +13,9 @@ const MOST_CUTS = 40;
 const NARROWING: ReadonlySet<string> = new Set(["ids", "group", "kind", "task", "track", "level", "scope", "rows", "fields", "since", "limit", "paths", "tags", "query", "state", "answered", "section", "waiting"]);
 const WHOLE_ELSEWHERE = "Nothing narrows this tool: the whole of it is in the repository's docs/records.";
 const NOTE_KEY = "truncated";
+const CUT_NOTE = "This answer was cut to fit ";
+const UNCUT_NOTE = "This answer is ";
+const NOTHING_CUT = "nothing in it could be cut";
 const NOTE_KEY_WHEN_TAKEN = "cut";
 
 type Path = readonly (string | number)[];
@@ -130,7 +133,7 @@ function indexOfLongest(texts: readonly string[]): number {
 }
 
 function tooLargeToCut(size: number, params: readonly string[], had: boolean): CallToolResult {
-  const text = `This answer is ${size} characters, and nothing in it could be cut to fit ${ANSWER_LIMIT}. ${narrowing(params)}`;
+  const text = `${UNCUT_NOTE}${size} characters, and ${NOTHING_CUT} to fit ${ANSWER_LIMIT}. ${narrowing(params)}`;
   return { content: [{ type: "text", text }], ...(had ? { structuredContent: { [NOTE_KEY]: [{ path: "", shown: 0, of: size }] } } : {}) };
 }
 
@@ -160,6 +163,10 @@ export const sized: Decorator = async ({ tool, params, result }) => {
   if (!fits || cutNotes.length === 0) return tooLargeToCut(wholeSize, params, original !== undefined);
 
   const content = result.content.map((part, index) => (part.type === "text" ? { ...part, text: index === mainAt ? main : (beside[index] ?? part.text) } : part));
-  const note = `This answer was cut to fit ${ANSWER_LIMIT} characters: ${cutNotes.join("; ")}. ${narrowing(params)}`;
+  const note = `${CUT_NOTE}${ANSWER_LIMIT} characters: ${cutNotes.join("; ")}. ${narrowing(params)}`;
   return { ...result, content: [...content, { type: "text", text: note }], ...(structured === undefined ? {} : { structuredContent: structured }) };
 };
+
+const isSizeNote = (text: string): boolean => text.startsWith(CUT_NOTE) || (text.startsWith(UNCUT_NOTE) && text.includes(NOTHING_CUT));
+
+export const wasCut = (result: CallToolResult): boolean => result.content.some((part) => part.type === "text" && isSizeNote(part.text));
