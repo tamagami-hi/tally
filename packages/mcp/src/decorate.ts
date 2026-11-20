@@ -13,6 +13,7 @@ import { annotationsOf, metaOf, writesNothing } from "./meta.ts";
 import { invalidInput, unknownArguments } from "./invalid.ts";
 import { paramText } from "./params.ts";
 import { isInRole, type Role } from "./roles.ts";
+import { strictAtEveryDepth } from "./strict.ts";
 import type { RepoSource } from "./source.ts";
 
 export interface Called {
@@ -70,11 +71,13 @@ export function decorating(server: McpServer, source: RepoSource, serving: Servi
     if (meta === undefined) throw new TallyError(`the tool ${name} has no title: add it to the table in meta.ts`);
     if (!isInRole(role, name)) return undefined;
     const shape = described(name, config.inputSchema ?? {});
-    const strict = z.strictObject(shape, { error: (issue) => (issue.code === "unrecognized_keys" ? unknownArguments(name, Object.keys(shape), issue.keys) : undefined) });
+    const refusing = (issue: { code?: string; keys?: string[] }): string | undefined => (issue.code === "unrecognized_keys" ? unknownArguments(name, Object.keys(shape), issue.keys ?? []) : undefined);
+    const strict = z.strictObject(shape, { error: refusing });
+    const parsing = z.strictObject(Object.fromEntries(Object.entries(shape).map(([key, value]) => [key, strictAtEveryDepth(value)])), { error: refusing });
     const listed = { name, title: meta.title, description: config.description, inputSchema: strict, annotations: annotationsOf(meta) };
     registered.push(listed);
     return register(name, { ...config, title: listed.title, annotations: listed.annotations, inputSchema: ANY_INPUT }, async (args, extra) => {
-      const parsed = strict.safeParse(objectOf(args));
+      const parsed = parsing.safeParse(objectOf(args));
       if (!parsed.success) {
         const result = invalidInput(name, parsed.error);
         await countCall(usage, { tool: name, args: objectOf(args), result, source, invalid: true, via });

@@ -1,7 +1,10 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { z } from "zod";
 
-const placed = (issue: z.core.$ZodIssue): string => (issue.path.length === 0 ? issue.message : `${issue.message} at ${issue.path.join(".")}`);
+const placed = (issue: z.core.$ZodIssue): string => {
+  if (issue.path.length === 0) return issue.message;
+  return issue.code === "unrecognized_keys" ? `${issue.path.join(".")} ${issue.message}` : `${issue.message} at ${issue.path.join(".")}`;
+};
 
 const HINTS: readonly { applies: (tool: string, keys: readonly string[], params: readonly string[]) => boolean; says: string }[] = [
   { applies: (_tool, keys, params) => keys.includes("repo") && params.includes("sessionId") && !params.includes("repo"), says: "a writing tool takes sessionId; its repository is its session's" },

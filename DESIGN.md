@@ -1026,6 +1026,7 @@ Built from section 5 of the same plan, the second of its three releases, with th
 - **Answers that gain a field:** `repo_list` (`roles`), an operator's brief (`decisions`, `decisionsToMark`), `ledger_check` (`decisionsToMark`), the board (`toConfirm`).
 - **Stored:** a decision's `said`, `via`, `confirmed`, `disputed`, `accept`, `paths`; a task's `cites` and `accept`; an answered question's `said`; a note's `about.record`; two rules in the template. Each has a loose schema for parsing and an exact exported type in the guard.
 - **HTTP:** `/mcp/builder`, `/mcp/reviewer`, `/r/<name>/mcp/builder`, `/r/<name>/mcp/reviewer`, `/api/roles/<role>`, and the two marks under `/api/r/<name>/operator/decisions/` and `/api/operator/decisions/`.
+- **What changes for a caller:** an unknown key inside a nested input (a planned task, a deliverable, `replaces`, a deferred part, and every other object a tool takes) is refused by name with the keys that object takes, as an unknown argument is at the top (`mcp/src/strict.ts`); before, it was dropped silently. The listed schemas are unchanged.
 - **`tools/list`:** 76,249 characters (74,916 with 75 tools where no command runs); the builder's 24,450 and the reviewer's 18,438. A listed input leaves out `additionalProperties: false` (the planner's T.5); the server still refuses an argument a tool does not take, naming those it takes.
 
 ### 24.8 Left out
