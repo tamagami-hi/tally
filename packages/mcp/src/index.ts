@@ -1,4 +1,5 @@
 export { SERVER_NAME, SERVER_VERSION, createTallyServer, listedEntries, mcpHandler, serveStdio, usageNow } from "./server.ts";
+export type { Streams } from "./server.ts";
 export { usageRanking } from "./usage.ts";
 export type { Ranked, Ranking } from "./usage.ts";
 export { attempt, ok, refused } from "./respond.ts";

@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { TallyError, commandsRunIn, type CommandPlace, type Repo, type Usage } from "@tally/core";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { Readable, Writable } from "node:stream";
 import { registerCheckTools } from "./tools/checks.ts";
 import { registerCommandTools } from "./tools/commands.ts";
 import { registerContextTools } from "./tools/context.ts";
@@ -59,9 +60,14 @@ function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace):
   registerCycleTools(tools, source);
 }
 
-export async function serveStdio(from: Repo | RepoSource, usage?: Usage): Promise<McpServer> {
+export interface Streams {
+  input: Readable;
+  output: Writable;
+}
+
+export async function serveStdio(from: Repo | RepoSource, usage?: Usage, streams?: Streams): Promise<McpServer> {
   const server = createTallyServer(from, DECORATORS, commandsRunIn(), usage);
-  await server.connect(new StdioServerTransport());
+  await server.connect(new StdioServerTransport(streams?.input, streams?.output));
   return server;
 }
 
