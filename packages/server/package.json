@@ -1,6 +1,6 @@
 {
   "name": "@tally/server",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "exports": {
     ".": {
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
-    "@tally/core": "0.7.0",
+    "@tally/core": "0.8.0",
     "hono": "^4.10.0",
-    "@tally/mcp": "0.7.0"
+    "@tally/mcp": "0.8.0"
   }
 }
