@@ -119,7 +119,7 @@ describe("the runner tally writes into a worktree", () => {
     const ran = await run(tree, ["green", "--task", "B2:4 manifest"]);
 
     expect(ran.exit).toBe(2);
-    expect(ran.output).toContain("usage: .temp/tally/run <kind> [--task MILESTONE:TASK] [--note TEXT] -- <command...>");
+    expect(ran.output).toContain("usage: .temp/tally/run <kind> [--task MILESTONE:TASK] [--note TEXT] [--scope TEXT] -- <command...>");
     await expect(readdir(join(tree, RESULTS))).rejects.toThrow();
   });
 });

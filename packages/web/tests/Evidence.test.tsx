@@ -46,6 +46,16 @@ describe("the evidence page", () => {
     expect(runs[2]).not.toHaveTextContent("head");
   });
 
+  test("shows a run kept with a word by that word, and what it covered when it was not the whole", () => {
+    const ran = { id: "d".repeat(32), task: "data 8 types", track: "data", agent: "runner", kind: "evidence", label: "typecheck", scope: "the core package", command: ["npm", "run", "typecheck"], cwd: "/w/data", started: "2026-11-20T09:00:00.000Z", seconds: 4, exit: 0 };
+    render(<Evidence index={{ milestones: [{ milestone: "B5", records: [ran] }] }} />);
+
+    const run = screen.getAllByRole("listitem").find((li) => li.classList.contains("run"))!;
+
+    expect(within(run).getByText("typecheck")).toHaveClass("chip");
+    expect(run).toHaveTextContent("ran: the core package");
+  });
+
   test("says when nothing is recorded yet, and while loading", () => {
     render(<Evidence index={{ milestones: [] }} />);
     expect(screen.getByText(/No evidence records yet/)).toBeInTheDocument();

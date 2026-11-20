@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  Records, acquireLock, evidenceKinds, findMilestone, latestHistory, listEvidence, listLocks, readHandoff, recordEvidence, releaseLock, writeHandoff,
+  Records, acquireLock, KINDS_AND_WORDS, isOfKind, storedKind, findMilestone, latestHistory, listEvidence, listLocks, readHandoff, recordEvidence, releaseLock, writeHandoff,
 } from "@tally/core";
 import { FIELDS, LIMIT, lastStarted, pick, startedSince } from "../filters.ts";
 import { defined } from "../defined.ts";
@@ -16,16 +16,16 @@ const DEFAULT_RECORDS = 20;
 export function registerRecordTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "evidence_record",
-    { description: "Record a run that already happened: its command, cwd, timing, exit, an optional log (in the worktree, hashed) and summary (else the log's totals are read). A `red` that exited 0 or shows no failed test, or a `green` that did not exit 0, is kept as `other`, and `notice` says why. An exit of 126 or 127 is refused.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), cwd: z.string(), started: z.string(), seconds: z.number().nonnegative(), exit: z.number().int(), logPath: z.string().optional(), summary: z.record(z.string(), summaryValue).optional(), note: z.string().optional() } },
-    ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await recordEvidence(repo, session, await new Records(repo).readLedger(), defined(input)))),
+    { description: "Record a run that already happened: its command, cwd, timing, exit, an optional log (in the worktree, hashed) and summary (else the log's totals are read). A `red` that exited 0 or shows no failed test, or a `green` that did not exit 0, is kept as `other`, and `notice` says why. An exit of 126 or 127 is refused.", inputSchema: { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(KINDS_AND_WORDS), command: z.array(z.string()).min(1), cwd: z.string(), started: z.string(), seconds: z.number().nonnegative(), exit: z.number().int(), logPath: z.string().optional(), summary: z.record(z.string(), summaryValue).optional(), note: z.string().optional(), scope: z.string().optional() } },
+    ({ sessionId, kind, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await recordEvidence(repo, session, await new Records(repo).readLedger(), { ...defined(input), ...storedKind(kind) }))),
   );
   server.registerTool(
     "evidence_list",
-    { description: "The run records of a milestone, or of one of its tasks: the 20 started last unless `limit` says, with `matched`. `kind` and `since` (an ISO time: runs started at or after it) narrow them; `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(evidenceKinds).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS, ...WHERE } },
+    { description: "The run records of a milestone, or of one of its tasks: the 20 started last unless `limit` says, with `matched`. `kind` and `since` (an ISO time: runs started at or after it) narrow them; `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(KINDS_AND_WORDS).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS, ...WHERE } },
     ({ milestone, task, kind, since, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const kept = await listEvidence(repo, milestone, task);
       if (kept.length === 0) findMilestone(await new Records(repo).readLedger(), milestone);
-      const ofKind = kept.filter((record) => kind === undefined || record.kind === kind);
+      const ofKind = kept.filter((record) => kind === undefined || isOfKind(record, kind));
       const found = startedSince(ofKind, since);
       return ok({ records: lastStarted(found, limit ?? DEFAULT_RECORDS).map((record) => pick(record, fields)), matched: found.length });
     }),

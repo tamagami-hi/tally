@@ -131,6 +131,8 @@ export { acquireLock, listLocks, releaseLock, releaseLocksOf } from "./state/loc
 export type { HeldLock } from "./state/locks.ts";
 export { MAX_HANDOFF_LINES, latestHistory, readHandoff, safeName, writeHandoff } from "./records/handoffs.ts";
 export type { Handoff, HandoffInput, HandoffNote } from "./records/handoffs.ts";
+export { KINDS_AND_WORDS, MOST_SCOPE, RUN_WORDS, isOfKind, storedKind } from "./records/evidence.ts";
+export type { KindOrWord, RunWord } from "./records/evidence.ts";
 export { evidenceFiles, evidenceKinds, findEvidence, judgeRun, listEvidence, readAllEvidence, readEvidence, recordEvidence } from "./records/evidence.ts";
 export type { EvidenceInput, EvidenceKind, Kept, MilestoneEvidence, RunRecord } from "./records/evidence.ts";
 export { runEvidence, runnerInstead } from "./records/run.ts";

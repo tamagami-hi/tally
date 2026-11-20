@@ -32,6 +32,8 @@ export const runRecordSchema = z.looseObject({
   note: z.string().optional(),
   head: z.string().optional(),
   dirty: z.boolean().optional(),
+  label: z.string().min(1).optional(),
+  scope: z.string().min(1).optional(),
 });
 
 export const evidenceFileSchema = z.looseObject({
@@ -41,6 +43,23 @@ export const evidenceFileSchema = z.looseObject({
 });
 
 export type RunRecord = z.infer<typeof runRecordSchema>;
+
+export const RUN_WORDS = ["check", "test", "lint", "typecheck", "build", "integration", "e2e"] as const;
+export const KINDS_AND_WORDS = [...evidenceKinds, ...RUN_WORDS] as const;
+export const MOST_SCOPE = 200;
+
+export type RunWord = (typeof RUN_WORDS)[number];
+export type KindOrWord = (typeof KINDS_AND_WORDS)[number];
+
+export function storedKind(name: string): { kind: EvidenceKind; label?: RunWord } {
+  const kind = evidenceKinds.find((known) => known === name);
+  if (kind !== undefined) return { kind };
+  const word = RUN_WORDS.find((known) => known === name);
+  if (word !== undefined) return { kind: "evidence", label: word };
+  throw new TallyError(`'${name}' is not a kind of run: the kinds are ${evidenceKinds.join(", ")}, and the words ${RUN_WORDS.join(", ")} are kept as evidence with that label`);
+}
+
+export const isOfKind = (record: Pick<RunRecord, "kind" | "label">, asked: string): boolean => record.kind === asked || record.label === asked;
 export type EvidenceKind = (typeof evidenceKinds)[number];
 
 export const evidencePath = (repo: Repo, milestone: string): string => join(repo.recordsDir, "evidence", `${safeName(milestone)}.json`);
@@ -68,6 +87,8 @@ export interface EvidenceInput {
   note?: string;
   head?: string;
   dirty?: boolean;
+  label?: string | undefined;
+  scope?: string | undefined;
 }
 
 const LOGS = ".temp/tally/logs";
@@ -138,7 +159,13 @@ function composeRecord(session: Session, track: string, input: EvidenceInput, lo
     ...(input.note === undefined ? {} : { note: input.note }),
     ...(input.head === undefined ? {} : { head: input.head }),
     ...(input.dirty === undefined ? {} : { dirty: input.dirty }),
+    ...(input.label === undefined ? {} : { label: input.label }),
+    ...(input.scope === undefined ? {} : { scope: input.scope }),
   };
+}
+
+function assertScope(scope: string | undefined): void {
+  if (scope !== undefined && scope.length > MOST_SCOPE) throw new TallyError(`a run's scope holds at most ${MOST_SCOPE} characters; this one has ${scope.length}`);
 }
 
 async function appendRecord(repo: Repo, milestone: string, record: RunRecord): Promise<void> {
@@ -154,6 +181,7 @@ const commitLine = (milestone: string, record: RunRecord): string => `${mileston
 export async function recordEvidence(repo: Repo, session: Session, ledger: Ledger, input: EvidenceInput): Promise<{ record: RunRecord; commit: string | null; notice?: string }> {
   const track = writableTrack(repo, session, ledger, input);
   assertStarted(input.exit);
+  assertScope(input.scope);
   const read = input.logPath === undefined ? undefined : await hashLog(repo, session, input.logPath);
   const summary = input.summary ?? (read === undefined ? undefined : summarize(read.text));
   const measured = summary === undefined ? input : { ...input, summary };
@@ -186,6 +214,7 @@ export async function keepRun(repo: Repo, session: Session, track: string, input
   const told = notice === undefined ? {} : { notice };
   try {
     assertStarted(input.exit);
+    assertScope(input.scope);
     const { log } = await hashLog(repo, session, input.logPath);
     const record = composeRecord(session, track, judged, log);
     await appendRecord(repo, input.milestone, record);

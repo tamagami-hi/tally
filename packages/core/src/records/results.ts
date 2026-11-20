@@ -6,7 +6,7 @@ import { RESULTS } from "../land/runner.ts";
 import { listClaims } from "../state/claims.ts";
 import { listSessions, markSeen, type Session } from "../state/sessions.ts";
 import { LEDGER_FILE, Records, type Repo } from "../store/records.ts";
-import { evidenceKinds, recordEvidence, type EvidenceKind, type RunRecord } from "./evidence.ts";
+import { recordEvidence, storedKind, type RunRecord } from "./evidence.ts";
 import { MAX_NOTE, noteFrom, readNotes } from "./notes.ts";
 import { TALLY } from "./tell.ts";
 
@@ -82,20 +82,15 @@ async function taskOf(repo: Repo, session: Session, named: string): Promise<{ mi
   return { milestone: held.milestone, task: held.task };
 }
 
-function kindOf(name: string): EvidenceKind {
-  const kind = evidenceKinds.find((known) => known === name);
-  if (kind === undefined) throw new TallyError(`'${name}' is not a kind of run; the kinds are ${evidenceKinds.join(", ")}`);
-  return kind;
-}
-
 async function record(repo: Repo, session: Session, folder: string): Promise<Pick<Taken, "record" | "notice">> {
-  const kind = kindOf(await field(folder, "kind"));
+  const kind = storedKind(await field(folder, "kind"));
+  const scope = await field(folder, "scope").catch(() => "");
   const target = await taskOf(repo, session, await field(folder, "task"));
   const note = await field(folder, "note");
   const command = (await field(folder, "argv")).split("\0").filter((part, index, parts) => index < parts.length - 1 || part !== "");
   const kept = await recordEvidence(repo, session, await new Records(repo).readLedger(), {
     ...target,
-    kind,
+    ...kind,
     command,
     cwd: await field(folder, "cwd"),
     started: await field(folder, "started"),
@@ -103,6 +98,7 @@ async function record(repo: Repo, session: Session, folder: string): Promise<Pic
     exit: Number(await field(folder, "exit")),
     logPath: await field(folder, "log"),
     ...(note === "" ? {} : { note }),
+    ...(scope === "" ? {} : { scope }),
     ...(await ranOn(folder)),
   });
   return { record: kept.record, ...(kept.notice === undefined ? {} : { notice: kept.notice }) };

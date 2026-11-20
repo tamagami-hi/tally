@@ -45,13 +45,14 @@ function Run({ record }: { record: EvidenceRecord }) {
   const head = ranOn(record);
   return (
     <li className={`run ${kindTone(record.kind)}`}>
-      <span className={`chip chip-${kindTone(record.kind)}`}>{record.kind}</span>
+      <span className={`chip chip-${kindTone(record.kind)}`}>{record.label ?? record.kind}</span>
       <span className="mono">exit {record.exit}</span>
       <span className="mono">{secondsText(record.seconds)}</span>
       <span className="faint small">{new Date(record.started).toLocaleString()}</span>
       <span className="cmd truncate mono" title={command}>{command}</span>
       <span className="meta small">
         {record.summary === undefined ? null : <span>{summaryText(record.summary)}</span>}
+        {record.scope === undefined ? null : <span>ran: {record.scope}</span>}
         {head === null ? null : <span className="mono" title={record.cwd}>{head}</span>}
         <LogView record={record} />
       </span>

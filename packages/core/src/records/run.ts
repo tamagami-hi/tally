@@ -8,7 +8,7 @@ import type { Ledger } from "../schema/ledger.ts";
 import type { Repo } from "../store/records.ts";
 import type { Session } from "../state/sessions.ts";
 import { runnerLine } from "../land/runner.ts";
-import { isUnstarted, keepRun, writableTrack, type EvidenceKind, type Kept } from "./evidence.ts";
+import { isUnstarted, keepRun, storedKind, writableTrack, type Kept } from "./evidence.ts";
 import { safeName } from "./handoffs.ts";
 import { summarize } from "./totals.ts";
 import { treeState } from "./tree-state.ts";
@@ -16,7 +16,7 @@ import { treeState } from "./tree-state.ts";
 export interface RunInput {
   milestone: string;
   task: string;
-  kind: EvidenceKind;
+  kind: string;
   command: readonly string[];
   note?: string;
 }
@@ -47,6 +47,7 @@ function told(session: Session, input: RunInput, kept: Kept, text: string): Kept
 export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, input: RunInput, now = new Date()): Promise<Kept & { logPath: string }> {
   const [program, ...args] = input.command;
   if (program === undefined) throw new TallyError("the command is empty");
+  const stored = storedKind(input.kind);
   const track = writableTrack(repo, session, ledger, input);
   const folder = join(session.worktree, ".temp", safeName(session.track), "tally", safeName(input.milestone));
   await mkdir(folder, { recursive: true });
@@ -72,7 +73,7 @@ export async function runEvidence(repo: Repo, session: Session, ledger: Ledger, 
   const kept = await keepRun(repo, session, track, {
     milestone: input.milestone,
     task: input.task,
-    kind: input.kind,
+    ...stored,
     command: input.command,
     cwd: session.worktree,
     started: now.toISOString(),
@@ -94,6 +95,7 @@ export interface NotRun {
 
 export function runnerInstead(repo: Repo, session: Session, ledger: Ledger, input: RunInput): NotRun {
   if (input.command.length === 0) throw new TallyError("the command is empty");
+  storedKind(input.kind);
   writableTrack(repo, session, ledger, input);
   if (input.milestone.includes(":")) throw new TallyError(`the runner cannot name milestone ${input.milestone}, since it splits MILESTONE:TASK at the first ':'; record the run with evidence_record`);
   return { ran: false, run: lineOf(session, input), why: ELSEWHERE };

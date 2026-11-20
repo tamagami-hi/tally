@@ -159,6 +159,8 @@ export interface EvidenceRecord {
   note?: string;
   head?: string;
   dirty?: boolean;
+  label?: string;
+  scope?: string;
 }
 
 export interface EvidenceIndex {

@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { z } from "zod";
-import { Records, evidenceKinds, landingLog, landingTarget, landTrack, loggedTests, recordLanding, runEvidence, runnerInstead, trackOf, type CommandPlace } from "@tally/core";
+import { KINDS_AND_WORDS, Records, landingLog, landingTarget, landTrack, loggedTests, recordLanding, runEvidence, runnerInstead, trackOf, type CommandPlace } from "@tally/core";
 import { defined } from "../defined.ts";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
@@ -15,7 +15,7 @@ const EVIDENCE_RUN: Readonly<Record<CommandPlace, string>> = {
 
 const landInput = { sessionId: z.string(), files: z.array(z.string()).default([]), messageFile: z.string().optional(), verifiedCode: z.string().optional(), milestone: z.string().optional(), task: z.string().optional() };
 
-const runInput = { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(evidenceKinds), command: z.array(z.string()).min(1), note: z.string().optional() };
+const runInput = { sessionId: z.string(), milestone: z.string(), task: z.string(), kind: z.enum(KINDS_AND_WORDS), command: z.array(z.string()).min(1), note: z.string().optional() };
 
 function registerLandRun(server: ToolHost, source: RepoSource): void {
   server.registerTool(

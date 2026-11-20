@@ -6,7 +6,7 @@ import type { Repo } from "../store/records.ts";
 export const RUNNER = ".temp/tally/run";
 export const RESULTS = ".temp/tally/results";
 export const LOGS = ".temp/tally/logs";
-export const RESULT_FIELDS = ["kind", "task", "note", "head", "dirty", "cwd", "started", "seconds", "exit", "log", "argv"] as const;
+export const RESULT_FIELDS = ["kind", "task", "note", "scope", "head", "dirty", "cwd", "started", "seconds", "exit", "log", "argv"] as const;
 export const STATUS_WORDS = ["--no-optional-locks", "status", "--porcelain"] as const;
 
 export const keptByTally = (track: string): string[] => [".temp/tally", `.temp/${track}/tally`, `.temp/${track}/landing`];
@@ -14,7 +14,7 @@ export const keptByTally = (track: string): string[] => [".temp/tally", `.temp/$
 export const changesPathspec = (track: string): string[] => ["--", ".", ...keptByTally(track).map((path) => `:(exclude)${path}`)];
 
 const VARIABLE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const USAGE = "usage: .temp/tally/run <kind> [--task MILESTONE:TASK] [--note TEXT] -- <command...>";
+const USAGE = "usage: .temp/tally/run <kind> [--task MILESTONE:TASK] [--note TEXT] [--scope TEXT] -- <command...>";
 
 export const quoted = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
 
@@ -44,12 +44,13 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     `usage=${quoted(USAGE)}`,
     'if [ "$#" -lt 1 ]; then echo "$usage" >&2; exit 2; fi',
     'kind="$1"; shift',
-    'case "$kind" in ""|*[!a-z-]*) echo "$usage" >&2; exit 2 ;; esac',
-    "task=''; note=''",
+    'case "$kind" in ""|*[!a-z0-9-]*) echo "$usage" >&2; exit 2 ;; esac',
+    "task=''; note=''; scope=''",
     'while [ "$#" -gt 0 ]; do',
     '  case "$1" in',
     '    --task) [ "$#" -ge 2 ] || { echo "$usage" >&2; exit 2; }; task="$2"; shift 2 ;;',
     '    --note) [ "$#" -ge 2 ] || { echo "$usage" >&2; exit 2; }; note="$2"; shift 2 ;;',
+    '    --scope) [ "$#" -ge 2 ] || { echo "$usage" >&2; exit 2; }; scope="$2"; shift 2 ;;',
     "    --) shift; break ;;",
     '    *) echo "$usage" >&2; exit 2 ;;',
     "  esac",
@@ -81,6 +82,7 @@ export function runnerScript(repo: Repo, worktree: string, track: string): strin
     'printf \'%s\\n\' "$kind" > "$out/kind"',
     'printf \'%s\\n\' "$task" > "$out/task"',
     'printf \'%s\\n\' "$note" > "$out/note"',
+    'printf \'%s\\n\' "$scope" > "$out/scope"',
     'printf \'%s\\n\' "$head" > "$out/head"',
     'printf \'%s\\n\' "$dirty" > "$out/dirty"',
     'printf \'%s\\n\' "$cwd" > "$out/cwd"',
