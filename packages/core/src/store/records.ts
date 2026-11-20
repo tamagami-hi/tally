@@ -12,6 +12,7 @@ import { readablePhases } from "../phases/file.ts";
 import type { PhasesFile } from "../schema/phases.ts";
 import { readJson, writeJsonAtomic } from "./json.ts";
 import { withLock } from "./lock.ts";
+import { cycleDir } from "../cycles/file.ts";
 
 export const RECORDS_DIR = "docs/records";
 export const CONFIG_FILE = "config.json";
@@ -24,6 +25,11 @@ export interface Repo {
   recordsDir: string;
   stateDir: string;
   problems?: readonly string[];
+  cycle?: number;
+}
+
+export function assertCurrent(repo: Pick<Repo, "cycle">): void {
+  if (repo.cycle !== undefined) throw new TallyError(`cycle ${repo.cycle} is closed, and a closed cycle is read only; leave cycle out to write the current cycle`);
 }
 
 export const problemOf = (repo: Repo): string | undefined => (repo.problems === undefined || repo.problems.length === 0 ? undefined : repo.problems.join("; "));
@@ -79,10 +85,11 @@ function withAddedPhases(config: Config, file: PhasesFile): Config {
   return added.length === 0 ? config : { ...config, stages: [...config.stages, ...added] };
 }
 
-export async function openRepo(root: string, listed?: Listed): Promise<Repo> {
+export async function openRepo(root: string, listed?: Listed, recordsAt?: (base: string) => string): Promise<Repo> {
   const absolute = resolve(root);
   const config = await readJson(join(absolute, RECORDS_DIR, CONFIG_FILE), configSchema);
-  const recordsDir = join(absolute, config.records.dir);
+  const base = join(absolute, config.records.dir);
+  const recordsDir = recordsAt === undefined ? base : recordsAt(base);
   const tracks = await readableTracks(recordsDir);
   const phases = await readablePhases(recordsDir);
   const problems = [tracks.problem, phases.problem].filter((problem): problem is string => problem !== undefined);
@@ -96,8 +103,11 @@ export async function openRepo(root: string, listed?: Listed): Promise<Repo> {
   };
 }
 
-export function reopenRepo(repo: Repo): Promise<Repo> {
-  return openRepo(repo.root, { name: repo.name, stateDir: repo.stateDir });
+export async function reopenRepo(repo: Repo): Promise<Repo> {
+  const { cycle } = repo;
+  const listed = { name: repo.name, stateDir: repo.stateDir };
+  if (cycle === undefined) return openRepo(repo.root, listed);
+  return { ...(await openRepo(repo.root, listed, (base) => cycleDir(base, cycle))), cycle };
 }
 
 export async function initRecords(root: string, config: Config, baseline: string): Promise<Repo> {
@@ -123,11 +133,13 @@ export class Records {
     return readJson(this.ledgerPath, ledgerSchema);
   }
 
-  writeLedger(ledger: Ledger): Promise<void> {
+  async writeLedger(ledger: Ledger): Promise<void> {
+    assertCurrent(this.repo);
     return writeJsonAtomic(this.ledgerPath, ledgerSchema.parse(ledger));
   }
 
-  update(change: (ledger: Ledger) => Promise<Changed> | Changed): Promise<string> {
+  async update(change: (ledger: Ledger) => Promise<Changed> | Changed): Promise<string> {
+    assertCurrent(this.repo);
     return withLock(this.ledgerPath, async () => {
       const changed = await change(await this.readLedger());
       await this.writeLedger(changed.ledger);

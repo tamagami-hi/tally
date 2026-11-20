@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
@@ -88,6 +88,7 @@ export async function readQuestions(repo: Repo): Promise<QuestionsFile | null> {
 }
 
 export async function changeQuestions<R>(repo: Repo, change: (file: QuestionsFile) => { file: QuestionsFile; result: R }): Promise<R> {
+  assertCurrent(repo);
   const path = questionsPath(repo);
   return withLock(path, async () => {
     const current = (await readQuestions(repo)) ?? { schema: 1, nextRow: 1, open: [], answered: [] };

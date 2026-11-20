@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import type { Session } from "../state/sessions.ts";
@@ -51,6 +51,7 @@ export interface HandoffInput {
 }
 
 export async function writeHandoff(repo: Repo, session: Session, input: HandoffInput, now = new Date()): Promise<{ handoff: Handoff; commit: string | null }> {
+  assertCurrent(repo);
   if (input.lines.length === 0) throw new TallyError("a hand-off needs at least one line");
   if (input.lines.length > MAX_HANDOFF_LINES) throw new TallyError(`a hand-off holds at most ${MAX_HANDOFF_LINES} lines; this one has ${input.lines.length}`);
   const path = handoffPath(repo, session.track);

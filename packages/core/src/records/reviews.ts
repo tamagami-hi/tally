@@ -9,7 +9,7 @@ import { reviewsFileSchema, type Review, type ReviewState, type ReviewVerdict, t
 import { assertMayWrite, isOperator, type Session } from "../state/sessions.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
-import { Records, type Repo } from "../store/records.ts";
+import { Records, assertCurrent, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
 import { keptFile, missingFile } from "./kept-file.ts";
 
@@ -131,6 +131,7 @@ async function textKept(repo: Repo, id: string, text: string): Promise<KeptFile>
 const told = (review: Review): string => `${review.id}: ${review.milestone} '${review.task}' ${review.verdict}${review.blocking === 0 ? "" : `, ${review.blocking} blocking`}`;
 
 export async function recordReview(repo: Repo, session: Session, input: ReviewInput, now = new Date()): Promise<ReviewRecorded> {
+  assertCurrent(repo);
   const task = findTask(findMilestone(await new Records(repo).readLedger(), input.milestone), input.task);
   if (task === undefined) throw new TallyError(`'${input.task}' is not planned in ${input.milestone}`);
   assertMayWrite(repo, session, task.track);

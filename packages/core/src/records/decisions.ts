@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
@@ -119,6 +119,7 @@ export interface DecisionInput {
 const stateFor = (input: { status: string; state?: DecisionState | undefined }): DecisionState => input.state ?? stateOf(input.status);
 
 async function update<R>(repo: Repo, change: (file: DecisionsFile) => { file: DecisionsFile; result: R }): Promise<R> {
+  assertCurrent(repo);
   const path = decisionsPath(repo);
   return withLock(path, async () => {
     const { file, result } = change(await readDecisions(repo));

@@ -4,7 +4,7 @@ import { TallyError } from "../errors.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
 
 export const noteKinds = ["heads-up", "request", "answer", "finding"] as const;
@@ -55,6 +55,7 @@ export async function readNotes(repo: Repo): Promise<NotesFile> {
 }
 
 async function change<R>(repo: Repo, message: (result: R) => string, body: (file: NotesFile) => { file: NotesFile; result: R }): Promise<R> {
+  assertCurrent(repo);
   const result = await withLock(notesPath(repo), async () => {
     const changed = body(await readNotes(repo));
     await writeJsonAtomic(notesPath(repo), notesFileSchema.parse(changed.file));

@@ -5,7 +5,7 @@ import { commitRecords } from "../records/commit.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { segmentsOf } from "./match.ts";
 import { MAX_SOURCE, MAX_TAILOR, refuseRuleFieldsOnAnyOther, ruleFieldsOf } from "./rule-fields.ts";
 import { RULE_SECTIONS } from "./rulebook-template.ts";
@@ -131,7 +131,10 @@ function retiredIn(file: KindFile, id: string, at: string, why: string): { file:
 
 export const locked = <T>(repo: Repo, body: () => Promise<T>): Promise<T> => withLock(join(contextDir(repo), LOCK_NAME), body);
 
-export const write = (repo: Repo, file: KindFile): Promise<void> => writeJsonAtomic(kindPath(repo, file.kind), kindFileSchema.parse(file));
+export const write = async (repo: Repo, file: KindFile): Promise<void> => {
+  assertCurrent(repo);
+  await writeJsonAtomic(kindPath(repo, file.kind), kindFileSchema.parse(file));
+};
 
 export async function putEntry(repo: Repo, session: Author, input: EntryInput, now = new Date()): Promise<{ entry: Entry; retired?: Entry; commit: string | null }> {
   const { kind, replaces } = input;

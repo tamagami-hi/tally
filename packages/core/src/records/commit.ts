@@ -5,7 +5,7 @@ import { turnInProgress } from "../land/queue.ts";
 import type { Config } from "../schema/config.ts";
 import { TEMPORARY_SUFFIX } from "../store/json.ts";
 import { LANDING_RETRIES, LockBusy, withLock } from "../store/lock.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { clearPendingPhase, readPendingPhase } from "./pending-phase.ts";
 
 export type RecordsMode = "never" | "each" | "rest" | "phase";
@@ -65,6 +65,7 @@ async function untilIndexFree(root: string, args: readonly string[]): Promise<Gi
 }
 
 export async function commitStaged(repo: Repo, subject: Subject, body?: string): Promise<Staged> {
+  assertCurrent(repo);
   const { config, root } = repo;
   return withLock(statePath(repo, "locks", "landing.lock"), async () => {
     if (await turnInProgress(repo)) return WAITS;
@@ -94,6 +95,7 @@ async function leftWhenBusy(committing: Promise<Staged>): Promise<Staged> {
 export const commitWhenFree = (repo: Repo, subject: Subject, body?: string): Promise<Staged> => leftWhenBusy(commitStaged(repo, subject, body));
 
 export async function commitRecords(repo: Repo, message: string): Promise<string | null> {
+  assertCurrent(repo);
   if (recordsMode(repo.config) !== "each") return null;
   return (await commitWhenFree(repo, () => message)).commit;
 }

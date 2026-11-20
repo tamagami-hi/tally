@@ -5,7 +5,7 @@ import { z } from "zod";
 import { TallyError, messageOf } from "../errors.ts";
 import { findMilestone, findTask } from "../ledger/items.ts";
 import type { Ledger } from "../schema/ledger.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { assertMayWrite, type Session } from "../state/sessions.ts";
@@ -169,6 +169,7 @@ function assertScope(scope: string | undefined): void {
 }
 
 async function appendRecord(repo: Repo, milestone: string, record: RunRecord): Promise<void> {
+  assertCurrent(repo);
   const path = evidencePath(repo, milestone);
   await withLock(path, async () => {
     const file = await readEvidence(repo, milestone);

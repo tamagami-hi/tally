@@ -4,7 +4,7 @@ import { z } from "zod";
 import { TallyError } from "../errors.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { askedLimit, askedSince } from "./asked.ts";
 import type { Known } from "../schema/kept.ts";
 
@@ -69,6 +69,7 @@ async function loggedDays(repo: Repo): Promise<string[]> {
 }
 
 export async function logActivity(repo: Repo, input: ActivityInput, now = new Date()): Promise<ActivityEvent> {
+  assertCurrent(repo);
   const event: ActivityEvent = { at: now.toISOString(), session: input.session, track: input.track, agent: input.agent, verb: input.verb, ...(input.target === undefined ? {} : { target: input.target }) };
   const day = dayOf(now);
   const path = activityPath(repo, day);

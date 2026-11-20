@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
-import type { Repo } from "../store/records.ts";
+import { assertCurrent, type Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
@@ -71,6 +71,7 @@ export async function readBuildlog(repo: Repo): Promise<BuildlogFile> {
 }
 
 async function update<R>(repo: Repo, change: (file: BuildlogFile) => { file: BuildlogFile; result: R }): Promise<R> {
+  assertCurrent(repo);
   const path = buildlogPath(repo);
   return withLock(path, async () => {
     const { file, result } = change(await readBuildlog(repo));
