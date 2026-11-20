@@ -126,17 +126,22 @@ async function overlapping(repo: Repo, session: Session, claims: readonly Claim[
   return { working, others: others.length - working.length };
 }
 
+export async function citedRecords(repo: Repo, ids: readonly string[]): Promise<OrderCited[]> {
+  const unique = [...new Set(ids)];
+  const decisions = (await tolerated(readDecisions(repo), EMPTY_DECISIONS)).value;
+  return inOrder(unique, await findCited(repo, unique), decisions);
+}
+
 export async function orderBrief(repo: Repo, session: Session, options: OrderOptions = {}): Promise<OrderBrief> {
   const all = await readEntries(repo);
   const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);
   const tasks = orderTasks(await new Records(repo).readLedger(), session.track, claims);
   const ids = [...new Set(tasks.flatMap((task) => task.cites ?? []))];
-  const decisions = (await tolerated(readDecisions(repo), EMPTY_DECISIONS)).value;
   const citedIds = new Set(ids);
   const ruleEntries = inRulebookOrder(inForce.filter((entry) => entry.kind === RULE));
   const rules = ruleEntries.map(({ id, section, title, text }): BriefRule => ({ id, ...(section === undefined ? {} : { section }), title, ...(WITH_TEXT.includes(section ?? "") || citedIds.has(id) ? { text } : {}) }));
-  const { cited, leftOut } = fitted(inOrder(ids, await findCited(repo, ids), decisions), rules, options.room ?? ORDER_ROOM);
+  const { cited, leftOut } = fitted(await citedRecords(repo, ids), rules, options.room ?? ORDER_ROOM);
   const handoff = await readHandoff(repo, session.track);
   const near = await overlapping(repo, session, claims);
   return {

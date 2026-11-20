@@ -14,6 +14,7 @@ import { registerLandTools } from "./tools/land.ts";
 import { registerNoteTools } from "./tools/notes.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerMilestoneTools } from "./tools/milestones.ts";
+import { registerCoveringTools } from "./tools/covering.ts";
 import { registerCycleTools } from "./tools/cycles.ts";
 import { registerPhaseTools } from "./tools/phases.ts";
 import { registerRulebookTools } from "./tools/rulebook.ts";
@@ -54,6 +55,7 @@ function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace):
   registerDocTools(tools, source);
   registerQuestionTools(tools, source);
   registerDecisionTools(tools, source);
+  registerCoveringTools(tools, source);
   registerCheckTools(tools, source);
   registerTrackTools(tools, source);
   registerContextTools(tools, source);

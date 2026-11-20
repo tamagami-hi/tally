@@ -51,7 +51,7 @@ describe("the hints", () => {
     const tools = await listed();
     const readOnly = tools.filter((tool) => withDefaults(tool.annotations)["readOnlyHint"] === true).map((tool) => tool.name).sort();
 
-    expect(readOnly).toEqual(["activity_get", "board_get", "buildlog_render", "checks_fingerprint", "checks_get", "context_get", "context_pack", "cycle_list", "decision_list", "deferred_list", "docs_list", "docs_read", "docs_search", "evidence_list", "handoff_read", "inbox_get", "ledger_check", "lock_list", "note_list", "phase_list", "question_list", "repo_list", "review_list", "rulebook_get", "session_list", "track_list"]);
+    expect(readOnly).toEqual(["activity_get", "board_get", "buildlog_render", "checks_fingerprint", "checks_get", "context_get", "context_pack", "covering", "cycle_list", "decision_list", "deferred_list", "docs_list", "docs_read", "docs_search", "evidence_list", "handoff_read", "inbox_get", "ledger_check", "lock_list", "note_list", "phase_list", "question_list", "repo_list", "review_list", "rulebook_get", "session_list", "track_list"]);
   });
 
   test("mark as destructive only what removes or overwrites, and the tool that runs any command it is given", async () => {
