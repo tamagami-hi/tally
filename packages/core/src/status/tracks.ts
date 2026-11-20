@@ -25,6 +25,7 @@ export interface TrackRow {
   dirty: number;
   files: ChangedFile[];
   isMain: boolean;
+  closedAt?: string;
 }
 
 export async function changes(tree: string): Promise<ChangedFile[]> {

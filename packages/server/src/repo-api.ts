@@ -17,6 +17,7 @@ export type Serve = (c: Context) => Promise<Served>;
 
 const PING_MS = 15_000;
 const WHOLE_NUMBER = /^[1-9]\d*$/;
+const CYCLE_NUMBER = /^[1-9]\d{0,14}$/;
 
 const redacted = (env: Record<string, string>): Record<string, string> => Object.fromEntries(Object.keys(env).map((key) => [key, "(set)"]));
 
@@ -74,7 +75,7 @@ export function repoRoutes(served: Serve): Hono {
   });
   api.get("/cycles/:n/done", async (c) => {
     const n = c.req.param("n");
-    if (!WHOLE_NUMBER.test(n)) return c.json({ error: "a cycle is named by its number" }, 400);
+    if (!CYCLE_NUMBER.test(n)) return c.json({ error: `a cycle is named by its number, not '${n}'` }, 400);
     const view = await cycleView((await served(c)).repo, Number(n));
     return c.json(await doneWork(view, await collect(view, await new Records(view).readLedger())));
   });

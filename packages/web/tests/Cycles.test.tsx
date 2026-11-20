@@ -77,4 +77,29 @@ describe("the Cycles page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("region", { name: "Cycle 3, the current cycle" })).toBeInTheDocument();
   });
+
+  test("says how many closed cycles it shows when there are more than it lists", async () => {
+    serving({ "/cycles": json({ ...listing, matched: 23 }) });
+
+    render(<Cycles version="v1" />);
+
+    expect(await screen.findByText("The newest 2 of 23 closed cycles are shown.")).toBeInTheDocument();
+  });
+
+  test("reads an unfolded closed cycle once, however many snapshots come after", async () => {
+    const server = serving({ "/cycles": json(listing), "/cycles/2/done": json(work) });
+    const { rerender } = render(<Cycles version="v1" />);
+    const second = (await screen.findAllByRole("group", { name: /^Cycle \d+$/ }))[0]!;
+    const folded = second.querySelector("details")!;
+    folded.open = true;
+    fireEvent(folded, new Event("toggle"));
+    await within(second).findByText("the reader");
+
+    rerender(<Cycles version="v2" />);
+    rerender(<Cycles version="v3" />);
+    await screen.findAllByRole("group", { name: /^Cycle \d+$/ });
+
+    expect(server.mock.calls.filter(([url]) => String(url).endsWith("/cycles/2/done"))).toHaveLength(1);
+  });
 });
+

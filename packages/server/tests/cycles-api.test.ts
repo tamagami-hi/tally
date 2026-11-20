@@ -50,4 +50,13 @@ describe("the cycles over HTTP", () => {
     expect(refused.status).toBe(400);
     expect(await refused.json()).toEqual({ error: "cycle 2 is the current cycle: leave `cycle` out to read the current cycle" });
   });
+
+  test("/cycles/<n>/done refuses a number too large to be a cycle's, quoting what was sent", async () => {
+    const app = await served();
+
+    const refused = await app.request("/api/r/alpha/cycles/99999999999999999999/done");
+
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toEqual({ error: "a cycle is named by its number, not '99999999999999999999'" });
+  });
 });

@@ -27,8 +27,8 @@ function Current({ cycle }: { cycle: CurrentCycle }) {
   );
 }
 
-function Unfolded({ n, version }: { n: number; version: string }) {
-  const done = useCycleDone(n, version, true);
+function Unfolded({ n }: { n: number }) {
+  const done = useCycleDone(n, true);
   return (
     <>
       <Failure state={done} what={`Cycle ${n}'s work`} />
@@ -37,7 +37,7 @@ function Unfolded({ n, version }: { n: number; version: string }) {
   );
 }
 
-function Closed({ cycle, version }: { cycle: ClosedCycle; version: string }) {
+function Closed({ cycle }: { cycle: ClosedCycle }) {
   const [open, setOpen] = useState(false);
   return (
     <article className="cycle" role="group" aria-label={`Cycle ${cycle.n}`}>
@@ -47,7 +47,7 @@ function Closed({ cycle, version }: { cycle: ClosedCycle; version: string }) {
       {cycle.said === undefined ? null : <blockquote className="cycle-said small">{`“${cycle.said}”`}</blockquote>}
       <details onToggle={(event) => setOpen(event.currentTarget.open)}>
         <summary className="small">Phases, milestones and tasks</summary>
-        {open ? <Unfolded n={cycle.n} version={version} /> : null}
+        {open ? <Unfolded n={cycle.n} /> : null}
       </details>
     </article>
   );
@@ -64,7 +64,8 @@ export function Cycles({ version }: { version: string }) {
           <Current cycle={data.current} />
           {data.closed.length === 0
             ? <p className="muted">No cycle has been closed yet: cycle_close closes the current one, on the operator's word.</p>
-            : data.closed.map((cycle) => <Closed key={cycle.n} cycle={cycle} version={version} />)}
+            : data.closed.map((cycle) => <Closed key={cycle.n} cycle={cycle} />)}
+          {data.matched > data.closed.length ? <p className="faint small">{`The newest ${data.closed.length} of ${data.matched} closed cycles are shown.`}</p> : null}
         </>
       )}
     </section>

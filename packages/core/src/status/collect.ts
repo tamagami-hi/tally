@@ -8,6 +8,7 @@ import { summarize, type MilestoneRow, type OnMain } from "./summary.ts";
 import { needingReview } from "../ledger/review-gaps.ts";
 import { reviewsWhenRequired } from "../records/reviews.ts";
 import { isClosed, phaseRows } from "../phases/rows.ts";
+import { closedState, type GitState } from "./closed.ts";
 import { branches, type TrackRow } from "./tracks.ts";
 
 export interface StageRow {
@@ -47,6 +48,15 @@ export function onMainOf(repo: Repo): OnMain {
   };
 }
 
+async function liveState(repo: Repo, now: Date): Promise<GitState> {
+  const { root } = repo;
+  const main = repo.config.mainBranch;
+  const origin = await gitOut(root, ["rev-parse", "--short", `origin/${main}`]);
+  const unpushed = origin === null ? 0 : Number((await gitOut(root, ["rev-list", "--count", `origin/${main}..${main}`])) ?? "0");
+  const today = ((await gitOut(root, ["log", "--since=midnight", "--format=%h", main])) ?? "").split("\n").filter((l) => l.length > 0).length;
+  return { time: now, tracks: await branches(root, main, now.getTime() / 1000), main: (await gitOut(root, ["log", "-1", "--format=%h %s", main])) ?? "", origin, unpushed, today };
+}
+
 export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Promise<StatusData> {
   const { root, config } = repo;
   const main = config.mainBranch;
@@ -54,22 +64,20 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
   const { missing } = repo.cycle === undefined ? await owedCommits(repo, ledger) : { missing: [] };
   const problems = [...(repo.problems ?? []), ...summary.problems];
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);
-  const origin = await gitOut(root, ["rev-parse", "--short", `origin/${main}`]);
-  const unpushed = origin === null ? 0 : Number((await gitOut(root, ["rev-list", "--count", `origin/${main}..${main}`])) ?? "0");
-  const today = ((await gitOut(root, ["log", "--since=midnight", "--format=%h", main])) ?? "").split("\n").filter((l) => l.length > 0).length;
+  const git = repo.cycle === undefined ? await liveState(repo, now) : await closedState(repo, repo.cycle);
   const questions = await openQuestions(repo);
   return {
     name: config.name,
-    time: stamp(now),
+    time: stamp(git.time),
     overall: summary.overall,
     stagePct: summary.stagePct,
     stages: (await phaseRows(repo)).map((row): StageRow => ({ id: row.id, name: row.name, ...(row.goal === undefined ? {} : { goal: row.goal }), state: isClosed(row) ? "closed" : "open", ...(row.closedAt === undefined ? {} : { closedAt: row.closedAt }) })),
     rows: summary.rows,
-    tracks: await branches(root, main, now.getTime() / 1000),
-    main: (await gitOut(root, ["log", "-1", "--format=%h %s", main])) ?? "",
-    origin,
-    unpushed,
-    today,
+    tracks: git.tracks,
+    main: git.main,
+    origin: git.origin,
+    unpushed: git.unpushed,
+    today: git.today,
     questions: questions.rows,
     nextRow: questions.nextRow,
     problems,

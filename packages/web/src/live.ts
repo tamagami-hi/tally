@@ -106,7 +106,9 @@ export const useDone = (version: string): Loaded<DoneWork> => useLoaded<DoneWork
 
 export const useCycles = (version: string): Loaded<CycleListing> => useLoaded<CycleListing>(`${here().api}/cycles`, version);
 
-export const useCycleDone = (n: number, version: string, shown: boolean): Loaded<DoneWork> => useLoaded<DoneWork>(shown ? `${here().api}/cycles/${n}/done` : null, version);
+const CLOSED_FOR_GOOD = "closed";
+
+export const useCycleDone = (n: number, shown: boolean): Loaded<DoneWork> => useLoaded<DoneWork>(shown ? `${here().api}/cycles/${n}/done` : null, CLOSED_FOR_GOOD);
 
 export const useEndedSessions = (version: string, shown: boolean, limit: number): Loaded<EndedSessions> =>
   useLoaded<EndedSessions>(shown ? `${here().api}/done/sessions?limit=${limit}` : null, version);

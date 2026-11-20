@@ -62,6 +62,21 @@ describe("the nine reads that take a cycle", () => {
   });
 });
 
+describe("a closed cycle's board", () => {
+  test("holds the tracks as they were archived, closed, and the cycle's closing time, with no live git state", async () => {
+    const { call, operator } = await serving();
+    await call("cycle_close", { sessionId: operator, summary: "the reader is built", said: SAID });
+    const closedAt = new Date((((await call("cycle_list", { n: 1 })).structured["closedAt"]) as string));
+    const two = (n: number): string => String(n).padStart(2, "0");
+
+    const board = (await call("board_get", { cycle: 1 })).structured;
+
+    expect((board["tracks"] as { track: string; closedAt?: string }[]).map((track) => [track.track, track.closedAt])).toEqual([["docs", closedAt.toISOString()]]);
+    expect(board["time"]).toBe(`${closedAt.getFullYear()}-${two(closedAt.getMonth() + 1)}-${two(closedAt.getDate())} ${two(closedAt.getHours())}:${two(closedAt.getMinutes())}`);
+    expect(board).toMatchObject({ origin: null, unpushed: 0, today: 0 });
+  });
+});
+
 describe("the sentence that asks, and the cycle in a brief", () => {
   test("board_get and an operator session's brief carry the cycle and the ask; a track session's brief only its number", async () => {
     const { call, root } = await serving();
