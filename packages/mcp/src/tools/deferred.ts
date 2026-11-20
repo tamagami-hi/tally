@@ -14,7 +14,7 @@ export function registerDeferredTools(server: ToolHost, source: RepoSource): voi
   server.registerTool(
     "deferred_list",
     {
-      description: "The parts landed tasks left undone, in ledger order: each with its `part` number (from 1), `state` (unplaced, waiting for its task, done, or parked) and its `to` or `parked`. Filters narrow it; `counts` covers the whole ledger, `matched` the filter. A gap is an unplaced part, or one left to a task not in the ledger: place it with deferred_set.",
+      description: "The parts landed tasks left undone, in ledger order, 50 unless `limit` says: each with its `part` number (from 1), `state` (unplaced, waiting for its task, done, or parked) and its `to` or `parked`. Filters narrow it; `counts` covers the whole ledger, `matched` the filter. A gap is an unplaced part, or one left to a task not in the ledger: place it with deferred_set.",
       inputSchema: { state: z.enum(deferredStates).optional(), milestone: z.string().optional(), track: z.string().optional(), decision: z.string().optional(), owner: z.string().optional(), limit: z.number().int().positive().max(MOST_PARTS).optional(), fields: FIELDS, ...WHERE },
     },
     ({ state, milestone, track, decision, owner, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {

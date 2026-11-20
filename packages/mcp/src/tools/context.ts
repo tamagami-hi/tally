@@ -19,7 +19,7 @@ const FILTER = {
   query: z.string().optional().describe("words in the title or the text, in any case"),
   since: z.string().optional().describe("an ISO time: only what was added or retired after it, the retired with it"),
   limit: z.number().int().positive().max(MOST_ENTRIES).default(DEFAULT_ENTRIES),
-  fields: z.array(z.string()).optional().describe("keep only these keys of each entry, for example id and title"),
+  fields: z.array(z.string()).optional(),
 };
 
 export function registerContextTools(server: ToolHost, source: RepoSource): void {

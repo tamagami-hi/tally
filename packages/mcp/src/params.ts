@@ -1,10 +1,16 @@
-const COMMON: Readonly<Record<string, string>> = {
+export const SHARED_TEXT = {
   sessionId: "from session_open",
+  repo: "a repo_list name, else the default",
+  limit: "at most this many",
+  fields: "the keys of each item to keep",
+} as const;
+
+const COMMON: Readonly<Record<string, string>> = {
+  ...SHARED_TEXT,
   milestone: "a milestone's id, such as B2",
   task: "a task's id, as planned",
   track: "a track's name, as track_list shows it",
   group: "its documents group, a folder under docs/",
-  limit: "keep only this many, the most recent",
   note: "a line kept with the record",
   commit: "a commit on main, as a hash or a ref",
   ticket: "the ticket's id, as land_start answered it",
@@ -52,7 +58,6 @@ const OWN: Readonly<Record<string, string>> = {
   "lock_acquire.note": "why you hold it, shown to whoever waits",
   "docs_read.path": "the document's path from the repository's root, as docs_list shows it",
   "docs_search.query": "the words to find, in any case",
-  "docs_search.limit": "at most this many hits",
   "question_add.question": "the question, as the operator should read it",
   "question_add.meanwhile": "the conservative behaviour built until it is answered",
   "question_list.answered": "true to add the answered rows to the open ones",
@@ -79,7 +84,6 @@ const OWN: Readonly<Record<string, string>> = {
   "note_done.id": "the note's id, for example note-4",
   "note_list.state": "open (the default), done, or all",
   "context_get.kind": "only entries of this kind",
-  "context_get.limit": "at most this many entries",
   "context_put.kind": "the kind of entry; a rule is an operator session's",
   "context_put.title": "a line saying what the entry is about, at most 120 characters",
   "context_put.text": "the entry itself, at most 2,000 characters",
@@ -94,8 +98,6 @@ const OWN: Readonly<Record<string, string>> = {
   "deferred_list.milestone": "only the parts of this milestone's tasks, for example B2",
   "deferred_list.decision": "only the parts parked under this decision, for example DEC-12",
   "deferred_list.owner": "only the parts parked for this owner",
-  "deferred_list.limit": "at most this many parts, the first in ledger order: 50 unless said",
-  "deferred_list.fields": "the keys of each part to keep, such as what and state",
   "deferred_set.part": "the part's place in the task's list, from 1, as deferred_list shows it",
   "deferred_set.to": "the MILESTONE:TASK that will finish it, instead of parked",
   "deferred_set.parked": "why the part is left on purpose, instead of to",
@@ -108,9 +110,6 @@ const OWN: Readonly<Record<string, string>> = {
   "review_record.follows": "the review this one follows up, such as review-7",
   "review_record.report": "the full review as a file in your worktree or under .temp/, kept by hash",
   "review_list.state": "open or clear: the reviewed task's state",
-  "review_list.limit": "at most this many, the newest: 20 unless said",
-  "review_list.fields": "the keys of each review to keep, such as id and verdict",
-  "activity_get.limit": "at most this many events, the latest",
 };
 
 export const paramText = (tool: string, param: string): string | undefined => OWN[`${tool}.${param}`] ?? COMMON[param];

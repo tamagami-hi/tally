@@ -28,7 +28,7 @@ export function registerNoteTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "note_list",
-    { description: "The notes for the session's track: the open ones by default.", inputSchema: { sessionId: z.string(), state: z.enum(["open", "done", "all"]).default("open"), since: z.string().optional().describe("an ISO time: only notes written, replied to or closed since then"), limit: z.number().int().positive().optional(), everyTrack: z.boolean().default(false).describe("list the notes of every track, not only this session's") } },
+    { description: "The notes for the session's track: the open ones by default; `limit` keeps the latest.", inputSchema: { sessionId: z.string(), state: z.enum(["open", "done", "all"]).default("open"), since: z.string().optional().describe("an ISO time: only notes written, replied to or closed since then"), limit: z.number().int().positive().optional(), everyTrack: z.boolean().default(false).describe("list the notes of every track, not only this session's") } },
     ({ sessionId, state, since, limit, everyTrack }) => inSession(source, sessionId, async (repo, session) =>
       ok({ notes: await listNotes(repo, { state, ...(everyTrack ? {} : { track: session.track }), ...(since === undefined ? {} : { since }), ...(limit === undefined ? {} : { limit }) }) })),
   );

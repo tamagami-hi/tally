@@ -15,7 +15,7 @@ export function registerRulebookTools(server: ToolHost, source: RepoSource): voi
       inputSchema: {
         section: z.enum(RULE_SECTIONS).optional().describe("only this section's rules"),
         waiting: z.boolean().optional().describe("true keeps only the rules that still carry a question for the project"),
-        fields: z.array(z.string()).optional().describe("keep only these keys of each rule, for example id and title"),
+        fields: z.array(z.string()).optional(),
         ...WHERE,
       },
     },

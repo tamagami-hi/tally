@@ -1,6 +1,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { LiveRepo, TallyError, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
+import { SHARED_TEXT } from "./params.ts";
 import { attempt, jsonText } from "./respond.ts";
 
 export interface Opened {
@@ -32,8 +33,8 @@ export interface RepoSource {
 }
 
 export const WHERE = {
-  sessionId: z.string().optional().describe("your session's id"),
-  repo: z.string().optional().describe("a repo_list name; with neither, the default"),
+  sessionId: z.string().optional().describe(SHARED_TEXT.sessionId),
+  repo: z.string().optional().describe(SHARED_TEXT.repo),
 };
 
 export const isSource = (from: Repo | RepoSource): from is RepoSource => "forSession" in from;

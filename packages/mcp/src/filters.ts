@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TallyError } from "@tally/core";
 
-export const LIMIT = z.number().int().positive().optional().describe("keep only this many, the most recent");
+export const LIMIT = z.number().int().positive().optional();
 
 export const FIELDS = z.array(z.string().min(1)).min(1).optional();
 
