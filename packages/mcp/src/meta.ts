@@ -28,6 +28,8 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   ledger_check: read("Check the ledger"),
   milestone_add: add("Add a milestone"),
   milestone_deliver: add("Add deliverables to a milestone"),
+  milestone_edit: { ...add("Edit a milestone"), since: "0.7.0" },
+  milestone_remove: { title: "Remove a milestone", effect: "remove", since: "0.7.0" },
   task_plan: add("Plan tasks"),
   task_claim: add("Claim a task"),
   task_release: add("Give a claimed task back"),

@@ -8,6 +8,7 @@ import { connect, keepingContextAsRecords } from "./support/connect.ts";
 const PACKAGES = ["../../../package.json", "../../core/package.json", "../../cli/package.json", "../package.json", "../../server/package.json", "../../web/package.json"];
 const SINCE_0_2 = ["phase_add", "phase_close", "phase_list", "records_commit", "rule_tailor", "rulebook_adopt", "rulebook_get"];
 const SINCE_0_3 = ["deferred_list", "deferred_set", "question_edit", "review_list", "review_record"];
+const SINCE_0_7 = ["milestone_edit", "milestone_remove"];
 
 const versionOf = async (path: string): Promise<string> => (JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { version: string }).version;
 
@@ -25,10 +26,11 @@ describe("the server's version", () => {
 
     expect(since("0.2.0")).toEqual(SINCE_0_2);
     expect(since("0.3.0")).toEqual(SINCE_0_3);
+    expect(since("0.7.0")).toEqual(SINCE_0_7);
   });
 
-  test("names as newest exactly the tools of the two latest versions that added one, so 0.4, 0.5 and 0.6, which added none, keep those of 0.2.0 and 0.3.0", () => {
-    expect([...newestTools()].sort()).toEqual([...SINCE_0_2, ...SINCE_0_3].sort());
+  test("names as newest exactly the tools of the two latest versions that added one: 0.3.0 and 0.7.0, as 0.4, 0.5 and 0.6 added none", () => {
+    expect([...newestTools()].sort()).toEqual([...SINCE_0_3, ...SINCE_0_7].sort());
   });
 
   test("is answered by session_open and repo_list, with the tool count and the newest tools", async () => {

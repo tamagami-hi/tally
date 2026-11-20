@@ -13,7 +13,7 @@ const NOT_THERE = "which is not a task in the ledger";
 
 export function uncovered(milestone: Pick<Milestone, "delivers" | "tasks">): Deliverable[] {
   const covered = new Set(milestone.tasks.flatMap((task) => task.covers ?? []));
-  return (milestone.delivers ?? []).filter((one) => !covered.has(one.id));
+  return (milestone.delivers ?? []).filter((one) => one.dropped === undefined && !covered.has(one.id));
 }
 
 export function unfinished(ledger: Milestones, task: Task): Deferred[] {

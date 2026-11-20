@@ -2,13 +2,22 @@ import { z } from "zod";
 
 export const taskStatuses = ["planned", "claimed", "landed"] as const;
 
-export const deliverableSchema = z.looseObject({
+const deliverableShape = {
   id: z.string().min(1),
   what: z.string().min(1),
   paths: z.array(z.string().min(1)).optional(),
+};
+
+export const droppedSchema = z.looseObject({
+  why: z.string().min(1),
+  decision: z.string().min(1).optional(),
+  by: z.object({ track: z.string().min(1), agent: z.string().min(1) }),
+  at: z.string(),
 });
 
-export const deliverableInputSchema = z.object(deliverableSchema.shape);
+export const deliverableSchema = z.looseObject({ ...deliverableShape, dropped: droppedSchema.optional() });
+
+export const deliverableInputSchema = z.object(deliverableShape);
 
 export const waitOnSchema = z.looseObject({
   task: z.string().min(1).optional(),
@@ -80,6 +89,7 @@ export type Task = z.infer<typeof taskSchema>;
 export type TaskStatus = (typeof taskStatuses)[number];
 export type Milestone = z.infer<typeof milestoneSchema>;
 export type Deliverable = z.infer<typeof deliverableSchema>;
+export type Dropped = z.infer<typeof droppedSchema>;
 export type WaitOn = z.infer<typeof waitOnSchema>;
 export type Deferred = z.infer<typeof deferredSchema>;
 export type Parked = z.infer<typeof parkedSchema>;
