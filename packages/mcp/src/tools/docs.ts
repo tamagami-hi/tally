@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TallyError, contextPack, isOperator, listDocs, readDecisions, readDoc, searchDocs, standingNow, writeClaudeView } from "@tally/core";
+import { TallyError, contextPack, isOperator, isUnconfirmed, listDocs, readDecisions, readDoc, searchDocs, standingNow, writeClaudeView } from "@tally/core";
 import { LIMIT, latest } from "../filters.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -26,11 +26,12 @@ export function registerDocTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "decision_list",
-    { description: "The decisions in force and the replaced rows, narrowed by group and by a list of ids, and by `limit` to the most recent of each; decisions are entered only by the operator, with `tally decision add|replace --operator`.", inputSchema: { group: z.string().optional(), ids: z.array(z.string()).optional(), limit: LIMIT, ...WHERE } },
-    ({ group, ids, limit, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    { description: "The decisions in force and the replaced rows, narrowed by group, ids, and `limit` (the most recent of each). An operator records one with decision_record or the command line; one recorded so and not yet confirmed has `unconfirmed: true`, and `unconfirmed: true` keeps only those.", inputSchema: { group: z.string().optional(), ids: z.array(z.string()).optional(), unconfirmed: z.boolean().optional(), limit: LIMIT, ...WHERE } },
+    ({ group, ids, unconfirmed, limit, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const file = await readDecisions(repo);
       const keep = <T extends { group: string; id: string }>(rows: T[]): T[] => latest(rows.filter((r) => (group === undefined || r.group === group) && (ids === undefined || ids.includes(r.id))), limit);
-      return ok({ decisions: keep(file.decisions), replaced: keep(file.replaced) });
+      const marked = file.decisions.filter((one) => unconfirmed !== true || isUnconfirmed(one)).map((one) => (isUnconfirmed(one) ? { ...one, unconfirmed: true } : one));
+      return ok({ decisions: keep(marked), replaced: keep(file.replaced) });
     }),
   );
   server.registerTool(

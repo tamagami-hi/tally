@@ -28,7 +28,7 @@ export const questionSchema = z.looseObject({
   edits: z.array(questionEditSchema).optional(),
 });
 
-export const answeredSchema = questionSchema.extend({ answeredAt: z.string(), decision: z.string() });
+export const answeredSchema = questionSchema.extend({ answeredAt: z.string(), decision: z.string(), said: z.string().min(1).optional() });
 export const answeredRowsSchema = z.array(answeredSchema);
 
 export const questionsFileSchema = z.looseObject({
@@ -160,11 +160,11 @@ export async function addQuestion(repo: Repo, input: QuestionInput, authority: {
   return { question, id: questionId(question.row), commit };
 }
 
-export async function answerQuestion(repo: Repo, row: number, decision: string, now = new Date()): Promise<{ question: Question; commit: string | null }> {
+export async function answerQuestion(repo: Repo, row: number, decision: string, now = new Date(), words: { said?: string } = {}): Promise<{ question: Question; commit: string | null }> {
   const question = await changeQuestions(repo, (current) => {
     const found = current.open.find((q) => q.row === row);
     if (found === undefined) throw new TallyError(`no open question ${row}; open: ${current.open.map((q) => q.row).join(", ") || "none"}`);
-    return { file: { ...current, open: current.open.filter((q) => q.row !== row), answered: [...current.answered, { ...found, answeredAt: now.toISOString(), decision }] }, result: found };
+    return { file: { ...current, open: current.open.filter((q) => q.row !== row), answered: [...current.answered, { ...found, answeredAt: now.toISOString(), decision, ...(words.said === undefined ? {} : { said: words.said }) }] }, result: found };
   });
   const commit = await commitRecords(repo, `${questionId(row)} answered: ${decision}`);
   return { question, commit };

@@ -23,6 +23,21 @@ const COMMON: Readonly<Record<string, string>> = {
 };
 
 const OWN: Readonly<Record<string, string>> = {
+  "decision_list.unconfirmed": "true keeps those recorded through decision_record and not yet confirmed",
+  "decision_record.text": "the decision, as the operator gave it",
+  "decision_record.said": "the operator's own words, quoted",
+  "decision_record.id": "DEC-<n>; the next one when left out",
+  "decision_record.section": "the heading it sits under",
+  "decision_record.status": "its status line; in force when left out",
+  "decision_record.state": "its state, where the status does not say it",
+  "decision_record.replaces": "{why}: the id exists and this replaces it",
+  "decision_status.id": "the decision's id",
+  "decision_status.group": "its group, where the id is in more than one",
+  "decision_status.status": "the new status line",
+  "decision_status.state": "its state, where the status does not say it",
+  "question_answer.id": "the question's id, Q-24 or 24",
+  "question_answer.decision": "the id of the decision that answers it",
+  "question_answer.said": "the operator's own words, quoted",
   "milestone_add.id": "the new milestone's id, for example B3",
   "milestone_add.stage": "the stage's id, one the config lists",
   "milestone_add.name": "the milestone's name, a few words",

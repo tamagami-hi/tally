@@ -17,6 +17,8 @@ import { atLevel, type BriefCycle, landing, rulebookOf, type Brief, type BriefLe
 import { readCycles } from "../cycles/file.ts";
 import { isComplete } from "../cycles/list.ts";
 import { askOf } from "../cycles/state.ts";
+import { confirmingOf } from "../records/decision-record.ts";
+import { readDecisions } from "../records/decisions.ts";
 
 type Told = Task & { brief?: unknown; paths?: unknown };
 
@@ -89,7 +91,7 @@ export async function sessionBrief(repo: Repo, session: Session, level: BriefLev
   const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);
   const rules = inForce.filter((entry) => entry.kind === RULE);
-  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo) } : {};
+  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo), decisions: confirmingOf(await readDecisions(repo)) } : {};
   const ledger = await new Records(repo).readLedger();
   const tasks = unlandedTasks(ledger, session.track, claims);
   const cycle = await briefCycle(repo, session, ledger);

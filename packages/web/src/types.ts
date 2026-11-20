@@ -58,6 +58,17 @@ export interface StatusData {
   questions: string[];
   nextRow: number | null;
   problems: string[];
+  toConfirm?: ToConfirmRow[];
+}
+
+export interface ToConfirmRow {
+  id: string;
+  group: string;
+  text: string;
+  said: string;
+  via: { session: string; track: string; agent: string };
+  on?: string;
+  disputed?: true;
 }
 
 export type Segment = [number, number];

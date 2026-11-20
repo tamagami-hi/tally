@@ -18,6 +18,26 @@ const COMMITS_THE_RECORDS: ReadonlySet<string> = new Set(["phase_close", "record
 
 export const isUnlogged = (tool: string): boolean => writesNothing(tool) || COMMITS_THE_RECORDS.has(tool);
 
+interface Logged {
+  verb: string;
+  target?: string;
+}
+
+const decisionOf = (result: CallToolResult): { id?: unknown; group?: unknown; state?: unknown } => (result.structuredContent?.["decision"] ?? {}) as { id?: unknown; group?: unknown; state?: unknown };
+
+const LOGGED_AS: Readonly<Record<string, (args: Record<string, unknown>, result: CallToolResult) => Logged>> = {
+  decision_record: (_args, result) => ({ verb: result.structuredContent?.["replaced"] === undefined ? "decision_add" : "decision_replace", target: `${String(decisionOf(result).group)} / ${String(decisionOf(result).id)}` }),
+  decision_status: (_args, result) => ({ verb: "decision_status", target: `${String(decisionOf(result).group)} / ${String(decisionOf(result).id)}: ${String(decisionOf(result).state)}` }),
+  question_answer: (args) => ({ verb: "question_answer", target: `${String(args["id"])}: ${String(args["decision"])}` }),
+};
+
+function loggedAs(tool: string, args: Record<string, unknown>, result: CallToolResult): Logged {
+  const special = LOGGED_AS[tool];
+  if (special !== undefined) return special(args, result);
+  const target = targetOf(args);
+  return { verb: tool, ...(target === undefined ? {} : { target }) };
+}
+
 export function targetOf(args: Record<string, unknown>): string | undefined {
   const task = [...worded(args["milestone"]), ...worded(args["task"])].join(" / ");
   const parts = [...worded(task), ...NAMING.flatMap((key) => worded(args[key]))];
@@ -53,9 +73,9 @@ export const activity: Decorator = async (called) => {
   if (sessionId === undefined || result.isError === true || isUnlogged(tool) || writesNothing(tool, place)) return result;
   const actor = await actorOf(called, sessionId).catch(withoutActor);
   if (actor === undefined) return result;
-  const target = targetOf(args);
+  const logged = loggedAs(tool, args, result);
   try {
-    await logActivity(actor.repo, { session: actor.session.id, track: actor.session.track, agent: actor.session.agent, verb: tool, ...(target === undefined ? {} : { target }) });
+    await logActivity(actor.repo, { session: actor.session.id, track: actor.session.track, agent: actor.session.agent, ...logged });
     if ((await listSessions(actor.repo)).length === 0) await flushWhenFree(actor.repo);
     return result;
   } catch (error: unknown) {

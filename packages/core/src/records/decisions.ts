@@ -21,6 +21,10 @@ export const decisionSchema = z.looseObject({
   state: z.enum(DECISION_STATES),
   by: z.string().optional(),
   on: z.string().optional(),
+  said: z.string().min(1).optional(),
+  via: z.object({ session: z.string().min(1), track: z.string().min(1), agent: z.string().min(1) }).optional(),
+  confirmed: z.object({ at: z.string() }).optional(),
+  disputed: z.object({ at: z.string() }).optional(),
 });
 
 export const replacedSchema = z.looseObject({
@@ -117,9 +121,9 @@ export interface DecisionInput {
   state?: DecisionState;
 }
 
-const stateFor = (input: { status: string; state?: DecisionState | undefined }): DecisionState => input.state ?? stateOf(input.status);
+export const stateFor = (input: { status: string; state?: DecisionState | undefined }): DecisionState => input.state ?? stateOf(input.status);
 
-async function update<R>(repo: Repo, change: (file: DecisionsFile) => { file: DecisionsFile; result: R }): Promise<R> {
+export async function changeDecisions<R>(repo: Repo, change: (file: DecisionsFile) => { file: DecisionsFile; result: R }): Promise<R> {
   assertCurrent(repo);
   const path = decisionsPath(repo);
   return withLock(path, async () => {
@@ -129,7 +133,7 @@ async function update<R>(repo: Repo, change: (file: DecisionsFile) => { file: De
   });
 }
 
-const knownIn = (file: DecisionsFile, group: string): string => file.decisions.filter((d) => d.group === group).map((d) => d.id).join(", ") || "none";
+export const knownIn = (file: DecisionsFile, group: string): string => file.decisions.filter((d) => d.group === group).map((d) => d.id).join(", ") || "none";
 
 function operatorOnly(authority: { operator: boolean }): void {
   if (!authority.operator) throw new TallyError("a decision is the operator's; pass --operator to record one");
@@ -138,7 +142,7 @@ function operatorOnly(authority: { operator: boolean }): void {
 export async function addDecision(repo: Repo, input: DecisionInput, authority: { operator: boolean }, now = new Date()): Promise<{ decision: Decision; commit: string | null }> {
   operatorOnly(authority);
   const decision: Decision = { ...input, state: stateFor(input), by: "operator", on: now.toISOString() };
-  await update(repo, (file) => {
+  await changeDecisions(repo, (file) => {
     if (file.decisions.some((d) => d.group === input.group && d.id === input.id)) throw new TallyError(`${input.group} already has decision ${input.id}; replace it instead`);
     return { file: { ...file, decisions: [...file.decisions, decision] }, result: undefined };
   });
@@ -149,7 +153,7 @@ export async function addDecision(repo: Repo, input: DecisionInput, authority: {
 export async function replaceDecision(repo: Repo, input: DecisionInput & { why: string }, authority: { operator: boolean }, now = new Date()): Promise<{ decision: Decision; replaced: Replaced; commit: string | null }> {
   operatorOnly(authority);
   const { why, ...rest } = input;
-  const result = await update(repo, (file) => {
+  const result = await changeDecisions(repo, (file) => {
     const old = file.decisions.find((d) => d.group === input.group && d.id === input.id);
     if (old === undefined) throw new TallyError(`${input.group} has no decision ${input.id}; known: ${knownIn(file, input.group)}`);
     const decision: Decision = { ...rest, ...(rest.section === undefined && old.section !== undefined ? { section: old.section } : {}), state: stateFor(input), by: "operator", on: now.toISOString() };
@@ -161,7 +165,7 @@ export async function replaceDecision(repo: Repo, input: DecisionInput & { why: 
 }
 
 export async function setDecisionStatus(repo: Repo, input: { id: string; group: string; status: string; state?: DecisionState }, recorder: { by: string }, now = new Date()): Promise<{ decision: Decision; commit: string | null }> {
-  const decision = await update(repo, (file) => {
+  const decision = await changeDecisions(repo, (file) => {
     const old = file.decisions.find((d) => d.group === input.group && d.id === input.id);
     if (old === undefined) throw new TallyError(`${input.group} has no decision ${input.id}; known: ${knownIn(file, input.group)}`);
     const next: Decision = { ...old, status: input.status, state: stateFor(input), by: recorder.by, on: now.toISOString() };

@@ -8,6 +8,7 @@ import { registerCheckTools } from "./tools/checks.ts";
 import { registerCommandTools } from "./tools/commands.ts";
 import { registerContextTools } from "./tools/context.ts";
 import { registerDeferredTools } from "./tools/deferred.ts";
+import { registerDecisionTools } from "./tools/decisions.ts";
 import { registerDocTools } from "./tools/docs.ts";
 import { registerLandTools } from "./tools/land.ts";
 import { registerNoteTools } from "./tools/notes.ts";
@@ -52,6 +53,7 @@ function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace):
   registerNoteTools(tools, source);
   registerDocTools(tools, source);
   registerQuestionTools(tools, source);
+  registerDecisionTools(tools, source);
   registerCheckTools(tools, source);
   registerTrackTools(tools, source);
   registerContextTools(tools, source);

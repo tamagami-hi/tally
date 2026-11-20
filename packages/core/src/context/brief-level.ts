@@ -1,5 +1,6 @@
 import type { HandoffNote } from "../records/handoffs.ts";
 import type { CheckoutState } from "../land/operator.ts";
+import type { Confirming } from "../records/decision-record.ts";
 import type { Waiting } from "../records/waiting.ts";
 import type { Entry, EntryKind } from "./entries.ts";
 import type { Project } from "./project.ts";
@@ -55,6 +56,7 @@ export interface FullBrief {
   tailoring?: Tailoring[];
   recordsWaiting?: Waiting;
   checkout?: CheckoutState;
+  decisions?: Confirming;
   cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff: HandoffNote | null };
   entries: { id: string; kind: EntryKind; title: string }[];
@@ -71,6 +73,7 @@ export interface Brief {
   tailoring?: Tailoring[];
   recordsWaiting?: Waiting;
   checkout?: CheckoutState;
+  decisions?: Confirming;
   cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff?: HandoffNote | null };
   entries?: { id: string; kind: EntryKind; title: string }[];

@@ -8,6 +8,9 @@ import { summarize, type MilestoneRow, type OnMain } from "./summary.ts";
 import { needingReview } from "../ledger/review-gaps.ts";
 import { reviewsWhenRequired } from "../records/reviews.ts";
 import { isClosed, phaseRows } from "../phases/rows.ts";
+import { disputedProblems, toConfirm, type ToConfirm } from "../records/decision-record.ts";
+import { readDecisions } from "../records/decisions.ts";
+import { tolerated } from "../store/json.ts";
 import { closedState, type GitState } from "./closed.ts";
 import { branches, type TrackRow } from "./tracks.ts";
 
@@ -34,6 +37,7 @@ export interface StatusData {
   questions: string[];
   nextRow: number | null;
   problems: string[];
+  toConfirm: ToConfirm[];
 }
 
 function stamp(now: Date): string {
@@ -64,6 +68,8 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
   const { missing } = repo.cycle === undefined ? await owedCommits(repo, ledger) : { missing: [] };
   const problems = [...(repo.problems ?? []), ...summary.problems];
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);
+  const decisions = await tolerated(readDecisions(repo), { schema: 1 as const, decisions: [], replaced: [] });
+  problems.push(...(decisions.problem === undefined ? [] : [decisions.problem]), ...disputedProblems(decisions.value));
   const git = repo.cycle === undefined ? await liveState(repo, now) : await closedState(repo, repo.cycle);
   const questions = await openQuestions(repo);
   return {
@@ -81,5 +87,6 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
     questions: questions.rows,
     nextRow: questions.nextRow,
     problems,
+    toConfirm: toConfirm(decisions.value),
   };
 }

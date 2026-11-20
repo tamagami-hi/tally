@@ -15,7 +15,7 @@ describe("an argument a tool does not take", () => {
     const refused = await call("decision_list", { groups: "platform" });
 
     expect(refused.isError).toBe(true);
-    expect(refused.text).toContain("decision_list takes no 'groups'; it takes group, ids, limit, sessionId, repo");
+    expect(refused.text).toContain("decision_list takes no 'groups'; it takes group, ids, unconfirmed, limit, sessionId, repo");
   });
 
   test("given as repo to a writing tool, says the repository is the session's", async () => {

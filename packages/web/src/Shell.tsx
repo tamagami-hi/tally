@@ -14,6 +14,7 @@ import type { Scheme } from "./live.ts";
 import { countsDetail } from "./open.ts";
 import type { DocsIndex, EvidenceIndex, Layout, Live, Page, Snapshot } from "./types.ts";
 import { useGraph } from "./useGraph.ts";
+import { ToConfirm } from "./components/ToConfirm.tsx";
 
 export interface ShellProps {
   snapshot: Snapshot | undefined;
@@ -104,6 +105,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
           {top}
           <Stats status={status} />
           <Problems problems={status.problems} />
+          <ToConfirm decisions={status.toConfirm ?? []} />
         </div>
         <div className="column-left"><Panel title="Branches" detail={tracksSummary(status)} className="column-left"><Tracks status={status} state={state} evidence={evidence} /></Panel></div>
         <div className={heroless ? "column-main reading" : "column-main"}>
@@ -123,6 +125,7 @@ export function Shell({ snapshot, error, live, layout, scheme, evidence, docs, o
       {top}
       <Stats status={status} />
       <Problems problems={status.problems} />
+      <ToConfirm decisions={status.toConfirm ?? []} />
       {page === "done" || page === "cycles" ? null : <Hero status={status} />}
       <main className="page">
         {page === "board" ? <Panel title="Board" detail={countsDetail(status)}>{board}</Panel> : null}

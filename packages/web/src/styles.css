@@ -113,6 +113,12 @@ h1, h2, h3, p { margin: 0; }
 .shell.landscape .column-right { grid-area: right; min-height: 0; display: flex; }
 .problems { background: var(--warn-soft); color: var(--warn); border-radius: var(--radius); padding: var(--pad-s) var(--pad); display: flex; gap: var(--pad-s); align-items: flex-start; }
 .problems ul { list-style: disc; padding-left: 16px; margin-top: var(--gap-s); color: var(--ink); }
+.to-confirm { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--pad-s) var(--pad); display: grid; gap: var(--pad-s); min-width: 0; }
+.to-confirm ul { display: grid; gap: var(--pad-s); }
+.to-confirm li { display: grid; gap: var(--gap-s); min-width: 0; }
+.to-confirm p, .to-confirm blockquote { margin: 0; overflow-wrap: anywhere; }
+.to-confirm blockquote { padding-left: var(--pad-s); border-left: 2px solid var(--line); }
+.to-confirm-actions { display: flex; gap: var(--pad-s); flex-wrap: wrap; }
 
 .stage { margin-top: var(--pad); }
 .stage:first-child { margin-top: 0; }

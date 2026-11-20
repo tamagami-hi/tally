@@ -91,6 +91,6 @@ describe("board_get fields", () => {
     expect(inherited.isError).toBe(true);
     expect(inherited.text).toMatch(/^the board has no 'constructor'; its keys: name, /);
     expect(refused.isError).toBe(true);
-    expect(refused.text).toBe("the board has no 'milestones'; its keys: name, time, overall, stagePct, stages, rows, tracks, main, origin, unpushed, today, questions, nextRow, problems, claims, locks, cycle");
+    expect(refused.text).toBe("the board has no 'milestones'; its keys: name, time, overall, stagePct, stages, rows, tracks, main, origin, unpushed, today, questions, nextRow, problems, toConfirm, claims, locks, cycle");
   });
 });
