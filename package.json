@@ -1,7 +1,7 @@
 {
   "name": "tally",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.1",
   "description": "The tracking harness: records, ledger, landing and status for parallel agent builds",
   "type": "module",
   "workspaces": [
