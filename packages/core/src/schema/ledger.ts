@@ -51,6 +51,8 @@ export const taskSchema = z
     brief: z.string().optional(),
     paths: z.array(z.string().min(1)).optional(),
     covers: z.array(z.string().min(1)).optional(),
+    cites: z.array(z.string().min(1)).optional(),
+    accept: z.array(z.string()).optional(),
     waitsOn: z.array(waitOnSchema).optional(),
     deferred: z.array(deferredSchema).optional(),
     landedAt: z.string().optional(),

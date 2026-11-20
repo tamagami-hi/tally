@@ -1,4 +1,5 @@
 import { TallyError } from "../errors.ts";
+import { checkedAccept } from "../records/accept.ts";
 import type { Deliverable, Milestone, Task } from "../schema/ledger.ts";
 
 export interface PlannedTask {
@@ -6,9 +7,11 @@ export interface PlannedTask {
   brief?: string | undefined;
   paths?: readonly string[] | undefined;
   covers?: readonly string[] | undefined;
+  cites?: readonly string[] | undefined;
+  accept?: readonly string[] | undefined;
 }
 
-export const hasDetails = (task: PlannedTask): boolean => task.brief !== undefined || task.paths !== undefined || task.covers !== undefined;
+export const hasDetails = (task: PlannedTask): boolean => task.brief !== undefined || task.paths !== undefined || task.covers !== undefined || task.cites !== undefined || task.accept !== undefined;
 
 export function distinctDeliverables(milestone: string, held: readonly Deliverable[], added: readonly Deliverable[]): Deliverable[] {
   const seen = new Set<string>();
@@ -30,14 +33,19 @@ function assertCovers(milestone: Milestone, covers: readonly string[]): void {
 
 export function withDetails(milestone: Milestone, task: Task, given: PlannedTask): Task {
   assertCovers(milestone, given.covers ?? []);
-  const { brief: heldBrief, paths: heldPaths, covers: heldCovers, ...rest } = task;
+  if (given.accept !== undefined) checkedAccept(given.accept);
+  const { brief: heldBrief, paths: heldPaths, covers: heldCovers, cites: heldCites, accept: heldAccept, ...rest } = task;
   const brief = given.brief ?? heldBrief;
   const paths = given.paths ?? heldPaths;
   const covers = given.covers ?? heldCovers;
+  const cites = given.cites ?? heldCites;
+  const accept = given.accept ?? heldAccept;
   return {
     ...rest,
     ...(brief === undefined || brief === "" ? {} : { brief }),
     ...(paths === undefined || paths.length === 0 ? {} : { paths: [...paths] }),
     ...(covers === undefined || covers.length === 0 ? {} : { covers: [...new Set(covers)] }),
+    ...(cites === undefined || cites.length === 0 ? {} : { cites: [...new Set(cites)] }),
+    ...(accept === undefined || accept.length === 0 ? {} : { accept: [...accept] }),
   };
 }

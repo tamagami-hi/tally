@@ -2,6 +2,7 @@ import { TallyError, messageOf } from "../errors.ts";
 import type { PlannedTask } from "../ledger/details.ts";
 import { plan } from "../ledger/ops.ts";
 import { assertMilestoneOpen } from "../phases/open.ts";
+import { assertCited } from "../records/cited.ts";
 import { commitRecords } from "../records/commit.ts";
 import { assertMayWrite, isOperator, type Session } from "../state/sessions.ts";
 import { Records, reopenRepo, type Repo } from "../store/records.ts";
@@ -19,6 +20,7 @@ export interface PlannedOnTrack {
 }
 
 async function assertPlannable(repo: Repo, track: string, wanted: TrackPlan): Promise<void> {
+  await assertCited(repo, wanted.tasks.flatMap((task) => (typeof task === "string" ? [] : (task.cites ?? []))));
   const ledger = await new Records(repo).readLedger();
   await assertMilestoneOpen(repo, ledger, wanted.milestone);
   plan(ledger, { milestone: wanted.milestone, track, tasks: wanted.tasks });

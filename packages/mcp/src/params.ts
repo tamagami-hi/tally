@@ -31,6 +31,8 @@ const OWN: Readonly<Record<string, string>> = {
   "decision_record.status": "its status line; in force when left out",
   "decision_record.state": "its state, where the status does not say it",
   "decision_record.replaces": "{why}: the id exists and this replaces it",
+  "decision_record.accept": "what must be true for it to count as built; at most 12 lines",
+  "decision_record.paths": "globs from the repository's root that it governs",
   "decision_status.id": "the decision's id",
   "decision_status.group": "its group, where the id is in more than one",
   "decision_status.status": "the new status line",

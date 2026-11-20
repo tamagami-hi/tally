@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
-  addMilestone, askOf, assertNewMilestone, isComplete, readCycles, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  addMilestone, askOf, assertCited, decisionsToMark, assertNewMilestone, isComplete, readCycles, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, plannedOnMainNotice, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
 import { FIELDS, pickKnown } from "../filters.ts";
-import { plannedTasks } from "../planned-task.ts";
+import { citedBy, plannedTasks } from "../planned-task.ts";
 import { ok } from "../respond.ts";
 import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -68,10 +68,12 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
     { description: "The commits on main no record names (`missing`) and the `gaps`, each a sentence: a deliverable no task covers, a wait on a task not in the ledger, a deferred part neither placed nor parked, and, where reviews are required, a landed task with no clear review. `passed`: commits changing only records (count, newest ten). scope 'mine' (with sessionId) keeps the track's gaps and, if it has paths, the commits wholly under them (else `note`). `checkout`: what is uncommitted in the operator checkout outside the records; `parked`: the parked count.", inputSchema: { scope: SCOPE, ...WHERE } },
     ({ scope, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
       const track = scope === "all" ? undefined : (await own(repo, sessionId)).track;
-      const { check, text } = await checkLedger(repo, await new Records(repo).readLedger(), track);
+      const ledger = await new Records(repo).readLedger();
+      const { check, text } = await checkLedger(repo, ledger, track);
       const checkout = await checkoutState(repo);
       const line = checkoutLine(repo, checkout);
-      return ok({ ...check, recordsWaiting: await recordsWaiting(repo), checkout }, line === undefined ? text : `${text}\n${line}`);
+      const marked = await decisionsToMark(repo, ledger);
+      return ok({ ...check, recordsWaiting: await recordsWaiting(repo), checkout, ...(marked.length === 0 ? {} : { decisionsToMark: marked }) }, line === undefined ? text : `${text}\n${line}`);
     }),
   );
   server.registerTool(
@@ -98,10 +100,11 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "task_plan",
-    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's (an operator session's is main: `notice` says so while a lane is open). A task is its name, or {id, brief?, paths?, covers?}: what to do, the files it should touch, and the ids of the deliverables it covers. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: plannedTasks } },
+    { description: "Plan tasks in a milestone, the close last; the track defaults to the session's (an operator session's is main: `notice` says so while a lane is open). A task is its name, or {id, brief?, paths?, covers?, cites?, accept?}: what to do, the files it should touch, the deliverables it covers, the ids of the records it is built to, and what done looks like. Details given for a task the track already planned are set on it.", inputSchema: { sessionId: z.string(), milestone: z.string(), track: z.string().optional(), tasks: plannedTasks } },
     ({ sessionId, milestone, track, tasks }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       const scoped = scopedTrack(repo, session, track);
+      await assertCited(repo, citedBy(tasks));
       await assertMilestoneOpen(repo, await records.readLedger(), milestone);
       const message = await records.update((ledger) => plan(ledger, { milestone, track: scoped, tasks }));
       const notice = await plannedOnMainNotice(repo, session, track);

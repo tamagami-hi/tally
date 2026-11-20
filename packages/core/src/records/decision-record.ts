@@ -2,6 +2,7 @@ import { TallyError, namedList } from "../errors.ts";
 import { isOperator, type Session } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
+import { checkedAccept } from "./accept.ts";
 import { changeDecisions, knownIn, stateFor, type Decision, type DecisionState, type DecisionsFile, type Replaced } from "./decisions.ts";
 
 export const MOST_SAID = 2000;
@@ -15,6 +16,8 @@ export interface RecordInput {
   status?: string | undefined;
   state?: DecisionState | undefined;
   replaces?: { why: string } | undefined;
+  accept?: readonly string[] | undefined;
+  paths?: readonly string[] | undefined;
 }
 
 export interface Recorded {
@@ -79,8 +82,10 @@ function nextId(file: DecisionsFile, group: string): string {
 function written(input: RecordInput, id: string, old: Decision | undefined, session: Session, now: Date): Decision {
   const status = input.status ?? input.state ?? IN_FORCE;
   const section = input.section ?? old?.section;
+  const accept = input.accept ?? old?.accept;
+  const paths = input.paths ?? old?.paths;
   return {
-    id, group: input.group, ...(section === undefined ? {} : { section }), text: input.text, since: now.toISOString().slice(0, DAY), status, state: stateFor({ status, state: input.state }),
+    id, group: input.group, ...(section === undefined ? {} : { section }), ...(accept === undefined || accept.length === 0 ? {} : { accept: [...accept] }), ...(paths === undefined || paths.length === 0 ? {} : { paths: [...paths] }), text: input.text, since: now.toISOString().slice(0, DAY), status, state: stateFor({ status, state: input.state }),
     by: "operator", on: now.toISOString(), said: input.said, via: { session: session.id, track: session.track, agent: session.agent },
   };
 }
@@ -100,6 +105,7 @@ export async function recordDecision(repo: Repo, session: Session, input: Record
   assertOperatorRecords(repo, session);
   const said = checkedSaid(input.said);
   if (input.text.trim() === "") throw new TallyError("a decision needs its text");
+  if (input.accept !== undefined) checkedAccept(input.accept);
   const result = await changeDecisions(repo, (file) => placed(file, { ...input, said }, session, now));
   const { id, group } = result.decision;
   const commit = await commitRecords(repo, `decision ${id} (${group}) ${result.replaced === undefined ? "recorded" : "replaced"} by ${session.agent}, on the operator's word`);

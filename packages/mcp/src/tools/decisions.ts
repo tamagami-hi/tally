@@ -2,6 +2,7 @@ import { z } from "zod";
 import { DECISION_STATES, MOST_SAID, answerWithDecision, recordDecision, setStatusBySession } from "@tally/core";
 import type { ToolHost } from "../decorate.ts";
 import { limitedText } from "../limited.ts";
+import { acceptLines } from "../planned-task.ts";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
 
@@ -13,9 +14,9 @@ export function registerDecisionTools(server: ToolHost, source: RepoSource): voi
     "decision_record",
     {
       description: "Record a decision on the operator's word (operator session): their own words, quoted, go in `said`. One you reached yourself is not a decision; a track asks with question_add. `id` defaults to the next DEC-<n>; an existing id needs `replaces`. It is unconfirmed until the operator confirms it on the board.",
-      inputSchema: { sessionId: z.string(), group: z.string().min(1), text: z.string().min(1), said, id: z.string().min(1).optional(), section: z.string().min(1).optional(), status: z.string().min(1).optional(), state: z.enum(DECISION_STATES).optional(), replaces: z.object({ why: z.string().min(1) }).optional() },
+      inputSchema: { sessionId: z.string(), group: z.string().min(1), text: z.string().min(1), said, id: z.string().min(1).optional(), section: z.string().min(1).optional(), status: z.string().min(1).optional(), state: z.enum(DECISION_STATES).optional(), replaces: z.object({ why: z.string().min(1) }).optional(), accept: acceptLines.optional(), paths: z.array(z.string().min(1)).optional() },
     },
-    ({ sessionId, group, text, said: words, id, section, status, state, replaces }) => inSession(source, sessionId, async (repo, session) => ok(await recordDecision(repo, session, { group, text, said: words, id, section, status, state, replaces }))),
+    ({ sessionId, group, text, said: words, id, section, status, state, replaces, accept, paths }) => inSession(source, sessionId, async (repo, session) => ok(await recordDecision(repo, session, { group, text, said: words, id, section, status, state, replaces, accept, paths }))),
   );
   server.registerTool(
     "decision_status",

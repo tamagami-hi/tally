@@ -17,6 +17,7 @@ import { atLevel, type BriefCycle, landing, rulebookOf, type Brief, type BriefLe
 import { readCycles } from "../cycles/file.ts";
 import { isComplete } from "../cycles/list.ts";
 import { askOf } from "../cycles/state.ts";
+import { decisionsToMark, type ToMark } from "../records/cited.ts";
 import { confirmingOf } from "../records/decision-record.ts";
 import { readDecisions } from "../records/decisions.ts";
 
@@ -84,6 +85,11 @@ async function briefCycle(repo: Repo, session: Session, ledger: Ledger): Promise
   return { n, complete, ...(complete ? { ask: askOf(n) } : {}) };
 }
 
+async function marking(repo: Repo): Promise<{ decisionsToMark?: ToMark[] }> {
+  const marked = await decisionsToMark(repo);
+  return marked.length === 0 ? {} : { decisionsToMark: marked };
+}
+
 export type { Brief, BriefCycle, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
 
 export async function sessionBrief(repo: Repo, session: Session, level: BriefLevel = "full"): Promise<Brief> {
@@ -91,7 +97,7 @@ export async function sessionBrief(repo: Repo, session: Session, level: BriefLev
   const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);
   const rules = inForce.filter((entry) => entry.kind === RULE);
-  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo), decisions: confirmingOf(await readDecisions(repo)) } : {};
+  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo), decisions: confirmingOf(await readDecisions(repo)), ...(await marking(repo)) } : {};
   const ledger = await new Records(repo).readLedger();
   const tasks = unlandedTasks(ledger, session.track, claims);
   const cycle = await briefCycle(repo, session, ledger);

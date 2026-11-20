@@ -11,6 +11,8 @@ import type { Exact } from "../schema/kept.ts";
 
 export const DECISION_STATES = ["in force", "built", "partly built", "decided, not built", "other"] as const;
 
+export const UNBUILT_STATES: readonly (typeof DECISION_STATES)[number][] = ["decided, not built", "partly built"];
+
 export const decisionSchema = z.looseObject({
   id: z.string().min(1),
   group: z.string().min(1),
@@ -25,6 +27,8 @@ export const decisionSchema = z.looseObject({
   via: z.object({ session: z.string().min(1), track: z.string().min(1), agent: z.string().min(1) }).optional(),
   confirmed: z.object({ at: z.string() }).optional(),
   disputed: z.object({ at: z.string() }).optional(),
+  accept: z.array(z.string()).optional(),
+  paths: z.array(z.string().min(1)).optional(),
 });
 
 export const replacedSchema = z.looseObject({
@@ -156,7 +160,8 @@ export async function replaceDecision(repo: Repo, input: DecisionInput & { why: 
   const result = await changeDecisions(repo, (file) => {
     const old = file.decisions.find((d) => d.group === input.group && d.id === input.id);
     if (old === undefined) throw new TallyError(`${input.group} has no decision ${input.id}; known: ${knownIn(file, input.group)}`);
-    const decision: Decision = { ...rest, ...(rest.section === undefined && old.section !== undefined ? { section: old.section } : {}), state: stateFor(input), by: "operator", on: now.toISOString() };
+    const kept = { ...(old.accept === undefined ? {} : { accept: old.accept }), ...(old.paths === undefined ? {} : { paths: old.paths }) };
+    const decision: Decision = { ...kept, ...rest, ...(rest.section === undefined && old.section !== undefined ? { section: old.section } : {}), state: stateFor(input), by: "operator", on: now.toISOString() };
     const replaced: Replaced = { id: input.id, group: input.group, was: old.text, replaced: `${now.toISOString().slice(0, 10)}, by ${input.id}`, why };
     return { file: { ...file, decisions: file.decisions.map((d) => (d === old ? decision : d)), replaced: [...file.replaced, replaced] }, result: { decision, replaced } };
   });
