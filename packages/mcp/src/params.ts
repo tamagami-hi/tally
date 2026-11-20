@@ -40,6 +40,7 @@ const OWN: Readonly<Record<string, string>> = {
   "question_answer.id": "the question's id, Q-24 or 24",
   "question_answer.decision": "the id of the decision that answers it",
   "question_answer.said": "the operator's own words, quoted",
+  "land_start.check": "each, the default, checks every commit alone; tip checks the last commit only, which its record says",
   "covering.paths": "files or folders, from the repository's root",
   "covering.range": "<base>..<head>: the files these commits change",
   "covering.task": "MILESTONE:TASK, whose cited records join the answer",

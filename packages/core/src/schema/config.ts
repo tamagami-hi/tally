@@ -24,6 +24,8 @@ const isOwnFolder = (path: string): boolean => staysInWorktree(path) && path.spl
 export const landingSchema = z.object({
   link: z.array(z.string().min(1).refine(staysInWorktree, "a landing link must be relative to the worktree")).optional(),
   env: z.record(z.string(), z.string()).optional(),
+  tip: z.enum(["allowed", "never"]).optional(),
+  stop: z.array(z.string().min(1)).min(1).optional(),
 });
 
 export const stageSchema = z.object({

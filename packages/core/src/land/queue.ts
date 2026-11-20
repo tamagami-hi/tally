@@ -22,6 +22,7 @@ const turnSchema = z.object({
   base: z.string(),
   rebased: z.string(),
   commits: z.array(z.string()),
+  checked: z.array(z.string()).optional(),
   script: z.string(),
   result: z.string(),
 });
@@ -37,6 +38,7 @@ export const ticketSchema = z.object({
   target: z.object({ milestone: z.string().min(1), task: z.string().min(1) }).optional(),
   verified: z.string().optional(),
   deferred: z.array(deferredSchema).optional(),
+  check: z.enum(["each", "tip"]).optional(),
   state: z.enum(ticketStates),
   since: z.string(),
   attempts: z.number().int().nonnegative().default(0),
@@ -60,11 +62,13 @@ export interface JoinInput {
   target?: { milestone: string; task: string };
   verified?: string;
   deferred?: readonly Deferred[] | undefined;
+  check?: "each" | "tip" | undefined;
 }
 
 export interface TicketView {
   ticket: string;
   state: Ticket["state"];
+  check?: "tip";
   position: number | null;
   ahead: { track: string; agent: string; state: Ticket["state"]; since: string }[];
   run?: string;
@@ -115,6 +119,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
   }
   checkTrackPaths(track, input.files);
   if (input.verified !== undefined && input.files.some((name) => !isDocumentation(name, repo.config))) throw new TallyError("--verified-code is only for documentation/evidence on already checked code");
+  if (input.check === "tip" && repo.config.commands.landing?.tip === "never") throw new TallyError("this repository checks each commit alone (commands.landing.tip is never), so a landing cannot ask to check its tip only");
   const deferred = input.deferred ?? [];
   if (deferred.length > 0 && input.target === undefined) throw new TallyError("deferred parts are recorded on a task: give the landing its milestone and task");
   assertDeferred(deferred);
@@ -132,6 +137,7 @@ export async function joinQueue(repo: Repo, session: Session, input: JoinInput, 
     ...(input.target === undefined ? {} : { target: input.target }),
     ...(input.verified === undefined ? {} : { verified: input.verified }),
     ...(deferred.length === 0 ? {} : { deferred: deferred.map(copyPart) }),
+    ...(input.check === "tip" ? { check: "tip" as const } : {}),
     state: "queued",
     since: now.toISOString(),
     attempts: 0,
@@ -175,6 +181,7 @@ export async function ticketView(repo: Repo, id: string): Promise<TicketView> {
   return {
     ticket: ticket.id,
     state: ticket.state,
+    ...(ticket.check === "tip" ? { check: "tip" as const } : {}),
     position: index === -1 ? null : index,
     ahead: index === -1 ? [] : active.slice(0, index).map((one) => ({ track: one.track, agent: one.agent, state: one.state, since: one.turn?.startedAt ?? one.since })),
     ...(ticket.state === "turn" && ticket.turn !== undefined ? { run: `sh ${ticket.turn.script}` } : {}),

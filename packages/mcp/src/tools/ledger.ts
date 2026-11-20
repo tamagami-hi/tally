@@ -73,7 +73,8 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
       const checkout = await checkoutState(repo);
       const line = checkoutLine(repo, checkout);
       const marked = await decisionsToMark(repo, ledger);
-      return ok({ ...check, recordsWaiting: await recordsWaiting(repo), checkout, ...(marked.length === 0 ? {} : { decisionsToMark: marked }) }, line === undefined ? text : `${text}\n${line}`);
+      const tipOnly = ledger.milestones.flatMap((one) => one.tasks).filter((one) => one.status === "landed" && one.checked === "tip").length;
+      return ok({ ...check, recordsWaiting: await recordsWaiting(repo), checkout, ...(marked.length === 0 ? {} : { decisionsToMark: marked }), ...(tipOnly === 0 ? {} : { tipOnly }) }, line === undefined ? text : `${text}\n${line}`);
     }),
   );
   server.registerTool(

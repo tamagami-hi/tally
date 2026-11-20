@@ -67,4 +67,11 @@ describe("the phases and tasks in Done", () => {
 
     expect(screen.getByText(/Nothing is finished yet\./)).toBeInTheDocument();
   });
+
+  test("mark a task whose landing checked its tip only", () => {
+    const phases = work.phases.map((phase) => ({ ...phase, rows: phase.rows.map((row) => ({ ...row, tasks: row.tasks.map((task) => (task.id === "1 csv" ? { ...task, checked: "tip" as const } : task)) })) }));
+    render(<DonePhases work={{ ...work, phases }} />);
+
+    expect(within(block("H")).getByText("tip only")).toHaveAttribute("title", "its landing checked the last commit alone, as it was asked to");
+  });
 });

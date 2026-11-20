@@ -230,7 +230,7 @@ What the morning's approval settled still stands unless §18 lists it: records a
 **What stays:**
 - Each repository's `docs/records/` on its main branch, with the schemas of §4. New fields are optional (rule 8).
 - `session_open({worktree, agent})`, the worktree binding and the scope rules.
-- The landing's promise: main only moves by fast-forward to commits whose checks passed, each commit checked alone, in a clean checkout.
+- The landing's promise: main only moves by fast-forward to commits whose checks passed, in a clean checkout, each commit checked alone with the checks its own files choose, unless the landing was asked to check its tip only, which its record says (section 25).
 
 **What changes:**
 - One container serves every repository. It is the only writer of records and state.

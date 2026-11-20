@@ -16,6 +16,7 @@ export interface LandingTarget {
   milestone: string;
   task: string;
   deferred?: readonly Deferred[] | undefined;
+  checked?: "tip" | undefined;
 }
 
 export interface RecordedTask {
@@ -79,11 +80,11 @@ export async function recordTask(repo: Repo, input: LandInput, session?: Session
 }
 
 export async function recordLanding(repo: Repo, landed: Landed, target: LandingTarget, session?: Session): Promise<LandingRecord> {
-  const { milestone, task, deferred } = target;
+  const { milestone, task, deferred, checked } = target;
   const { track, head, commits } = landed;
   if (commits.length === 0) return { recorded: false, message: `nothing new landed, so ${milestone} '${task}' is not recorded`, commit: null };
   try {
-    const { message, problem } = await recordTask(repo, { milestone, task, track, commit: head, also: commits.slice(0, -1), deferred }, session);
+    const { message, problem } = await recordTask(repo, { milestone, task, track, commit: head, also: commits.slice(0, -1), deferred, ...(checked === undefined ? {} : { checked }) }, session);
     return { recorded: true, message, commit: await commitRecords(repo, message), ...(problem === undefined ? {} : { problem }) };
   } catch (error: unknown) {
     return { recorded: false, message: `landed at ${head}, but recording ${milestone} '${task}' failed: ${messageOf(error)}; finish it with tally task land ${milestone} '${task}' ${head}`, commit: null };

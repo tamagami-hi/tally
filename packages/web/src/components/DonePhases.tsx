@@ -19,6 +19,7 @@ function Task({ task }: { task: DoneTask }) {
         <span className="chip chip-line">{task.track}</span>
         <span className="mono">{task.commit}</span>
         {task.also.length === 0 ? null : <span className="faint small">{`+${task.also.length} more`}</span>}
+        {task.checked === "tip" ? <span className="faint small" title="its landing checked the last commit alone, as it was asked to">tip only</span> : null}
         <When task={task} />
       </div>
       {task.deferred === undefined ? null : (

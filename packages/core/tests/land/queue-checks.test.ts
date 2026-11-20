@@ -19,7 +19,7 @@ async function checked(checks: Check[]): Promise<Queued & { repo: Repo }> {
 const logOf = (q: Queued, ticket: string): Promise<string> => readFile(join(q.root, ".temp/tally/logs/data", `land-${ticket}-1.log`), "utf8");
 
 describe("a landing in a repository that lists checks by path", () => {
-  test("runs, for each commit, the checks whose paths match what the landing changes, and not the rest", async () => {
+  test("runs, for each commit, the checks whose paths match what that commit changes, and not the rest", async () => {
     const q = await checked([
       { name: "core", command: noting("core"), paths: ["src"] },
       { name: "pages", command: noting("pages"), paths: ["web/**"] },
@@ -34,7 +34,7 @@ describe("a landing in a repository that lists checks by path", () => {
     await advance(q.repo);
 
     expect((await ticketView(q.repo, ticket.id)).state).toBe("landed");
-    expect(await q.runs()).toEqual(["core feat: one", "pages feat: one", "core feat: two", "pages feat: two"]);
+    expect(await q.runs()).toEqual(["core feat: one", "pages feat: two"]);
   });
 
   test("names each check in the log as it starts, under the commit it runs on", async () => {
@@ -69,7 +69,7 @@ describe("a landing in a repository that lists checks by path", () => {
     expect(await q.main()).toBe(before);
   });
 
-  test("fails the turn when no check covers what the landing changes, and names the files", async () => {
+  test("fails the turn when no check covers what a commit changes, and names it and its files", async () => {
     const q = await checked([{ name: "pages", command: noting("pages"), paths: ["web"] }]);
     await edit(q.tree, "src/a.rs");
     await edit(q.tree, "src/b.rs");
@@ -80,7 +80,7 @@ describe("a landing in a repository that lists checks by path", () => {
 
     const seen = await ticketView(q.repo, ticket.id);
     expect(seen.state).toBe("failed");
-    expect(seen.problem).toMatch(/^no check in commands\.checks covers what this landing changes: src\/a\.rs, src\/b\.rs; add a check whose paths match them, so that nothing lands unchecked; [0-9a-f]{7} is undone, and its files stay staged$/);
+    expect(seen.problem).toMatch(/^no check in commands\.checks covers what [0-9a-f]{7} \(feat\(data\): the task\) changes: src\/a\.rs, src\/b\.rs; add a check whose paths match them, however small, so that nothing lands unchecked; [0-9a-f]{7} is undone, and its files stay staged$/);
     expect(await q.main()).toBe(before);
     expect(await sh(q.tree, ["status", "--porcelain"])).toBe("A  src/a.rs\nA  src/b.rs");
   });

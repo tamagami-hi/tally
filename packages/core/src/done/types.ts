@@ -15,6 +15,7 @@ export interface DoneTask {
   at?: string;
   dated?: "recorded" | "commit";
   deferred?: DonePart[];
+  checked?: "tip";
 }
 
 export interface DoneMilestone {

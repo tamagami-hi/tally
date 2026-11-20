@@ -37,7 +37,7 @@ function latestFirst(a: DoneTask, b: DoneTask): number {
 }
 
 function doneTask(ledger: Milestones, task: Task, dates: CommitDates): DoneTask {
-  return { id: task.id, track: task.track, commit: task.commit ?? "", also: [...task.also], ...timeOf(task, dates), ...partsOf(ledger, task) };
+  return { id: task.id, track: task.track, commit: task.commit ?? "", also: [...task.also], ...timeOf(task, dates), ...partsOf(ledger, task), ...(task.checked === undefined ? {} : { checked: task.checked }) };
 }
 
 function doneMilestone(ledger: Milestones, row: MilestoneRow, dates: CommitDates): DoneMilestone {

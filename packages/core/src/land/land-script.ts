@@ -1,6 +1,6 @@
 import type { Track } from "../schema/config.ts";
 import type { Repo } from "../store/records.ts";
-import type { TurnCheck } from "./path-checks.ts";
+import type { CommitChecks, TurnCheck } from "./path-checks.ts";
 import { environmentLines, quoted, variable } from "./runner.ts";
 
 export interface LandScriptInput {
@@ -8,8 +8,7 @@ export interface LandScriptInput {
   track: Track;
   tree: string;
   checkout: string;
-  commits: readonly string[];
-  checks: readonly TurnCheck[];
+  plan: readonly CommitChecks[];
   resultDir: string;
   log: string;
   name: string;
@@ -37,7 +36,8 @@ function checkLines({ name, command }: TurnCheck): string[] {
 }
 
 export function landScript(input: LandScriptInput): string {
-  const { repo, track, tree, checkout, commits, checks, resultDir, log, name, owner } = input;
+  const { repo, track, tree, checkout, plan, resultDir, log, name, owner } = input;
+  const byCommit = plan.flatMap(({ commit, checks }) => [`    ${quoted(commit)})`, ...checks.flatMap(checkLines).map((line) => `    ${line}`), "      ;;"]);
   const links = (repo.config.commands.landing?.link ?? []).map((path) => `  [ "$one" -ne 0 ] || link ${quoted(path)} >> "$log" 2>&1 || one=1`);
   return [
     "#!/bin/sh",
@@ -69,13 +69,15 @@ export function landScript(input: LandScriptInput): string {
     '  ln -s "$tree/$1" "$checkout/$1"',
     "}",
     "code=0",
-    `for commit in ${commits.map(quoted).join(" ")}; do`,
+    `for commit in ${plan.map(({ commit }) => quoted(commit)).join(" ")}; do`,
     `  if ! owns; then echo "tally: this turn was replaced by a later one; its checks stop here" | tee -a "$log" >&2; kill "$beater" 2>/dev/null; exit ${REPLACED}; fi`,
     '  echo "== $(git -C "$checkout" log -1 --format=\'%h %s\' "$commit")" | tee -a "$log"',
     "  one=0",
     '  git -C "$checkout" checkout --quiet --detach --force "$commit" >> "$log" 2>&1 && git -C "$checkout" clean --quiet -fd >> "$log" 2>&1 || one=1',
     ...links,
-    ...checks.flatMap(checkLines),
+    '  case "$commit" in',
+    ...byCommit,
+    "  esac",
     '  echo "$commit $one" >> "$out/commits"',
     '  if [ "$one" -ne 0 ]; then code="$one"; break; fi',
     "done",

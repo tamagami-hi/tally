@@ -11,7 +11,7 @@ import { openLandingCheckout } from "./checkout.ts";
 import { undoCommit } from "./clean.ts";
 import { landScript } from "./land-script.ts";
 import { CHECKS_PASSED, checkCheckout, checkOnMain, filesChanged } from "./operator.ts";
-import { turnChecks } from "./path-checks.ts";
+import { turnPlan } from "./path-checks.ts";
 import { fingerprint, statePath, trackOf } from "./paths.ts";
 import { isActive, putTicket, queueFile, swapTicket, ticketView, type Ticket, type TicketView } from "./queue.ts";
 import { recordLanding } from "./record.ts";
@@ -115,18 +115,18 @@ async function prepare(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket> {
     await checkCheckout(repo, await filesChanged(root, `${base}..${top}`));
     if (ticket.verified !== undefined && commits.length > 0) return await landVerified(repo, ticket, made, checkout, top, commits, now);
     if (commits.length === 0) return ended(ticket, "landed", now, { committed: made, landed: { head: short(base), commits: [] }, note: "nothing new to land" });
-    const checks = await turnChecks(repo, track, checkout, `${base}..${top}`);
+    const plan = await turnPlan(repo, track, checkout, base, commits, ticket.check ?? "each");
     const attempts = ticket.attempts + 1;
     const name = `${ticket.id}-${attempts}`;
     const result = join(ticket.worktree, LANDING_DIR, name);
     const script = `${result}.sh`;
     await mkdir(dirname(script), { recursive: true });
-    await writeFile(`${script}.tmp`, landScript({ repo, track, tree: ticket.worktree, checkout, commits, checks, resultDir: result, log: join(root, LOGS, track.name, `land-${name}.log`), name, owner: ownerFile(ticket) }));
+    await writeFile(`${script}.tmp`, landScript({ repo, track, tree: ticket.worktree, checkout, plan, resultDir: result, log: join(root, LOGS, track.name, `land-${name}.log`), name, owner: ownerFile(ticket) }));
     await chmod(`${script}.tmp`, 0o755);
     await rename(`${script}.tmp`, script);
     await writeFile(`${ownerFile(ticket)}.tmp`, `${name}\n`);
     await rename(`${ownerFile(ticket)}.tmp`, ownerFile(ticket));
-    return { ...ticket, state: "turn", attempts, committed: made, turn: { name, startedAt: now.toISOString(), base, rebased: top, commits, script, result } };
+    return { ...ticket, state: "turn", attempts, committed: made, turn: { name, startedAt: now.toISOString(), base, rebased: top, commits, ...(ticket.check === "tip" ? { checked: plan.map((one) => one.commit) } : {}), script, result } };
   } catch (error: unknown) {
     return failed(ticket, made, now, messageOf(error));
   }
@@ -187,7 +187,7 @@ async function settle(repo: Repo, ticket: Ticket, now: Date): Promise<Ticket | u
   try {
     const bad = result.commits.find((commit) => commit.exit !== 0);
     if (bad !== undefined || result.exit !== 0) throw new TallyError(`${short(bad?.sha ?? turn.rebased)} failed its checks (exit ${bad?.exit ?? result.exit}); the log is ${result.log}`);
-    if (result.commits.map((commit) => commit.sha).join() !== turn.commits.join()) throw new TallyError("the result is not for the commits being landed");
+    if (result.commits.map((commit) => commit.sha).join() !== (turn.checked ?? turn.commits).join()) throw new TallyError("the result is not for the commits being landed");
     if ((await gitMust(repo.root, ["rev-parse", repo.config.mainBranch])) !== turn.base) {
       const { turn: _turn, ...waiting } = ticket;
       const again = await prepare(repo, { ...waiting, state: "queued" }, now);
@@ -220,7 +220,7 @@ async function recorded(repo: Repo, ticket: Ticket): Promise<void> {
   if (landed === undefined || landed.commits.length === 0) return;
   if (target !== undefined) {
     const session = (await listSessions(repo)).find((open) => open.id === ticket.sessionId);
-    const recording = await recordLanding(repo, { track: ticket.track, head: landed.head, commits: landed.commits }, { ...target, deferred }, session);
+    const recording = await recordLanding(repo, { track: ticket.track, head: landed.head, commits: landed.commits }, { ...target, deferred, ...(ticket.check === "tip" ? { checked: "tip" as const } : {}) }, session);
     await putTicket(repo, { ...ticket, landed: { ...landed, recording: recording.problem === undefined ? recording.message : `${recording.message}; ${recording.problem}` } });
   }
   await flushWhenFree(repo);
