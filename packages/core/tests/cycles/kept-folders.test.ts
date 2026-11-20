@@ -107,3 +107,37 @@ describe("the kept folder in the answers", () => {
     expect((await cycleOne(repo, 1)).kept).toBe(join(".temp/closed", "cycle-1"));
   });
 });
+
+describe("a recorded kept folder that is not a closed lane's", () => {
+  test("is left where it is and named as not moved; only a direct child of .temp/closed/ that is no cycle's folder moves", async () => {
+    const made = await cycling();
+    await noted(made, "docs");
+    await byHand(made, "cycle-3");
+    await mkdir(join(made.root, "src"), { recursive: true });
+    await closeOpened(made.repo, "eng", { by: BY, now: AT, why: "done", commit: false });
+    const odd = ["src", "../outside", "/etc", ".temp/closed/docs/../../../src", ".temp/closed/cycle-3", ".temp/closed/eng/deeper"];
+    await changeTracks(made.repo.recordsDir, async (file) => ({ file: { ...file, tracks: file.tracks.map((track) => (track.name === "eng" ? { ...track, keptFolders: odd } : track)) }, result: undefined }));
+
+    const closed = await closeCycle(await reopenRepo(made.repo), made.operator, { summary: "the reader is built", said: "close it" }, AT);
+
+    expect(closed.keptMoved).toEqual([join(".temp/closed/cycle-1", "docs")]);
+    expect(closed.keptNotMoved).toEqual([...odd].sort());
+    expect(await listed(closedDir(made))).toEqual(["cycle-1", "cycle-3"]);
+    expect(await listed(join(made.root, "src"))).toEqual([]);
+  });
+});
+
+describe("a kept folder's move read back from closing.json", () => {
+  test("moves nothing that is not a closed lane's folder into a cycle's folder", async () => {
+    const made = await cycling();
+    await mkdir(join(made.root, "src"), { recursive: true });
+    await writeFile(join(made.root, "src", "keep.txt"), "keep\n");
+    await byHand(made, "x");
+    const { moveKept } = await import("../../src/cycles/kept.ts");
+
+    for (const move of [{ from: "src", to: ".temp/closed/cycle-1/src" }, { from: ".temp/closed/x", to: "src/x" }, { from: ".temp/closed/x", to: ".temp/closed/cycle-1/y" }]) await moveKept(made.repo, move);
+
+    expect(await listed(join(made.root, "src"))).toEqual(["keep.txt"]);
+    expect(await listed(closedDir(made))).toEqual(["x"]);
+  });
+});

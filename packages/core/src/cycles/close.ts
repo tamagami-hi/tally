@@ -32,6 +32,7 @@ export interface CycleClosed {
   carried: { milestones: string[]; tracks: string[]; notes: number; parked: Parked[]; unbuilt: string[]; openQuestions: string[] };
   tracksClosed: string[];
   keptMoved?: string[];
+  keptNotMoved?: string[];
   commit: string | null;
   next: number;
 }
@@ -144,7 +145,8 @@ async function carried(repo: Repo, closing: Closing, read: Read): Promise<CycleC
   await carryOut(repo, plan);
   await rm(closingPath(repo.recordsDir, plan.n), { force: true });
   const moved = await movedKept(repo, plan);
-  return moved.length === 0 ? answer : { ...answer, keptMoved: moved };
+  const skipped = plan.keptSkipped ?? [];
+  return { ...answer, ...(moved.length === 0 ? {} : { keptMoved: moved }), ...(skipped.length === 0 ? {} : { keptNotMoved: skipped }) };
 }
 
 async function movedKept(repo: Repo, plan: ClosePlan): Promise<string[]> {

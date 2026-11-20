@@ -34,6 +34,7 @@ export const planSchema = z.object({
   note: z.string().min(1),
   moves: z.array(moveSchema),
   kept: z.array(moveSchema).optional(),
+  keptSkipped: z.array(z.string()).optional(),
 });
 
 export type Move = Exact<z.infer<typeof moveSchema>>;
@@ -107,5 +108,5 @@ export async function planClose(repo: Repo, ledger: Ledger, context: PlanContext
   const record: CycleRecord = { n, ...(input.name === undefined ? {} : { name: input.name }), from: ledger.baseline, to: tip, closedAt: now.toISOString(), closedBy: by, said: input.said, ...(input.decision === undefined ? {} : { decision: input.decision }), summary: input.summary };
   const phases = await phasePlan(repo, ledger, new Set(milestones));
   const kept = await keptMovesOf(repo, n, tracks);
-  return { schema: 1, n, record, milestones, tracks: [...tracks], phases, notes: await archivedNotes(repo, new Set(tracks)), note: closeText(n, by.agent, input.summary), moves: [...moves], ...(kept.length === 0 ? {} : { kept }) };
+  return { schema: 1, n, record, milestones, tracks: [...tracks], phases, notes: await archivedNotes(repo, new Set(tracks)), note: closeText(n, by.agent, input.summary), moves: [...moves], ...(kept.moves.length === 0 ? {} : { kept: kept.moves }), ...(kept.skipped.length === 0 ? {} : { keptSkipped: kept.skipped }) };
 }
