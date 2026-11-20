@@ -8,8 +8,8 @@ export const SHARED_TEXT = {
 
 const COMMON: Readonly<Record<string, string>> = {
   ...SHARED_TEXT,
-  milestone: "a milestone's id, such as B2",
-  task: "a task's id, as planned",
+  milestone: "such as B2",
+  task: "its id, as planned",
   track: "a track's name, as track_list shows it",
   group: "its documents group, a folder under docs/",
   note: "a line kept with the record",
