@@ -62,7 +62,7 @@ describe("decisions to mark", () => {
 
     const marked = await decisionsToMark(repo);
 
-    expect(marked).toEqual([{ id: "DEC-1", group: "core", state: "decided, not built", tasks: ["A1:1 read"] }]);
+    expect(marked).toEqual({ toMark: [{ id: "DEC-1", group: "core", state: "decided, not built", tasks: ["A1:1 read"] }], problems: [] });
     expect(landed).toHaveLength(7);
   });
 });

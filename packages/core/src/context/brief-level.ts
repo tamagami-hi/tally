@@ -61,6 +61,7 @@ export interface FullBrief {
   decisions?: Confirming;
   decisionsToMark?: ToMark[];
   oldestQuestion?: OldestQuestion;
+  problems?: string[];
   cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff: HandoffNote | null };
   entries: { id: string; kind: EntryKind; title: string }[];
@@ -81,6 +82,7 @@ export interface Brief {
   decisions?: Confirming;
   decisionsToMark?: ToMark[];
   oldestQuestion?: OldestQuestion;
+  problems?: string[];
   cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff?: HandoffNote | null };
   entries?: { id: string; kind: EntryKind; title: string }[];

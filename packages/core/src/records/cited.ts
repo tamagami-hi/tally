@@ -107,22 +107,38 @@ export async function assertCited(repo: Repo, ids: readonly string[]): Promise<v
   throw new TallyError(`no record has the id ${namedList(unknown)}; a task cites a decision, a context entry, a question, a note or a review by its id${unread}`);
 }
 
-export async function closedLedgers(repo: Repo): Promise<Ledger[]> {
-  const problems: string[] = [];
-  const ledgers = await Promise.all((await closedCycles(repo, problems)).map(async (n) => {
-    const path = join(cycleDir(repo.recordsDir, n), "ledger.json");
-    return (await isPresent(path)) ? [await readJson(path, ledgerSchema)] : [];
-  }));
-  return ledgers.flat();
+export interface ClosedLedgers {
+  ledgers: Ledger[];
+  problems: string[];
 }
 
-export async function decisionsToMark(repo: Repo, current?: Ledger): Promise<ToMark[]> {
-  const unbuilt = (await readDecisions(repo)).decisions.filter((one) => UNBUILT_STATES.includes(one.state));
-  if (unbuilt.length === 0) return [];
-  const ledgers = [current ?? (await new Records(repo).readLedger()), ...(await closedLedgers(repo))];
+export async function closedLedgers(repo: Repo): Promise<ClosedLedgers> {
+  const problems: string[] = [];
+  const numbers = await closedCycles(repo, problems);
+  const read = await Promise.all(numbers.map(async (n) => {
+    const path = join(cycleDir(repo.recordsDir, n), "ledger.json");
+    return (await isPresent(path)) ? [await tolerated(readJson(path, ledgerSchema), undefined)] : [];
+  }));
+  const found = read.flat();
+  return { ledgers: found.flatMap((one) => (one.value === undefined ? [] : [one.value])), problems: [...problems, ...found.flatMap((one) => (one.problem === undefined ? [] : [one.problem]))] };
+}
+
+export interface Marking {
+  toMark: ToMark[];
+  problems: string[];
+}
+
+export async function decisionsToMark(repo: Repo, current?: Ledger): Promise<Marking> {
+  const decisions = await tolerated(readDecisions(repo), { schema: 1 as const, decisions: [], replaced: [] });
+  const decided = decisions.problem === undefined ? [] : [decisions.problem];
+  const unbuilt = decisions.value.decisions.filter((one) => UNBUILT_STATES.includes(one.state));
+  if (unbuilt.length === 0) return { toMark: [], problems: decided };
+  const closed = await closedLedgers(repo);
+  const ledgers = [current ?? (await new Records(repo).readLedger()), ...closed.ledgers];
   const citing = ledgers.flatMap((ledger) => ledger.milestones.flatMap((milestone) => milestone.tasks.map((task) => ({ ref: `${milestone.id}:${task.id}`, landed: task.status === "landed", cites: task.cites ?? [] }))));
-  return unbuilt.flatMap((decision): ToMark[] => {
+  const toMark = unbuilt.flatMap((decision): ToMark[] => {
     const tasks = citing.filter((task) => task.cites.includes(decision.id));
     return tasks.length > 0 && tasks.every((task) => task.landed) ? [{ id: decision.id, group: decision.group, state: decision.state, tasks: tasks.map((task) => task.ref) }] : [];
   });
+  return { toMark, problems: [...decided, ...closed.problems] };
 }

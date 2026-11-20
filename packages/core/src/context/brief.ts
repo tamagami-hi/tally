@@ -17,10 +17,11 @@ import { atLevel, type BriefCycle, landing, rulebookOf, type Brief, type BriefLe
 import { readCycles } from "../cycles/file.ts";
 import { isComplete } from "../cycles/list.ts";
 import { askOf } from "../cycles/state.ts";
-import { decisionsToMark, type ToMark } from "../records/cited.ts";
+import { decisionsToMark } from "../records/cited.ts";
 import { oldestQuestion, type OldestQuestion } from "../records/oldest-question.ts";
 import { confirmingOf } from "../records/decision-record.ts";
-import { readDecisions } from "../records/decisions.ts";
+import { readDecisions, type DecisionsFile } from "../records/decisions.ts";
+import { tolerated } from "../store/json.ts";
 
 type Told = Task & { brief?: unknown; paths?: unknown };
 
@@ -80,15 +81,22 @@ async function briefCycle(repo: Repo, session: Session, ledger: Ledger): Promise
   return { n, complete, ...(complete ? { ask: askOf(n) } : {}) };
 }
 
-async function marking(repo: Repo): Promise<{ decisionsToMark?: ToMark[] }> {
+async function operatorParts(repo: Repo): Promise<Pick<FullBrief, "recordsWaiting" | "checkout" | "decisions" | "decisionsToMark" | "oldestQuestion" | "problems">> {
+  const decisions = await tolerated(readDecisions(repo), NO_DECISIONS);
   const marked = await decisionsToMark(repo);
-  return marked.length === 0 ? {} : { decisionsToMark: marked };
+  const problems = [...(decisions.problem === undefined ? [] : [decisions.problem]), ...marked.problems.filter((problem) => problem !== decisions.problem)];
+  return {
+    recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo), decisions: confirmingOf(decisions.value),
+    ...(marked.toMark.length === 0 ? {} : { decisionsToMark: marked.toMark }), ...(await nudging(repo)), ...(problems.length === 0 ? {} : { problems }),
+  };
 }
 
 async function nudging(repo: Repo): Promise<{ oldestQuestion?: OldestQuestion }> {
   const oldest = await oldestQuestion(repo);
   return oldest === undefined ? {} : { oldestQuestion: oldest };
 }
+
+const NO_DECISIONS: DecisionsFile = { schema: 1, decisions: [], replaced: [] };
 
 export type { Brief, BriefCycle, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
 
@@ -98,7 +106,7 @@ export async function sessionBrief(repo: Repo, session: Session, level: BriefLev
   const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);
   const rules = inForce.filter((entry) => entry.kind === RULE);
-  const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo), decisions: confirmingOf(await readDecisions(repo)), ...(await marking(repo)), ...(await nudging(repo)) } : {};
+  const operator = isOperator(repo, session) ? await operatorParts(repo) : {};
   const ledger = await new Records(repo).readLedger();
   const tasks = unlandedTasks(ledger, session.track, claims);
   const cycle = await briefCycle(repo, session, ledger);

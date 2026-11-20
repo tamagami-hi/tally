@@ -2,7 +2,7 @@ import { access } from "node:fs/promises";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { TallyError, briefLevels, closedMessage, closedTrackAt, endSession, keepsContextAsRecords, listSessions, openScratch, openSession, sessionBrief, writeRunner } from "@tally/core";
-import type { CommandPlace } from "@tally/core";
+import type { BriefLevel, CommandPlace, Repo, Session } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 import { WHERE, finished, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -37,6 +37,24 @@ async function explainedClosed(source: RepoSource, worktree: string): Promise<st
   }
 }
 
+async function settled(repo: Repo, session: Session): Promise<{ runner: string; scratch: string }> {
+  try {
+    return { runner: await writeRunner(repo, session.worktree, session.track), scratch: await openScratch(session.worktree, session.track) };
+  } catch (error: unknown) {
+    await endSession(repo, session.id);
+    throw error;
+  }
+}
+
+async function briefOf(repo: Repo, session: Session, level: BriefLevel): Promise<{ brief: Awaited<ReturnType<typeof sessionBrief>> } | { briefProblem: string }> {
+  try {
+    return { brief: await sessionBrief(repo, session, level) };
+  } catch (error: unknown) {
+    if (!(error instanceof TallyError)) throw error;
+    return { briefProblem: `the session is open, but its brief could not be made: ${error.message}` };
+  }
+}
+
 export function registerSessionTools(server: ToolHost, source: RepoSource, place: CommandPlace = "service", role?: Role): void {
   server.registerTool(
     "session_open",
@@ -48,10 +66,9 @@ export function registerSessionTools(server: ToolHost, source: RepoSource, place
       const opened = await source.forWorktree(worktree);
       await finished(opened.repo);
       const session = await openSession(opened.repo, { worktree: opened.worktree, agent, ...(track === undefined ? {} : { track }) });
-      const runner = await writeRunner(opened.repo, session.worktree, session.track);
-      const brief = keepsContextAsRecords(opened.repo.config) ? { brief: await sessionBrief(opened.repo, session, level) } : {};
-      const scratch = await openScratch(session.worktree, session.track);
-      return ok({ ...session, repo: opened.repo.name, runner, scratch, ...brief, server: serverInfo(place) });
+      const ready = await settled(opened.repo, session);
+      const brief = keepsContextAsRecords(opened.repo.config) ? await briefOf(opened.repo, session, level) : {};
+      return ok({ ...session, repo: opened.repo.name, ...ready, ...brief, server: serverInfo(place) });
     })),
   );
   server.registerTool(

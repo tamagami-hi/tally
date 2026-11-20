@@ -56,7 +56,7 @@ function asked(releases: readonly Release[], version: string | undefined): Relea
 
 export async function listReleases(repo: Repo, ask: { version?: string | undefined; limit?: number | undefined }): Promise<ReleaseList> {
   const { releases } = await readReleases(repo);
-  const landed = landedIn([await new Records(repo).readLedger(), ...(await closedLedgers(repo))]);
+  const landed = landedIn([await new Records(repo).readLedger(), ...(await closedLedgers(repo)).ledgers]);
   const chosen = new Set(asked(releases, ask.version).slice(-(ask.limit ?? DEFAULT_RELEASES)).map((one) => one.version));
   const listed: ListedRelease[] = [];
   for (const [index, release] of releases.entries()) {
