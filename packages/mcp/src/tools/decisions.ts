@@ -21,7 +21,7 @@ export function registerDecisionTools(server: ToolHost, source: RepoSource): voi
   server.registerTool(
     "decision_status",
     {
-      description: "Set a decision's status and state (operator session), as tally decision setStatus does. A status that says withdrawn ends a dispute. `group` is needed only when the id is in more than one group.",
+      description: "Set a decision's status and state (operator session), as tally decision setStatus does. A status that says withdrawn ends a dispute.",
       inputSchema: { sessionId: z.string(), id: z.string().min(1), group: z.string().min(1).optional(), status: z.string().min(1), state: z.enum(DECISION_STATES).optional() },
     },
     ({ sessionId, id, group, status, state }) => inSession(source, sessionId, async (repo, session) => ok(await setStatusBySession(repo, session, { id, group, status, state }))),
@@ -29,7 +29,7 @@ export function registerDecisionTools(server: ToolHost, source: RepoSource): voi
   server.registerTool(
     "question_answer",
     {
-      description: "Answer an open question with a decision's id (operator session), as tally question answer does; `said` keeps the operator's words. Refused when the question is not open or no decision has that id.",
+      description: "Answer an open question with a decision's id (operator session), as tally question answer does. Refused when the question is not open or no decision has that id.",
       inputSchema: { sessionId: z.string(), id: QUESTION_ID, decision: z.string().min(1), said: said.optional() },
     },
     ({ sessionId, id, decision, said: words }) => inSession(source, sessionId, async (repo, session) => ok(await answerWithDecision(repo, session, { id, decision, said: words }))),

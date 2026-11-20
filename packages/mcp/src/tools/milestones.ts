@@ -10,7 +10,7 @@ export function registerMilestoneTools(server: ToolHost, source: RepoSource): vo
   server.registerTool(
     "milestone_edit",
     {
-      description: "Change a milestone (operator session): its `name`, its `waits` line (null clears it), or `drop` deliverables, each with why and an optional decision, so ledger_check no longer lists them. A deliverable a landed task covers cannot be dropped.",
+      description: "Change a milestone (operator session): its name, its waits line, or drop deliverables so that ledger_check no longer lists them. A deliverable a landed task covers cannot be dropped.",
       inputSchema: { sessionId: z.string(), milestone: z.string(), name: z.string().optional(), waits: z.string().nullable().optional(), drop: z.array(dropInput).min(1).optional() },
     },
     ({ sessionId, milestone, name, waits, drop }) => inSession(source, sessionId, async (repo, session) => {
