@@ -70,4 +70,14 @@ describe("tally usage", () => {
     expect(exit).toBe(0);
     expect(captured.lines.find((line) => line.startsWith("board_get "))).toMatch(/^board_get +7 +0 +0 +0 +1 +900$/);
   });
+
+  test("costs the list as this place lists it: where no command runs, land_run is not among the tools never called", async () => {
+    const { root } = await makeTracked();
+    const captured = io(root, { TALLY_HOME: await tmpDir("tally-home-"), TALLY_COMMANDS: "agent" });
+
+    await run(["usage", "--json"], captured);
+
+    expect((JSON.parse(captured.lines.join("\n")) as { never: { tools: string[] } }).never.tools).not.toContain("land_run");
+  });
 });
+

@@ -1,4 +1,4 @@
-import { TallyError, readUsage, usagePathOf } from "@tally/core";
+import { TallyError, commandsRunIn, readUsage, usagePathOf } from "@tally/core";
 import { listedEntries, usageRanking, type Ranked, type Ranking } from "@tally/mcp";
 import type { IO } from "../io.ts";
 
@@ -36,7 +36,7 @@ export async function usageCommand(args: readonly string[], io: IO, place: () =>
   const unknown = args.filter((arg) => arg !== "--json");
   if (unknown.length > 0) throw new TallyError(`tally usage takes only --json, not ${unknown.join(" ")}`, 2);
   const url = io.env["TALLY_URL"];
-  const ranking = url !== undefined && url !== "" ? await fromService(url) : usageRanking(await readUsage(usagePathOf(await place())), listedEntries("service"));
+  const ranking = url !== undefined && url !== "" ? await fromService(url) : usageRanking(await readUsage(usagePathOf(await place())), listedEntries(commandsRunIn(io.env)));
   if (asJson) io.out(JSON.stringify(ranking, null, 2));
   else printed(ranking, io);
   return 0;
