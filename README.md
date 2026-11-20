@@ -26,6 +26,8 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 
 **0.7.0** (2026-11-21, [DESIGN.md](DESIGN.md) §23): a repository's work runs in numbered cycles, closed on the operator's word (`cycle_close`) and read back with `cycle`; milestones and tracks can be edited (`milestone_edit`, `milestone_remove`, `track_edit`); the service watches every listed repository from its start and survives a bad file, a hung git or a lost lock; each repository has its own MCP address, `/r/<name>/mcp`; and tally counts the calls each tool receives (`tally usage`, `/api/usage`). The MCP server has 72 tools, 71 where the service runs no command, and `tools/list` stays under 77,000 characters.
 
+**0.8.0** (2026-11-21, [DESIGN.md](DESIGN.md) §24): an operator session records a decision or an answer over MCP with the operator's own words (`decision_record`, `decision_status`, `question_answer`), and the operator confirms it on the board; a decision says what makes it built and which paths it governs, and a task cites the records it is built to; a track session opens with its work order (`brief: "order"`), the cited records word for word; `covering` answers what covers a diff's files; and a builder and a reviewer each have their own MCP address with their own tools (`/mcp/builder`, `/mcp/reviewer`). The MCP server has 76 tools, 75 where the service runs no command; `tools/list` stays under 77,000 characters, the builder's under 30,000 and the reviewer's under 22,000.
+
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config
 docker compose up -d --build

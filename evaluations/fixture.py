@@ -5,7 +5,8 @@
 It makes a small git repository with fixed commit dates, starts tally's records in it, and fills
 them through the MCP tools: milestones, tasks, waits, landings, run records, questions, decisions,
 context entries, the rulebook (adopted, two rules tailored, one retired), two phases (the first closed), a hand-off,
-reviews (one left open), parked parts, an edited question and a question given its number. Run it again on a fresh
+reviews (one left open), parked parts, an edited question, a question given its number, a decision recorded on
+the operator's word and not yet confirmed, and a task that cites it. Run it again on a fresh
 folder and the answers are the same.
 """
 import json, os, subprocess, sys
@@ -125,8 +126,8 @@ ran("B1", "1 shell", "green", 40, 0, passed=12, failed=0)
 m.call("context_put", sessionId=op, kind="rule", title="Never block the scheduler's thread", text="A job that waits on disk or the network runs on the worker pool.", paths=["crates/engine"], section="working", source="the operator, 2026-03-01")
 m.call("rulebook_adopt", sessionId=op)
 m.call("rule_tailor", sessionId=op, id="rule-2", source="the operator, 2026-03-03")
-m.call("rule_tailor", sessionId=op, id="rule-12", source="the operator, 2026-03-03", text="Every test sits in its crate's tests folder and runs with cargo test --locked; write it first and see it fail.")
-m.call("context_retire", sessionId=op, id="rule-4", why="Lumen holds no credentials.")
+m.call("rule_tailor", sessionId=op, id="rule-14", source="the operator, 2026-03-03", text="Every test sits in its crate's tests folder and runs with cargo test --locked; write it first and see it fail.")
+m.call("context_retire", sessionId=op, id="rule-6", why="Lumen holds no credentials.")
 m.call("context_put", sessionId=op, kind="area", title="the store", text="The log, the snapshots and recovery. Entry point: crates/store/src/lib.rs.", paths=["crates/store"])
 m.call("context_put", sessionId=op, kind="area", title="the engine", text="The scheduler and its queue. Entry point: crates/engine/src/lib.rs.", paths=["crates/engine"])
 m.call("context_put", sessionId=data, kind="howto", title="run the store's tests", text="cargo test -p store --locked", paths=["crates/store"], tags=["tests"])
@@ -145,6 +146,8 @@ m.call("milestone_add", sessionId=op, id="X1a", stage="X1", name="csv export", t
 m.call("milestone_add", sessionId=op, id="X2a", stage="X2", name="csv import", track="data", weight=1)
 m.call("task_plan", sessionId=op, milestone="X1a", track="data", tasks=["1 write csv"])
 m.call("task_plan", sessionId=op, milestone="X2a", track="data", tasks=["1 read csv", "2 validate rows"])
+m.call("decision_record", sessionId=op, group="exports", text="A csv file is UTF-8 and starts with a header row.", said="yes, UTF-8 with a header row", accept=["the first row names the columns"], paths=["exports/**"])
+m.call("task_plan", sessionId=op, milestone="X2a", track="data", tasks=[{"id": "3 parse quotes", "cites": ["DEC-1"], "accept": ["a quoted comma stays in its field"]}])
 m.call("task_land", sessionId=op, milestone="X1a", task="1 write csv", commit=exports)
 m.call("phase_close", sessionId=op, phase="X1", summary="Csv export ships.")
 m.call("repo_configure", sessionId=op, config={"reviews": {"required": True, "from": "2026-03-01T00:00:00Z"}})

@@ -390,7 +390,7 @@ A deferred part is left to a task (`to`), or parked: `{ what, parked: { why, dec
 
 ### 10.14 Brief levels
 
-`session_open` takes `brief`: `full` (the default), `work` or `land`.
+`session_open` takes `brief`: `full` (the default), `work`, `land`, or `order`, a track session's work order (section 10.21). At a role's address (section 10.23) the default is `order`.
 
 | | `full` | `work` | `land` |
 | --- | --- | --- | --- |
@@ -443,3 +443,24 @@ A repository's work runs in numbered cycles; the current one is what `docs/recor
 
 tally counts the calls each tool receives, and nothing else: per tool, the calls, those refused, cut or refused by the schema, the days with a call, and the calls by scope and repository. No argument, answer or session id is kept, and nothing of it is in git. A `usage.json` that cannot be read never stops a server: it is set aside beside itself under a dated name and counting starts again. `tally usage` prints the ranking (`--json` for the data; with `TALLY_URL` it asks the service), `GET /api/usage` answers it, and the Overview page shows "Tools by use", with the tools never called and the characters they cost in every session's tool list.
 
+### 10.20 A decision on the operator's word
+
+- **Only an operator session records one,** with `decision_record`, and only when the operator said it: put their own words, quoted, in `said`. A decision you reached yourself is not one; as a track, ask with `question_add`.
+- The id is the next `DEC-<n>` unless you give one; an existing id needs `replaces: {why}`, and the old text is kept. `accept` lists what must be true for it to count as built, and `paths` the globs it governs.
+- It stays **unconfirmed** until the operator confirms it on the board (Confirm, or Not mine). `decision_list` with `unconfirmed: true` lists those waiting; an operator session's brief counts them and names the disputed. A disputed decision is a problem on the board until it is replaced or its status says withdrawn.
+- `decision_status` sets a status and state; `question_answer` answers an open question with a decision's id, and `said` keeps the operator's words.
+
+### 10.21 Tasks that cite records, and the work order
+
+- When you plan a task, `cites` names the records it is built to (decisions, context entries, questions, notes, reviews, by id) and `accept` says what done looks like. An id no record has is refused.
+- A track session that opens with `brief: "order"` gets its **work order**: its tasks, the cited records word for word (`cited`), the rules with the text of authority and safety rules and of any rule cited, the entries about its paths, and the sessions whose changed files overlap its own. A record that changed since says what changed; one too large to fit is named in `citedLeftOut`, with how to read it.
+- **A record wins over a brief that restates it.** Where they differ, say so to the main track before building: `note_post`, kind `request`, with `record` set to the record's id.
+- `ledger_check` and an operator's brief name `decisionsToMark`: decisions not yet built whose citing tasks have all landed. Setting their status is the coordinator's.
+
+### 10.22 What covers some files
+
+`covering` answers, for a diff (`range: "<base>..<head>"`) or for files and folders (`paths`), the decisions whose paths match, the context entries about them (rules first), and with `task` the records it cites. `unplaced` counts decisions that carry no paths, which no file can match, so an empty answer is not read as nothing applying.
+
+### 10.23 A builder's and a reviewer's address
+
+Register a building session at `/mcp/builder` and a reviewing one at `/mcp/reviewer` (or `/r/<name>/mcp/builder` and `/r/<name>/mcp/reviewer`): each lists only its role's tools, opens with the work order, and carries the role's protocol as the server's instructions. `repo_list` answers each role's tools and the names an allow-list takes; `GET /api/roles/<role>` answers the protocol and a sub-agent definition to save where your client reads them. The plain `/mcp` keeps every tool.

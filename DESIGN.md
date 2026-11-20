@@ -971,3 +971,65 @@ An unknown argument is refused by the tool's own strict schema with the tool's p
 - Counting a call to a tool the server does not have: the SDK refuses it before tally sees it.
 - Running the evaluation with a model: it spends a model's tokens, so it is the operator's to order.
 - A shorter hold on the ledger and tracks locks during a close. The close holds them across its git reads and the removal of the lanes it closes, so a write made meanwhile waits up to 30 seconds and is then refused with nothing changed, and a close with many lanes to remove can take that long. Accepted for now.
+
+## 24. The operator's word over MCP, links from decisions and tasks, the work order, covering, and role surfaces (0.8.0, built 2026-11-21)
+
+Built from section 5 of the same plan, the second of its three releases, with the planner's notes on it: each part that reads a file and writes it back does so under that file's lock, and its first failing tests are the interleaved and hostile ones.
+
+### 24.1 The decisions
+
+1. **An operator session records a decision over MCP with the operator's own words quoted** in `said`. It is unconfirmed until the operator confirms it on the board. This replaces section 12 row 8 and section 21.1 decision 3 for MCP; the command line keeps `--operator`, and what it writes needs no confirming.
+2. **A replacement through `decision_record` is a new claim of the operator's words:** it is unconfirmed again, and a dispute it follows is cleared.
+3. **The later of Confirm and Not mine wins** and clears the other; both are the operator's own.
+4. **A cited record a cycle's close archived is answered from that closed cycle,** with `cycle`, and never makes a brief fail; one that cannot be read is named as such.
+5. **`cited` is whole records, or it names what it left out.** Nothing is cut in the middle of a record.
+6. **A role's set is its registration:** a tool outside it is not registered at that address, so it can be neither called nor counted there.
+7. **The version is 0.8.0.**
+
+### 24.2 A decision or an answer, recorded with the operator's words (Part F)
+
+- **`decision_record({sessionId, group, text, said, id?, section?, status?, state?, replaces?, accept?, paths?})`**, an operator session's alone. `said` holds 1 to 2,000 characters. The next `DEC-<n>`, after the highest in the file, is taken under the decisions file's lock in the same read and write as the record, so two at once get two ids; where a group's ids are of another form, `id` is required. An existing id is refused unless `replaces: {why}` is given; the old text is then kept in `replaced`. The record gains `said` and `via: {session, track, agent}`; `by` stays `operator`; the status defaults to `in force`. It is logged as `decision_add` or `decision_replace` with the group and id, never the words or the text.
+- **`decision_status({sessionId, id, group?, status, state?})`**, an operator session's: `group` only where the id is in more than one. **`question_answer({sessionId, id, decision, said?})`**, an operator session's: the decision must exist; `said` is kept on the answered row.
+- **A track session is refused** by each of the three before anything is read, and a session that does not exist is refused by the session lookup.
+- **Confirming** (`core/src/records/decision-record.ts`): a decision with `via` and no `confirmed` is unconfirmed. `decision_list` marks it `unconfirmed: true` and takes the filter `unconfirmed`; an operator session's brief answers `decisions: {unconfirmed, disputed}`; the board lists "Decisions to confirm" with Confirm and Not mine (`confirmed: {at}`, `disputed: {at}`), through `POST /api/r/<name>/operator/decisions/<group>/<id>/confirm` and `.../dispute`, guarded as the operator's other routes are. The group and id are matched against the file, never used as a path. The board at `/` calls the same marks at `/api/operator/decisions/<group>/<id>/<mark>` for the default repository. A disputed decision is one of the repository's problems until it is replaced or its status says withdrawn; a withdrawn one leaves the list.
+- **Every writing route of a repository,** like the three tools, waits on a pending cycle close and is refused while it cannot be finished.
+
+### 24.3 Links on a decision and on a task (Part G)
+
+- A decision gains `accept` (at most 12 lines of 300 characters, what must be true for it to count as built) and `paths` (globs from the root). A replacement keeps them unless it gives its own.
+- A task gains `cites` (the ids of decisions, context entries, questions, notes and reviews it is built to) and `accept`. `task_plan` and `track_open`'s `plan` take both, and a cited id no record has is refused by name before anything is written. A record a closed cycle archived counts.
+- **`decisionsToMark`**: `ledger_check` and an operator session's brief name each decision `decided, not built` or `partly built` that a task cites and whose citing tasks, in the current ledger and the closed cycles', have all landed. Only when there is one, so their answers are otherwise as before. Tally sets no status.
+
+### 24.4 The work order (Part H)
+
+- `session_open` takes `brief: "order"`, a track session's (`core/src/context/order.ts`). An operator session that asks for it gets `work`, and the brief says `asked: "order"`.
+- **It answers** the track's unlanded tasks with `accept` and `cites`, its hand-off, `cited` (each record once, word for word: a decision's id, group, state, text and accept; an entry's kind, title and text; a question with its meanwhile and answer; a note's text; a review's verdict and summary), the rules in force with text only for `authority` and `safety` and for a cited rule, the entries about the track's paths that are not cited, `working` (the sessions on tracks whose changed files, uncommitted or ahead of main, overlap this track's) with `others` counted, `rulebook` and `cycle: {n}`.
+- **A record that changed** is answered as it now stands, with `changed` (replaced, done, retired); one a close archived carries `cycle`; one that cannot be read is `{id, missing}`.
+- **The cut** spares `brief.cited` and `brief.rules`. Before the answer is cut, the order fits `cited` and `rules` within 20,000 characters by leaving out whole records from the end; `citedLeftOut` names their ids and says how to read each.
+- **Two rules join the template's `authority` section**: a record wins over a brief that restates it, and the builder says so to the main track before building; a brief cites a record by its id and does not restate it. `note_post` takes `record`, kept as `about.record`, and the main track's inbox shows "request from <track> (<agent>) about <id>: …".
+
+### 24.5 What covers these files (Part J)
+
+`covering({paths?, range?, task?, limit?, sessionId?, repo?})`, a read (`core/src/context/covering.ts`). One of `range` (`<base>..<head>`) and `paths`; both, or neither, is refused. It answers `files` (at most 200) and `filesTotal`, the decisions whose paths match a file, the context entries in force by `context_get`'s rule (an entry with no paths applies everywhere), rules first, `cited` for `task`, and `unplaced`, the count of decisions in force with no paths. No argument reaches git as an option: each side of a range must not begin with a dash or hold a space, and is proved a commit with `rev-parse --verify --end-of-options <side>^{commit}`; git is then asked only with the two full hashes; paths are matched in the process and never passed to git.
+
+### 24.6 A builder's and a reviewer's surface (Part I)
+
+- `/mcp/builder` and `/mcp/reviewer`, and `/r/<name>/mcp/builder` and `/r/<name>/mcp/reviewer`, serve the sets in `mcp/src/roles.ts`: the builder's 24 tools and the reviewer's 15, as the plan lists them. The one-repository server serves the two role addresses too.
+- At a role's address `session_open`'s `brief` defaults to `order`, and the instructions are the role's protocol, in order, under 1,500 characters.
+- `repo_list` answers `roles`: each role's `address`, `tools` and `allowedTools`, named `mcp__tally__<tool>` as a client names them when it registers the server as `tally`. `GET /api/roles/<role>` answers the same with `protocol` and `agentFile`, a sub-agent definition as text; an unknown role is 404 naming the roles. Tally writes no file.
+- A call is counted with `via`: `whole`, `builder` or `reviewer`.
+
+### 24.7 The surface
+
+- **MCP tools:** 76 (75 where the service runs no command). New: `decision_record`, `decision_status`, `question_answer`, `covering`.
+- **Parameters added:** `brief: "order"`; `cites` and `accept` on a planned task; `accept` and `paths` on `decision_record`; `record` on `note_post`; `unconfirmed` on `decision_list`.
+- **Answers that gain a field:** `repo_list` (`roles`), an operator's brief (`decisions`, `decisionsToMark`), `ledger_check` (`decisionsToMark`), the board (`toConfirm`).
+- **Stored:** a decision's `said`, `via`, `confirmed`, `disputed`, `accept`, `paths`; a task's `cites` and `accept`; an answered question's `said`; a note's `about.record`; two rules in the template. Each has a loose schema for parsing and an exact exported type in the guard.
+- **HTTP:** `/mcp/builder`, `/mcp/reviewer`, `/r/<name>/mcp/builder`, `/r/<name>/mcp/reviewer`, `/api/roles/<role>`, and the two marks under `/api/r/<name>/operator/decisions/` and `/api/operator/decisions/`.
+- **`tools/list`:** 76,249 characters (74,916 with 75 tools where no command runs); the builder's 24,450 and the reviewer's 18,438. A listed input leaves out `additionalProperties: false` (the planner's T.5); the server still refuses an argument a tool does not take, naming those it takes.
+
+### 24.8 Left out
+
+- Asking the operator through the client's own dialog (the plan's section 11).
+- Command-line verbs for the new tools: the command line keeps what it has, and its decisions need no confirming.
+- Strict planned tasks: an unknown key inside a planned task is still dropped, as before.
