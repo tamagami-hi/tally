@@ -34,4 +34,18 @@ describe("a file that does not parse", () => {
     expect(opened.structured["briefProblem"]).toEqual(expect.stringContaining("ledger.json"));
     expect(sessions.map((one) => one.id)).toContain(opened.structured["id"]);
   });
+
+  test("answers briefProblem as well for a brief that fails with an error that is not tally's own, and the session stays known", async () => {
+    const { repo, root, call } = await serving();
+    const { mkdir, rm } = await import("node:fs/promises");
+    await rm(join(repo.recordsDir, "context", "project.json"), { force: true });
+    await mkdir(join(repo.recordsDir, "context", "project.json"), { recursive: true });
+
+    const opened = await call("session_open", { worktree: root, agent: "operator-three", brief: "work" });
+    const sessions = (await call("session_list", {})).structured["sessions"] as { id: string }[];
+
+    expect(opened.isError, opened.text).toBe(false);
+    expect(opened.structured["briefProblem"]).toEqual(expect.stringContaining("the session is open, but its brief could not be made"));
+    expect(sessions.map((one) => one.id)).toContain(opened.structured["id"]);
+  });
 });

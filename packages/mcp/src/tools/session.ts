@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises";
 import { dirname } from "node:path";
 import { z } from "zod";
-import { TallyError, briefLevels, closedMessage, closedTrackAt, endSession, keepsContextAsRecords, listSessions, openScratch, openSession, sessionBrief, writeRunner } from "@tally/core";
+import { TallyError, briefLevels, messageOf, closedMessage, closedTrackAt, endSession, keepsContextAsRecords, listSessions, openScratch, openSession, sessionBrief, writeRunner } from "@tally/core";
 import type { BriefLevel, CommandPlace, Repo, Session } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 import { WHERE, finished, inSession, reading, type RepoSource } from "../source.ts";
@@ -50,8 +50,7 @@ async function briefOf(repo: Repo, session: Session, level: BriefLevel): Promise
   try {
     return { brief: await sessionBrief(repo, session, level) };
   } catch (error: unknown) {
-    if (!(error instanceof TallyError)) throw error;
-    return { briefProblem: `the session is open, but its brief could not be made: ${error.message}` };
+    return { briefProblem: `the session is open, but its brief could not be made: ${messageOf(error)}` };
   }
 }
 
