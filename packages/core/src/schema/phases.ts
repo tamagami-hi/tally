@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const PHASES_FILE = "phases.json";
 
-export const phaseSchema = z.object({
+export const phaseSchema = z.looseObject({
   id: z.string().min(1),
   name: z.string().min(1).optional(),
   weight: z.number().int().positive().optional(),
@@ -16,7 +16,7 @@ export const phaseSchema = z.object({
   commit: z.string().optional(),
 });
 
-export const phasesFileSchema = z.object({
+export const phasesFileSchema = z.looseObject({
   schema: z.literal(1),
   phases: z.array(phaseSchema).default([]),
 });

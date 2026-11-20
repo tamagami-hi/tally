@@ -2,32 +2,34 @@ import { z } from "zod";
 
 export const taskStatuses = ["planned", "claimed", "landed"] as const;
 
-export const deliverableSchema = z.object({
+export const deliverableSchema = z.looseObject({
   id: z.string().min(1),
   what: z.string().min(1),
   paths: z.array(z.string().min(1)).optional(),
 });
 
-export const waitOnSchema = z.object({
+export const deliverableInputSchema = z.object(deliverableSchema.shape);
+
+export const waitOnSchema = z.looseObject({
   task: z.string().min(1).optional(),
   note: z.string().min(1).optional(),
   what: z.string(),
 });
 
-export const parkedSchema = z.object({
+export const parkedSchema = z.looseObject({
   why: z.string().min(1),
   decision: z.string().min(1).optional(),
   owner: z.string().min(1).optional(),
 });
 
-export const deferredSchema = z.object({
+export const deferredSchema = z.looseObject({
   what: z.string().min(1),
   to: z.string().min(1).optional(),
   parked: parkedSchema.optional(),
 });
 
 export const taskSchema = z
-  .object({
+  .looseObject({
     id: z.string().min(1),
     track: z.string().min(1),
     status: z.enum(taskStatuses),
@@ -52,7 +54,7 @@ export const taskSchema = z
     }
   });
 
-export const milestoneSchema = z.object({
+export const milestoneSchema = z.looseObject({
   id: z.string().min(1),
   stage: z.string().min(1),
   group: z.string().optional(),
@@ -65,9 +67,9 @@ export const milestoneSchema = z.object({
   tasks: z.array(taskSchema).default([]),
 });
 
-export const otherCommitSchema = z.object({ commit: z.string().min(7), note: z.string() });
+export const otherCommitSchema = z.looseObject({ commit: z.string().min(7), note: z.string() });
 
-export const ledgerSchema = z.object({
+export const ledgerSchema = z.looseObject({
   schema: z.literal(1),
   baseline: z.string().min(7),
   milestones: z.array(milestoneSchema).default([]),

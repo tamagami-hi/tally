@@ -16,7 +16,7 @@ import { summarize } from "./totals.ts";
 
 export const evidenceKinds = ["red", "green", "clippy", "fmt", "sweep", "coverage", "land", "evidence", "other"] as const;
 
-export const runRecordSchema = z.object({
+export const runRecordSchema = z.looseObject({
   id: z.string().min(1),
   task: z.string().min(1),
   track: z.string().min(1),
@@ -34,7 +34,7 @@ export const runRecordSchema = z.object({
   dirty: z.boolean().optional(),
 });
 
-export const evidenceFileSchema = z.object({
+export const evidenceFileSchema = z.looseObject({
   schema: z.literal(1),
   milestone: z.string().min(1),
   records: z.array(runRecordSchema).default([]),

@@ -10,7 +10,7 @@ import { parseTables, renderRow } from "./markdown.ts";
 
 export const DECISION_STATES = ["in force", "built", "partly built", "decided, not built", "other"] as const;
 
-export const decisionSchema = z.object({
+export const decisionSchema = z.looseObject({
   id: z.string().min(1),
   group: z.string().min(1),
   section: z.string().optional(),
@@ -22,7 +22,7 @@ export const decisionSchema = z.object({
   on: z.string().optional(),
 });
 
-export const replacedSchema = z.object({
+export const replacedSchema = z.looseObject({
   id: z.string().min(1),
   group: z.string().min(1),
   was: z.string(),
@@ -30,7 +30,7 @@ export const replacedSchema = z.object({
   why: z.string(),
 });
 
-export const decisionsFileSchema = z.object({
+export const decisionsFileSchema = z.looseObject({
   schema: z.literal(1),
   decisions: z.array(decisionSchema).default([]),
   replaced: z.array(replacedSchema).default([]),
@@ -95,6 +95,7 @@ export async function importDecisions(repo: Repo, file: string, group: string): 
   await withLock(path, async () => {
     const current = await readDecisions(repo);
     const next: DecisionsFile = {
+      ...current,
       schema: 1,
       decisions: [...current.decisions.filter((d) => d.group !== group), ...parsed.decisions],
       replaced: [...current.replaced.filter((r) => r.group !== group), ...parsed.replaced],

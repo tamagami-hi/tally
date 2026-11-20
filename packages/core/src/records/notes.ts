@@ -12,19 +12,19 @@ export const MAX_NOTE = 600;
 
 const writerSchema = z.object({ track: z.string().min(1), agent: z.string().min(1) });
 
-export const noteSchema = z.object({
+export const noteSchema = z.looseObject({
   id: z.string().min(1),
   from: writerSchema,
   to: z.union([z.literal("all"), z.array(z.string().min(1)).min(1)]),
   kind: z.enum(noteKinds),
   text: z.string().min(1).max(MAX_NOTE),
-  about: z.object({ paths: z.array(z.string()).optional(), task: z.string().optional() }).optional(),
+  about: z.looseObject({ paths: z.array(z.string()).optional(), task: z.string().optional() }).optional(),
   at: z.string(),
-  replies: z.array(z.object({ from: writerSchema, text: z.string().min(1).max(MAX_NOTE), at: z.string() })).default([]),
+  replies: z.array(z.looseObject({ from: writerSchema, text: z.string().min(1).max(MAX_NOTE), at: z.string() })).default([]),
   doneAt: z.string().optional(),
 });
 
-const notesFileSchema = z.object({ schema: z.literal(1), nextNumber: z.number().int().positive(), notes: z.array(noteSchema) });
+const notesFileSchema = z.looseObject({ schema: z.literal(1), nextNumber: z.number().int().positive(), notes: z.array(noteSchema) });
 
 export type Note = z.infer<typeof noteSchema>;
 type NotesFile = z.infer<typeof notesFileSchema>;

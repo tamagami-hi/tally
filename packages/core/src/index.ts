@@ -3,7 +3,7 @@ export { CONTEXT_AS_RECORDS, checkSchema, configSchema, keepsContextAsRecords, s
 export type { Check, Config, Stage, Track } from "./schema/config.ts";
 export { DEFAULT_WORKTREE_ROOT, TRACKS_FILE, TRACK_BRANCH_PREFIX, openedTrackSchema, tracksFileSchema } from "./schema/tracks.ts";
 export type { OpenedTrack, TracksFile } from "./schema/tracks.ts";
-export { deferredSchema, parkedSchema, deliverableSchema, ledgerSchema, milestoneSchema, taskSchema, taskStatuses, waitOnSchema } from "./schema/ledger.ts";
+export { deferredSchema, parkedSchema, deliverableInputSchema, deliverableSchema, ledgerSchema, milestoneSchema, taskSchema, taskStatuses, waitOnSchema } from "./schema/ledger.ts";
 export type { Deferred, Deliverable, Ledger, Milestone, OtherCommit, Task, TaskStatus, WaitOn } from "./schema/ledger.ts";
 export { addTask, findMilestone, findTask, isClose, isOwnedBy, keepCloseLast, knownCommits, replaceMilestone } from "./ledger/items.ts";
 export { addMilestone, deliver, land, other, plan, unwait, wait } from "./ledger/ops.ts";

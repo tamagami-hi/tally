@@ -5,6 +5,7 @@ import { waitsOf } from "../ledger/waits.ts";
 import type { Needing } from "../ledger/review-gaps.ts";
 import type { Stage } from "../schema/config.ts";
 import type { Ledger, Milestone, Task } from "../schema/ledger.ts";
+import type { Known } from "../schema/kept.ts";
 
 export { ownersOf } from "../ledger/items.ts";
 
@@ -61,7 +62,7 @@ function owedNotes(ledger: Milestones, milestone: Pick<Milestone, "delivers" | "
   return [...partly, ...(owed.length === 0 ? [] : [`no task covers ${owed.map((one) => one.id).join(", ")}`])];
 }
 
-type Counted = Omit<MilestoneRow, "finished">;
+type Counted = Omit<Known<MilestoneRow>, "finished">;
 
 function owingMilestones(ledger: Ledger, needing: readonly Needing[]): ReadonlySet<string> {
   return new Set([...findGaps(ledger).map((gap) => gap.milestone), ...needing.map((one) => one.milestone)]);

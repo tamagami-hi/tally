@@ -6,6 +6,7 @@ import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 import { askedLimit, askedSince } from "./asked.ts";
+import type { Known } from "../schema/kept.ts";
 
 export const ACTIVITY_DIR = "log";
 export const CLI_SESSION = "cli";
@@ -14,7 +15,7 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.json$/;
 const DAY_LENGTH = 10;
 
-export const activityEventSchema = z.object({
+export const activityEventSchema = z.looseObject({
   at: z.string(),
   session: z.string().min(1),
   track: z.string().min(1),
@@ -23,7 +24,7 @@ export const activityEventSchema = z.object({
   target: z.string().optional(),
 });
 
-export const activityFileSchema = z.object({
+export const activityFileSchema = z.looseObject({
   schema: z.literal(1),
   date: z.string().regex(DAY),
   events: z.array(activityEventSchema).default([]),
@@ -31,7 +32,7 @@ export const activityFileSchema = z.object({
 
 export type ActivityEvent = z.infer<typeof activityEventSchema>;
 export type ActivityFile = z.infer<typeof activityFileSchema>;
-export type ActivityInput = Omit<ActivityEvent, "at">;
+export type ActivityInput = Omit<Known<ActivityEvent>, "at">;
 
 export interface ActivityFilter {
   since?: string;

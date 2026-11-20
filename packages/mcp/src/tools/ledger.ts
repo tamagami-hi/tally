@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  addMilestone, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  addMilestone, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, plannedOnMainNotice, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
@@ -69,7 +69,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "milestone_add",
-    { description: "Add an empty milestone to a stage (operator scope). `delivers` lists what it owes, each with an id; ledger_check reports a deliverable no task covers.", inputSchema: { sessionId: z.string(), id: z.string(), stage: z.string(), name: z.string(), track: z.string(), weight: z.number().int().positive(), waits: z.string().optional(), group: z.string().optional(), delivers: z.array(deliverableSchema).optional() } },
+    { description: "Add an empty milestone to a stage (operator scope). `delivers` lists what it owes, each with an id; ledger_check reports a deliverable no task covers.", inputSchema: { sessionId: z.string(), id: z.string(), stage: z.string(), name: z.string(), track: z.string(), weight: z.number().int().positive(), waits: z.string().optional(), group: z.string().optional(), delivers: z.array(deliverableInputSchema).optional() } },
     ({ sessionId, waits, group, delivers, ...input }) => inSession(source, sessionId, async (repo, session) => {
       const records = new Records(repo);
       if (!isOperator(repo, session)) throw new TallyError("only an operator session adds milestones");
@@ -81,7 +81,7 @@ export function registerLedgerTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "milestone_deliver",
-    { description: "Add deliverables to a milestone that exists (operator scope): what it owes, each with an id that tasks name in `covers`. An id the milestone already has is refused.", inputSchema: { sessionId: z.string(), milestone: z.string(), delivers: z.array(deliverableSchema).min(1) } },
+    { description: "Add deliverables to a milestone that exists (operator scope): what it owes, each with an id that tasks name in `covers`. An id the milestone already has is refused.", inputSchema: { sessionId: z.string(), milestone: z.string(), delivers: z.array(deliverableInputSchema).min(1) } },
     ({ sessionId, milestone, delivers }) => inSession(source, sessionId, async (repo, session) => {
       if (!isOperator(repo, session)) throw new TallyError("only an operator session adds deliverables to a milestone");
       const message = await new Records(repo).update((ledger) => deliver(ledger, { milestone, delivers }));

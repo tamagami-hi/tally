@@ -4,7 +4,7 @@ export const TRACKS_FILE = "tracks.json";
 export const DEFAULT_WORKTREE_ROOT = ".temp/worktrees";
 export const TRACK_BRANCH_PREFIX = "track/";
 
-export const openedTrackSchema = z.object({
+export const openedTrackSchema = z.looseObject({
   name: z.string().min(1),
   branch: z.string().min(1),
   worktree: z.string().min(1),
@@ -18,7 +18,7 @@ export const openedTrackSchema = z.object({
   closedWhy: z.string().optional(),
 });
 
-export const tracksFileSchema = z.object({
+export const tracksFileSchema = z.looseObject({
   schema: z.literal(1),
   tracks: z.array(openedTrackSchema).default([]),
 });

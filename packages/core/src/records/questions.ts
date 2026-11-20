@@ -8,7 +8,7 @@ import { withLock } from "../store/lock.ts";
 import { commitRecords } from "./commit.ts";
 import { parseTables, renderRow } from "./markdown.ts";
 
-export const questionEditSchema = z.object({
+export const questionEditSchema = z.looseObject({
   at: z.string(),
   by: z.string().min(1),
   question: z.string().min(1),
@@ -16,7 +16,7 @@ export const questionEditSchema = z.object({
   why: z.string().min(1),
 });
 
-export const questionSchema = z.object({
+export const questionSchema = z.looseObject({
   row: z.number().int().positive(),
   group: z.string().min(1),
   question: z.string().min(1),
@@ -30,7 +30,7 @@ export const questionSchema = z.object({
 export const answeredSchema = questionSchema.extend({ answeredAt: z.string(), decision: z.string() });
 export const answeredRowsSchema = z.array(answeredSchema);
 
-export const questionsFileSchema = z.object({
+export const questionsFileSchema = z.looseObject({
   schema: z.literal(1),
   nextRow: z.number().int().positive(),
   open: z.array(questionSchema).default([]),

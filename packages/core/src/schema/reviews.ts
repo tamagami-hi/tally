@@ -4,7 +4,7 @@ import { keptFileSchema } from "./kept.ts";
 export const reviewVerdicts = ["land", "fix", "stop", "waived"] as const;
 export const reviewStates = ["none", "clear", "open"] as const;
 
-export const reviewSchema = z.object({
+export const reviewSchema = z.looseObject({
   id: z.string().min(1),
   milestone: z.string().min(1),
   task: z.string().min(1),
@@ -21,7 +21,7 @@ export const reviewSchema = z.object({
   at: z.string(),
 });
 
-export const reviewsFileSchema = z.object({
+export const reviewsFileSchema = z.looseObject({
   schema: z.literal(1),
   nextId: z.number().int().positive(),
   reviews: z.array(reviewSchema).default([]),

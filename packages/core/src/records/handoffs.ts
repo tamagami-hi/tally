@@ -9,7 +9,7 @@ import { commitRecords } from "./commit.ts";
 
 export const MAX_HANDOFF_LINES = 60;
 
-export const handoffNoteSchema = z.object({
+export const handoffNoteSchema = z.looseObject({
   task: z.string().optional(),
   from: z.string().min(1),
   track: z.string().min(1),
@@ -17,7 +17,7 @@ export const handoffNoteSchema = z.object({
   lines: z.array(z.string()).max(MAX_HANDOFF_LINES),
 });
 
-export const handoffSchema = z.object({
+export const handoffSchema = z.looseObject({
   schema: z.literal(1),
   track: z.string().min(1),
   current: handoffNoteSchema.optional(),
@@ -57,7 +57,7 @@ export async function writeHandoff(repo: Repo, session: Session, input: HandoffI
   const handoff = await withLock(path, async () => {
     const previous = await readHandoff(repo, session.track);
     const note: HandoffNote = { ...(input.task === undefined ? {} : { task: input.task }), from: session.agent, track: session.track, at: now.toISOString(), lines: [...input.lines] };
-    const next: Handoff = { schema: 1, track: session.track, current: note, history: previous.current === undefined ? previous.history : [...previous.history, previous.current] };
+    const next: Handoff = { ...previous, schema: 1, track: session.track, current: note, history: previous.current === undefined ? previous.history : [...previous.history, previous.current] };
     await writeJsonAtomic(path, next);
     return next;
   });

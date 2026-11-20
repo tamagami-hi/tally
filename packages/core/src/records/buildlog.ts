@@ -14,7 +14,7 @@ const HEADING = /^## (.+?)\. (.+), (\d{4}-\d{2}-\d{2})$/;
 const SHAPE = "## <milestone>. <title>, <YYYY-MM-DD>";
 const NEEDS_BODY = `a build log entry needs a body: its markdown, or one of ${FIELD_NAMES.slice(0, -1).join(", ")} and ${FIELD_NAMES.at(-1)}`;
 
-export const buildlogEntrySchema = z.object({
+export const buildlogEntrySchema = z.looseObject({
   group: z.string().min(1),
   milestone: z.string().min(1),
   title: z.string().min(1),
@@ -24,9 +24,9 @@ export const buildlogEntrySchema = z.object({
   ...buildlogFields,
 });
 
-export const buildlogFileSchema = z.object({
+export const buildlogFileSchema = z.looseObject({
   schema: z.literal(1),
-  preambles: z.array(z.object({ group: z.string().min(1), markdown: z.string() })).default([]),
+  preambles: z.array(z.looseObject({ group: z.string().min(1), markdown: z.string() })).default([]),
   entries: z.array(buildlogEntrySchema).default([]),
 });
 
@@ -90,6 +90,7 @@ export async function importBuildlog(repo: Repo, file: string, group: string): P
   if (renderBuildlog({ schema: 1, preambles: [{ group, markdown: parsed.preamble }], entries: parsed.entries }, group) !== text) throw new TallyError(`${file} does not render back as it is; refusing to import a lossy read`);
   await update(repo, (current) => ({
     file: {
+      ...current,
       schema: 1,
       preambles: [...current.preambles.filter((p) => p.group !== group), { group, markdown: parsed.preamble }],
       entries: [...current.entries.filter((e) => e.group !== group), ...parsed.entries],

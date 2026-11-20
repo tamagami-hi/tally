@@ -27,7 +27,7 @@ const OUTSIDE = "..";
 
 export const authorSchema = z.object({ track: z.string().min(1), agent: z.string().min(1) });
 
-export const entrySchema = z.object({
+export const entrySchema = z.looseObject({
   id: z.string().regex(ENTRY_ID),
   kind: z.enum(ENTRY_KINDS),
   title: z.string().min(1).max(MAX_TITLE),
@@ -46,7 +46,7 @@ export const entrySchema = z.object({
   retiredWhy: z.string().optional(),
 });
 
-export const kindFileSchema = z.object({
+export const kindFileSchema = z.looseObject({
   schema: z.literal(1),
   kind: z.enum(ENTRY_KINDS),
   nextNumber: z.number().int().positive(),
