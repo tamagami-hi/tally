@@ -9,6 +9,7 @@ import { commitRecords } from "./commit.ts";
 import { FIELD_NAMES, buildlogFields, fieldBlocks, fieldsOf, type FieldsInput } from "./buildlog-fields.ts";
 import { blob } from "./sections.ts";
 import type { Exact } from "../schema/kept.ts";
+import { refuseArchived } from "./still-planned.ts";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HEADING = /^## (.+?)\. (.+), (\d{4}-\d{2}-\d{2})$/;
@@ -71,11 +72,11 @@ export async function readBuildlog(repo: Repo): Promise<BuildlogFile> {
   }
 }
 
-async function update<R>(repo: Repo, change: (file: BuildlogFile) => { file: BuildlogFile; result: R }): Promise<R> {
+async function update<R>(repo: Repo, change: (file: BuildlogFile) => { file: BuildlogFile; result: R } | Promise<{ file: BuildlogFile; result: R }>): Promise<R> {
   assertCurrent(repo);
   const path = buildlogPath(repo);
   return withLock(path, async () => {
-    const { file, result } = change(await readBuildlog(repo));
+    const { file, result } = await change(await readBuildlog(repo));
     await writeJsonAtomic(path, buildlogFileSchema.parse(file));
     return result;
   });
@@ -118,7 +119,8 @@ export async function appendBuildlog(repo: Repo, input: AppendInput): Promise<{ 
   const fields = fieldsOf(input);
   if (markdown === "" && Object.keys(fields).length === 0) throw new TallyError(NEEDS_BODY);
   const entry: BuildlogEntry = { group: input.group, milestone: input.milestone, title: input.title, date: input.date, markdown, commits: [...(input.commits ?? [])], ...fields };
-  await update(repo, (current) => {
+  await update(repo, async (current) => {
+    await refuseArchived(repo, input.milestone);
     if (current.entries.some((e) => e.group === input.group && e.milestone === input.milestone)) throw new TallyError(`${input.group}'s build log already has a section for ${input.milestone}`);
     return { file: { ...current, entries: [...current.entries, entry] }, result: undefined };
   });

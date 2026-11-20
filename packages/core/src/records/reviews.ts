@@ -12,6 +12,7 @@ import { withLock } from "../store/lock.ts";
 import { Records, assertCurrent, type Repo } from "../store/records.ts";
 import { commitRecords } from "./commit.ts";
 import { keptFile, missingFile } from "./kept-file.ts";
+import { assertStillPlanned } from "./still-planned.ts";
 
 export const MOST_REVIEWER = 120;
 export const MOST_REVIEW_SUMMARY = 1000;
@@ -142,6 +143,7 @@ export async function recordReview(repo: Repo, session: Session, input: ReviewIn
   const report = await reportOf(repo, session, input.report);
   const path = reviewsPath(repo);
   const { review, reviews } = await withLock(path, async () => {
+    await assertStillPlanned(repo, input.milestone, input.task);
     const file = await readReviews(repo);
     assertFollows(file.reviews, input);
     const id = `review-${file.nextId}`;

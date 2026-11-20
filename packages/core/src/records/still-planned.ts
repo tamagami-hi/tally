@@ -35,3 +35,10 @@ export async function assertStillPlanned(repo: Repo, milestone: string, task: st
   }
   if (findTask(found, task) === undefined) throw new TallyError(`'${task}' is not planned in ${milestone}`);
 }
+
+export async function refuseArchived(repo: Repo, milestone: string): Promise<void> {
+  const ledger = await new Records(repo).readLedger();
+  if (ledger.milestones.some((one) => one.id === milestone)) return;
+  const cycle = await archivedWith(repo, milestone);
+  if (cycle !== undefined) throw new ArchivedMilestone(milestone, cycle);
+}

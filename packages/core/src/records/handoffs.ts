@@ -4,7 +4,7 @@ import { TallyError } from "../errors.ts";
 import { assertCurrent, type Repo } from "../store/records.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
-import type { Session } from "../state/sessions.ts";
+import { listSessions, type Session } from "../state/sessions.ts";
 import { commitRecords } from "./commit.ts";
 import type { Exact } from "../schema/kept.ts";
 
@@ -57,6 +57,7 @@ export async function writeHandoff(repo: Repo, session: Session, input: HandoffI
   if (input.lines.length > MAX_HANDOFF_LINES) throw new TallyError(`a hand-off holds at most ${MAX_HANDOFF_LINES} lines; this one has ${input.lines.length}`);
   const path = handoffPath(repo, session.track);
   const handoff = await withLock(path, async () => {
+    if (!(await listSessions(repo)).some((one) => one.id === session.id)) throw new TallyError(`session ${session.id} is no longer open, so its hand-off is not written; open a session on ${session.track} and write it again`);
     const previous = await readHandoff(repo, session.track);
     const note: HandoffNote = { ...(input.task === undefined ? {} : { task: input.task }), from: session.agent, track: session.track, at: now.toISOString(), lines: [...input.lines] };
     const next: Handoff = { ...previous, schema: 1, track: session.track, current: note, history: previous.current === undefined ? previous.history : [...previous.history, previous.current] };
