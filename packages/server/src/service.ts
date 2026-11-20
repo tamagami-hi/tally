@@ -1,6 +1,7 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { NotListed, TallyError, messageOf, type StartDefaults, type Usage } from "@tally/core";
-import { SERVER_VERSION, boundRepo, manyRepos, mcpHandler, usageNow } from "@tally/mcp";
+import { SERVER_VERSION, boundRepo, manyRepos, mcpHandler, usageNow, type RepoSource } from "@tally/mcp";
+import { roleRoutes, servingRoles } from "./roles.ts";
 import { cliRoutes, type CliRunner } from "./cli-api.ts";
 import { listFolders } from "./folders.ts";
 import { Forbidden, loopbackOnly } from "./guard.ts";
@@ -37,17 +38,24 @@ export function createServiceApp({ hub, webDir, workspace, defaults, cli, usage 
   });
   app.get("/api/fs", async (c) => c.json(await listFolders(workspace, hub.repos, c.req.query("dir"))));
   app.route("/api/r/:name", repoRoutes((c) => hub.get(c.req.param("name") ?? "")));
+  app.route("/api", roleRoutes());
   app.route("/api", operatorRoutes({ hub, workspace, ...(defaults === undefined ? {} : { defaults }) }));
   app.route("/api", cliRoutes(hub, cli, workspace));
   app.route("/api", repoRoutes(() => hub.default()));
   app.all("/api/*", (c) => c.json({ error: "not found" }, 404));
   const mcp = mcpHandler(manyRepos(hub.repos), usage);
   app.all("/mcp", (c) => mcp(c.req.raw));
-  app.all("/r/:name/mcp", async (c) => {
-    const name = c.req.param("name");
+  servingRoles(app, "/mcp", async () => manyRepos(hub.repos), usage);
+  const bound = async (c: Context): Promise<RepoSource | Response> => {
+    const name = c.req.param("name") ?? "";
     if (!(await hub.repos.entries()).some((entry) => entry.name === name)) return c.json({ error: `no repository ${name} is listed; repo_list names those that are` }, 404);
-    return mcpHandler(boundRepo(hub.repos, name), usage)(c.req.raw);
+    return boundRepo(hub.repos, name);
+  };
+  app.all("/r/:name/mcp", async (c) => {
+    const from = await bound(c);
+    return from instanceof Response ? from : mcpHandler(from, usage)(c.req.raw);
   });
+  servingRoles(app, "/r/:name/mcp", bound, usage);
   app.get("/events", async (c) => eventStream(c, (await hub.default()).watcher));
   app.get("/*", staticFiles(webDir));
   return app;

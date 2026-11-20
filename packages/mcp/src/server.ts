@@ -28,22 +28,23 @@ import { listEntry, listing } from "./listing.ts";
 import { usageRanking, type Ranking } from "./usage.ts";
 import { isSource, oneRepo, type RepoSource } from "./source.ts";
 import { SERVER_VERSION } from "./server-info.ts";
+import { ROLE_PROTOCOL, SERVER_NAME, type Role } from "./roles.ts";
 
-export const SERVER_NAME = "tally";
+export { SERVER_NAME } from "./roles.ts";
 export { SERVER_VERSION } from "./server-info.ts";
 
-export function createTallyServer(from: Repo | RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = commandsRunIn(), usage?: Usage): McpServer {
+export function createTallyServer(from: Repo | RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = commandsRunIn(), usage?: Usage, role?: Role): McpServer {
   const source = isSource(from) ? from : oneRepo(from);
-  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: source.instructions });
-  const tools = decorating(server, source, { decorators, place, usage });
-  registerAll(tools, source, place);
+  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: role === undefined ? source.instructions : ROLE_PROTOCOL[role] });
+  const tools = decorating(server, source, { decorators, place, usage, ...(role === undefined ? {} : { role }) });
+  registerAll(tools, source, place, role);
   listing(server, tools.listed());
   server.server.registerCapabilities({ tools: { listChanged: false } });
   return server;
 }
 
-function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace): void {
-  registerSessionTools(tools, source, place);
+function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace, role?: Role): void {
+  registerSessionTools(tools, source, place, role);
   registerLedgerTools(tools, source);
   registerMilestoneTools(tools, source);
   registerDeferredTools(tools, source);
@@ -75,11 +76,11 @@ export async function serveStdio(from: Repo | RepoSource, usage?: Usage, streams
   return server;
 }
 
-export function mcpHandler(from: Repo | RepoSource, usage?: Usage): (request: Request) => Promise<Response> {
+export function mcpHandler(from: Repo | RepoSource, usage?: Usage, role?: Role): (request: Request) => Promise<Response> {
   const source = isSource(from) ? from : oneRepo(from);
   const place = commandsRunIn();
   return async (request) => {
-    const server = createTallyServer(source, DECORATORS, place, usage);
+    const server = createTallyServer(source, DECORATORS, place, usage, role);
     const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
     await server.connect(transport);
     return transport.handleRequest(request);

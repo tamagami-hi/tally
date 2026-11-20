@@ -5,6 +5,7 @@ import type { RepoSource } from "../../src/source.ts";
 import type { Repo } from "../../../core/src/store/records.ts";
 import type { CommandPlace } from "../../../core/src/land/where.ts";
 import { DECORATORS } from "../../src/decorate.ts";
+import type { Role } from "../../src/roles.ts";
 
 export interface Called {
   text: string;
@@ -14,8 +15,8 @@ export interface Called {
 
 export type Call = (name: string, args?: Record<string, unknown>) => Promise<Called>;
 
-export async function connect(from: Repo | RepoSource, place?: CommandPlace): Promise<{ client: Client; call: Call }> {
-  const server = createTallyServer(from, DECORATORS, place);
+export async function connect(from: Repo | RepoSource, place?: CommandPlace, role?: Role): Promise<{ client: Client; call: Call }> {
+  const server = createTallyServer(from, DECORATORS, place, undefined, role);
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   await server.connect(serverSide);
   const client = new Client({ name: "test", version: "0" });

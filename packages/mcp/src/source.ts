@@ -27,6 +27,7 @@ export interface ListedRepo {
 
 export interface RepoSource {
   readonly instructions: string;
+  readonly prefix?: string;
   forSession(sessionId: string): Promise<Repo>;
   forWorktree(path: string): Promise<Opened>;
   forRead(where: Where): Promise<Repo>;
@@ -109,6 +110,7 @@ export const repoAddress = (name: string): string => `/r/${name}/mcp`;
 export function boundRepo(repos: Repos, name: string): RepoSource {
   const many = manyRepos(repos);
   return {
+    prefix: `/r/${name}`,
     instructions: `tally tracks the build of ${name} at this address, ${repoAddress(name)}: a read that names no session and no repo reads ${name}. Begin with session_open: give it the folder you work in, which must be in ${name}. Read context_pack at your level before you write. Records change only through these tools; main is never pushed from here.`,
     forSession: (sessionId) => many.forSession(sessionId),
     forWorktree: async (path) => {

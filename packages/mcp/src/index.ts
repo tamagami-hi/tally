@@ -7,3 +7,5 @@ export { WHERE, boundRepo, inSession, isSource, manyRepos, oneRepo, reading, rep
 export type { ListedRepo, Opened, RepoSource, Where } from "./source.ts";
 export { DECORATORS, decorating } from "./decorate.ts";
 export type { Called, Decorator, ToolHost } from "./decorate.ts";
+export { ROLES, ROLE_PROTOCOL, ROLE_TOOLS, isRole, roleAnswer, roleOf, rolesOf } from "./roles.ts";
+export type { Role, RoleAnswer, RoleDefinition } from "./roles.ts";

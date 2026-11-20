@@ -7,6 +7,7 @@ import { attempt, ok } from "../respond.ts";
 import { WHERE, finished, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 import { serverInfo } from "../server-info.ts";
+import { rolesOf, type Role } from "../roles.ts";
 
 async function nearestFolder(path: string): Promise<string> {
   let folder = dirname(path);
@@ -36,12 +37,12 @@ async function explainedClosed(source: RepoSource, worktree: string): Promise<st
   }
 }
 
-export function registerSessionTools(server: ToolHost, source: RepoSource, place: CommandPlace = "service"): void {
+export function registerSessionTools(server: ToolHost, source: RepoSource, place: CommandPlace = "service", role?: Role): void {
   server.registerTool(
     "session_open",
     {
       description: "Bind this session to the folder you work in; it finds the repository and track (a track's worktree must be on its branch; the repository's checkout on main is operator scope). Answers the id writing tools need, the repository's name, `runner` (`<runner> <kind> [--task MILESTONE:TASK] -- <command...>` runs and records a command in your shell) and `scratch`, for notes and throwaway files (never /tmp or another hidden folder). With `context: \"records\"` in the config, `brief` comes at the level asked: `full` (default) has the project, every rule's text (breaking a `safety` rule fails the work), your open tasks and hand-off, the entries that apply, who else works, open questions and what the context lacks; `work` gives rules by title, the project by its purpose, no lacks; `land` your tasks by id, who works and `rulebook`. Go below full only when this conversation holds the full brief; read rulebook_get when `rulebook.changedAt` is later than yours. `server`: the version and newest tools; one missing from your list means reconnect.",
-      inputSchema: { worktree: z.string().describe("absolute path of the folder you work in"), track: z.string().optional().describe("the track's name; found from the worktree when left out, and checked against it when given"), agent: z.string().describe("who is working: a model or person name"), brief: z.enum(briefLevels).default("full").describe("how much brief: full, work, land, or order (a track's work order)") },
+      inputSchema: { worktree: z.string().describe("absolute path of the folder you work in"), track: z.string().optional().describe("the track's name; found from the worktree when left out, and checked against it when given"), agent: z.string().describe("who is working: a model or person name"), brief: z.enum(briefLevels).default(role === undefined ? "full" : "order").describe("how much brief: full, work, land, or order (a track's work order)") },
     },
     ({ worktree, track, agent, brief: level }) => attempt(() => explaining(source, worktree, async () => {
       const opened = await source.forWorktree(worktree);
@@ -66,6 +67,6 @@ export function registerSessionTools(server: ToolHost, source: RepoSource, place
   server.registerTool(
     "repo_list",
     { description: "The repositories this server tracks: each one's name, its folder, its project name, how many sessions are open in it, and which is the default for a call that names none. `server` names the version and its newest tools: if one is missing from your list, reconnect.", inputSchema: {} },
-    () => attempt(async () => ok({ repos: await source.listed(), server: serverInfo(place) })),
+    () => attempt(async () => ok({ repos: await source.listed(), server: serverInfo(place), roles: rolesOf(source.prefix) })),
   );
 }
