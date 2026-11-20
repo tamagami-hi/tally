@@ -7,6 +7,7 @@ const RETRIES = { retries: 120, minTimeout: 50, maxTimeout: 250 };
 const MS_PER_SECOND = 1000;
 
 export const LANDING_RETRIES = { retries: 3600, minTimeout: 250, maxTimeout: 250 };
+const STALE_MS = 30_000;
 
 export class LockBusy extends TallyError {
   constructor(path: string, waitedMs: number) {
@@ -15,10 +16,19 @@ export class LockBusy extends TallyError {
   }
 }
 
-async function take(path: string, retries: typeof RETRIES): Promise<() => Promise<void>> {
+export class LockLost extends TallyError {
+  constructor(path: string, cause: Error) {
+    super(`lost the lock ${basename(path)} while this ran (${cause.message}); another process may have taken it, so check what this changed`);
+    this.name = "LockLost";
+  }
+}
+
+type OnLost = (error: Error) => void;
+
+async function take(path: string, retries: typeof RETRIES, onLost: OnLost): Promise<() => Promise<void>> {
   const started = Date.now();
   try {
-    return await lockfile.lock(path, { realpath: false, retries, stale: 30_000 });
+    return await lockfile.lock(path, { realpath: false, retries, stale: STALE_MS, onCompromised: onLost });
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === "ELOCKED") throw new LockBusy(path, Date.now() - started);
     throw error;
@@ -27,10 +37,17 @@ async function take(path: string, retries: typeof RETRIES): Promise<() => Promis
 
 export async function withLock<T>(path: string, body: () => Promise<T>, retries = RETRIES): Promise<T> {
   await mkdir(dirname(path), { recursive: true });
-  const release = await take(path, retries);
+  let lost: Error | undefined;
+  const release = await take(path, retries, (error) => {
+    lost = error;
+  });
   try {
-    return await body();
+    const result = await body();
+    if (lost !== undefined) throw new LockLost(path, lost);
+    return result;
   } finally {
-    await release();
+    await release().catch((error: unknown) => {
+      if (lost === undefined) throw error;
+    });
   }
 }

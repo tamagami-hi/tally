@@ -37,7 +37,7 @@ export type { Checked, LedgerCheck, PassedCommits } from "./ledger/audit.ts";
 export { boardSchema, fromBoard } from "./ledger/import.ts";
 export type { Board } from "./ledger/import.ts";
 export { readJson, writeJsonAtomic } from "./store/json.ts";
-export { LockBusy, withLock } from "./store/lock.ts";
+export { LockBusy, LockLost, withLock } from "./store/lock.ts";
 export { CONFIG_FILE, LEDGER_FILE, RECORDS_DIR, Records, findRepoRoot, initRecords, openRepo, reopenRepo } from "./store/records.ts";
 export { isOpen, readTracks, tracksPath } from "./tracks/file.ts";
 export { openTrack } from "./tracks/open.ts";
