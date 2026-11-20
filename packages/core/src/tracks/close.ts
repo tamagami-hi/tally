@@ -10,7 +10,8 @@ import type { OpenedTrack, TracksFile } from "../schema/tracks.ts";
 import { listClaims } from "../state/claims.ts";
 import { isOperator, listSessions, type Session } from "../state/sessions.ts";
 import { CONFIG_FILE, type Repo } from "../store/records.ts";
-import { changeTracks, isOpen, isPresent } from "./file.ts";
+import { changeTracks, isOpen, isPresent, readTracks } from "./file.ts";
+import { endSession } from "../state/end.ts";
 import { clearRest } from "../state/rest.ts";
 import { discardKept, keepScratch } from "./keep.ts";
 
@@ -68,7 +69,7 @@ export function assertMayClose(repo: Repo, session: Pick<Session, "track">, trac
 
 async function assertIdle(repo: Repo, file: TracksFile, name: string): Promise<void> {
   const session = (await listSessions(repo)).find((open) => open.track === name);
-  if (session !== undefined) throw new TallyError(`track ${name} has an open session (${session.agent}, ${session.id}); close it first`);
+  if (session !== undefined) throw new TallyError(`track ${name} has an open session (${session.agent}, ${session.id}); close it first, or pass endSessions: true to end the sessions that hold no claim`);
   const claim = (await listClaims(repo)).find((held) => held.track === name);
   if (claim !== undefined) throw new TallyError(`track ${name} has a claimed task ('${claim.task}' in ${claim.milestone}, held by ${claim.agent}); release it first`);
   const ticket = (await queueFile(repo).read()).tickets.find((one) => one.track === name && isActive(one));
@@ -128,5 +129,20 @@ export async function closeOpened(repo: Repo, name: string, options: CloseOption
   return { track: done.track, commit, cleaned: done.cleaned, ...(done.kept === undefined ? {} : { kept: done.kept }) };
 }
 
-export const closeTrack = (repo: Repo, session: Session, name: string, now = new Date()): Promise<TrackClosed> =>
-  closeOpened(repo, name, { by: { track: session.track, agent: session.agent }, now, check: (track) => assertMayClose(repo, session, track) });
+async function endClaimless(repo: Repo, session: Session, name: string, now: Date): Promise<Session[]> {
+  const track = openTrackNamed(repo, await readTracks(repo.recordsDir), name);
+  assertMayClose(repo, session, track);
+  const open = (await listSessions(repo)).filter((one) => one.track === name);
+  const claims = await listClaims(repo);
+  const holding = open.find((one) => claims.some((claim) => claim.sessionId === one.id));
+  const claim = claims.find((one) => one.sessionId === holding?.id);
+  if (holding !== undefined && claim !== undefined) throw new TallyError(`track ${name} has a session that holds a claim ('${claim.task}' in ${claim.milestone}, held by ${holding.agent}, session ${holding.id}); it releases the task or closes first`);
+  for (const one of open) await endSession(repo, one.id, now);
+  return open;
+}
+
+export async function closeTrack(repo: Repo, session: Session, name: string, now = new Date(), options: { endSessions?: boolean } = {}): Promise<TrackClosed & { ended?: Session[] }> {
+  const ended = options.endSessions === true ? await endClaimless(repo, session, name, now) : undefined;
+  const closed = await closeOpened(repo, name, { by: { track: session.track, agent: session.agent }, now, check: (track) => assertMayClose(repo, session, track) });
+  return ended === undefined ? closed : { ...closed, ended };
+}

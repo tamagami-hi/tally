@@ -27,12 +27,16 @@ export interface TrackOpened {
   commit: string | null;
 }
 
+export function assertRelative(paths: readonly string[] | undefined): void {
+  const outside = (paths ?? []).find((path) => isAbsolute(path) || path.split("/").includes(".."));
+  if (outside !== undefined) throw new TallyError(`a track's paths are relative to its worktree: ${outside}`);
+}
+
 function checkedInput(input: OpenTrackInput): void {
   if (!REPO_NAME.test(input.name)) throw new TallyError(`a track's name is lowercase letters, digits, - and _, and starts with a letter or a digit: '${input.name}'`);
   if (input.name === TALLY_FOLDER) throw new TallyError(`the name ${TALLY_FOLDER} is tally's own folder under .temp/; pick another name`);
   if (input.purpose.trim() === "") throw new TallyError("a track needs a purpose: say in a line what it is for");
-  const outside = (input.paths ?? []).find((path) => isAbsolute(path) || path.split("/").includes(".."));
-  if (outside !== undefined) throw new TallyError(`a track's paths are relative to its worktree: ${outside}`);
+  assertRelative(input.paths);
 }
 
 function parentFor(repo: Repo, session: Session, asked: string | undefined): string | undefined {
@@ -52,12 +56,18 @@ async function assertFree(repo: Repo, track: Pick<OpenedTrack, "name" | "branch"
   if (await isPresent(folder)) throw new TallyError(`${folder} already exists; move it away, or pick another name`);
 }
 
+export function assertWithinParent(repo: Repo, name: string, parent: string | undefined, asked: readonly string[]): void {
+  const allowed = repo.config.tracks.find((track) => track.name === parent)?.paths;
+  if (allowed === undefined || allowed.length === 0) return;
+  const wider = asked.find((path) => !isUnder(allowed, path.replace(/\/+$/, "")));
+  if (wider !== undefined) throw new TallyError(`track ${parent ?? ""} may land only ${allowed.join(", ")}, so its child ${name} cannot land ${wider}`);
+}
+
 function pathsFor(repo: Repo, name: string, parent: string | undefined, asked: readonly string[] | undefined): readonly string[] | undefined {
   const allowed = repo.config.tracks.find((track) => track.name === parent)?.paths;
   if (allowed === undefined || allowed.length === 0) return asked;
   if (asked === undefined) return allowed;
-  const wider = asked.find((path) => !isUnder(allowed, path.replace(/\/+$/, "")));
-  if (wider !== undefined) throw new TallyError(`track ${parent ?? ""} may land only ${allowed.join(", ")}, so its child ${name} cannot land ${wider}`);
+  assertWithinParent(repo, name, parent, asked);
   return asked;
 }
 

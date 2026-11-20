@@ -72,6 +72,7 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   track_open: add("Open a track"),
   track_close: { title: "Close a track", effect: "remove" },
   track_list: read("List tracks"),
+  track_edit: { ...add("Widen a track"), since: "0.7.0" },
   context_get: { title: "Read context entries", effect: "read", newestFirst: true },
   context_put: add("Add a context entry"),
   context_retire: add("Retire a context entry"),

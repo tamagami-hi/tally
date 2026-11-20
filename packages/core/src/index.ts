@@ -18,6 +18,8 @@ export { remove } from "./ledger/remove.ts";
 export type { RemoveInput, Removed } from "./ledger/remove.ts";
 export { removeTask } from "./records/task-removal.ts";
 export { removeMilestone } from "./records/milestone-removal.ts";
+export { declaredOverlaps, editTrack } from "./tracks/edit.ts";
+export type { Declared, TrackEditInput, TrackEdited } from "./tracks/edit.ts";
 export type { MilestoneRemoveInput, MilestoneRemoved } from "./records/milestone-removal.ts";
 export { editMilestone } from "./ledger/milestone-edit.ts";
 export type { DropInput, MilestoneEdit } from "./ledger/milestone-edit.ts";

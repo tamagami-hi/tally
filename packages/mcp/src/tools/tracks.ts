@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { closeTrack, listTracks, openTrackWithPlan } from "@tally/core";
+import { closeTrack, declaredOverlaps, editTrack, listTracks, openTrackWithPlan } from "@tally/core";
 import { plannedTasks } from "../planned-task.ts";
 import { ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
@@ -22,18 +22,29 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
     ({ sessionId, name, purpose, parent, paths, plan }) => inSession(source, sessionId, async (repo, session) => {
       const input = { name, purpose, ...(parent === undefined ? {} : { parent }), ...(paths === undefined ? {} : { paths }) };
       const { track, runner, scratch, commit, ...planned } = await openTrackWithPlan(repo, session, input, plan);
-      return ok({ ...track, runner, scratch, commit, ...planned });
+      return ok({ ...track, runner, scratch, commit, ...planned, declared: await declaredOverlaps(repo, track.name, track.paths) });
     }),
   );
   server.registerTool(
     "track_close",
     {
-      description: "Close a track that track_open made (an operator session, or one of its parent): tally removes its landing checkout, worktree and branch and marks it closed. Build output in the worktree goes with it (`cleaned`); what the agent kept under .temp/ moves to the repository's .temp/closed/<track>/ (`kept`). Refused, removing nothing, while the track has an open session, an open child, a claimed task, a queued landing, uncommitted work or commits not on main; the refusal names them. Run logs are kept.",
-      inputSchema: { sessionId: z.string(), name: z.string().describe("the track's name, as track_list shows it") },
+      description: "Close a track that track_open made (an operator session, or one of its parent): tally removes its landing checkout, worktree and branch and marks it closed. Build output in the worktree goes with it (`cleaned`); what the agent kept under .temp/ moves to the repository's .temp/closed/<track>/ (`kept`). `endSessions: true` first ends its sessions that hold no claim. Refused, removing nothing, while the track has an open session, an open child, a claimed task, a queued landing, uncommitted work or commits not on main; the refusal names them. Run logs are kept.",
+      inputSchema: { sessionId: z.string(), name: z.string().describe("the track's name, as track_list shows it"), endSessions: z.boolean().optional() },
     },
-    ({ sessionId, name }) => inSession(source, sessionId, async (repo, session) => {
-      const { track, commit, cleaned, kept } = await closeTrack(repo, session, name);
-      return ok({ ...track, cleaned, ...(kept === undefined ? {} : { kept }), commit });
+    ({ sessionId, name, endSessions }) => inSession(source, sessionId, async (repo, session) => {
+      const { track, commit, cleaned, kept, ended } = await closeTrack(repo, session, name, new Date(), { endSessions: endSessions === true });
+      return ok({ ...track, cleaned, ...(kept === undefined ? {} : { kept }), ...(ended === undefined ? {} : { ended }), commit });
+    }),
+  );
+  server.registerTool(
+    "track_edit",
+    {
+      description: "Widen a track that track_open made (an operator session, or one of its parent): `addPaths` join its paths, no wider than its parent's, and `purpose` replaces its line. A track with no paths may already land anything. The answer holds its paths and `declared`.",
+      inputSchema: { sessionId: z.string(), name: z.string(), addPaths: z.array(z.string()).min(1).optional(), purpose: z.string().optional() },
+    },
+    ({ sessionId, name, addPaths, purpose }) => inSession(source, sessionId, async (repo, session) => {
+      const { track, paths, declared, unlimited, commit } = await editTrack(repo, session, { name, addPaths, purpose });
+      return ok({ ...track, ...(paths === undefined ? {} : { paths }), declared, ...(unlimited === undefined ? {} : { note: unlimited }), commit });
     }),
   );
   server.registerTool(

@@ -108,7 +108,7 @@ describe("track_close", () => {
     const closed = await call("track_close", { sessionId: data, name: "helper" });
 
     expect(refused.isError).toBe(true);
-    expect(refused.text).toBe(`track helper has an open session (sonnet, ${session}); close it first`);
+    expect(refused.text).toBe(`track helper has an open session (sonnet, ${session}); close it first, or pass endSessions: true to end the sessions that hold no claim`);
     expect(closed.structured).toMatchObject({ name: "helper", closedAt: expect.any(String), commit: null });
     expect(await isThere(tree)).toBe(false);
     expect(await sh(root, ["branch", "--list", "track/helper"])).toBe("");
