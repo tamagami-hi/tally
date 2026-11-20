@@ -6,6 +6,7 @@ import { activity } from "./decorators/activity.ts";
 import { outcome } from "./decorators/outcome.ts";
 import { sharing } from "./decorators/sharing.ts";
 import { sized } from "./decorators/sized.ts";
+import type { ListedTool } from "./listing.ts";
 import { annotationsOf, metaOf } from "./meta.ts";
 import { paramText } from "./params.ts";
 import type { RepoSource } from "./source.ts";
@@ -22,6 +23,8 @@ export interface Called {
 export type Decorator = (called: Called) => Promise<CallToolResult>;
 
 export type ToolHost = Pick<McpServer, "registerTool">;
+
+export type Decorated = ToolHost & { listed: () => readonly ListedTool[] };
 
 export const DECORATORS: readonly Decorator[] = [outcome, sharing, activity, sized];
 
@@ -41,13 +44,15 @@ function described(tool: string, shape: Shape): Shape {
   }));
 }
 
-export function decorating(server: McpServer, source: RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = "service"): ToolHost {
+export function decorating(server: McpServer, source: RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = "service"): Decorated {
+  const registered: ListedTool[] = [];
   const register = server.registerTool.bind(server) as (name: string, config: unknown, handler: Handler) => unknown;
   const registerTool = (name: string, config: Config, handler: Handler): unknown => {
     const meta = metaOf(name, place);
     if (meta === undefined) throw new TallyError(`the tool ${name} has no title: add it to the table in meta.ts`);
     const shape = described(name, config.inputSchema ?? {});
     const whole = { ...config, title: meta.title, annotations: annotationsOf(meta), inputSchema: z.strictObject(shape) };
+    registered.push({ name, title: whole.title, description: whole.description, inputSchema: whole.inputSchema, annotations: whole.annotations });
     return register(name, whole, async (args, extra) => {
       let result = await handler(args, extra);
       const given = typeof args === "object" && args !== null ? (args as Record<string, unknown>) : {};
@@ -55,5 +60,5 @@ export function decorating(server: McpServer, source: RepoSource, decorators: re
       return result;
     });
   };
-  return { registerTool: registerTool as McpServer["registerTool"] };
+  return { registerTool: registerTool as McpServer["registerTool"], listed: () => [...registered] };
 }

@@ -700,7 +700,7 @@ Every change is an optional field or a new file: a task's `landedAt`, a part's `
 
 ### 19.10 The tool list
 
-67 tools, every one with a title, four hints and a strict input. `tools/list` is held under 77,000 characters (compact JSON) by shorter shared parameter texts, and a test guards it.
+67 tools, every one with a title, four hints in `TOOL_META` and a strict input. `tools/list` is held under 77,000 characters (compact JSON) by shorter shared parameter texts, and a test guards it. From 0.7.0 one function (`mcp/src/listing.ts`) shapes each tool's entry in the list: it leaves out the input's `$schema` and the `execution` block that says only the protocol's default, and lists a hint only where it differs from the protocol's default (a read lists `readOnlyHint` and `openWorldHint: false`; a write lists `destructiveHint: false` when it destroys nothing, `idempotentHint: true` when it is safe to repeat, and `openWorldHint: false`). A client that reads the list with the protocol's defaults sees the four hints `TOOL_META` gives.
 
 ## 20. A Done view, and a board of open work (0.4.0, built 2026-11-16; 0.4.2 after two fixes)
 

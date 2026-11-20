@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { listEvidence } from "../../core/src/records/evidence.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { connect, keepingContextAsRecords, opened } from "./support/connect.ts";
+import { withDefaults } from "./support/hints.ts";
 
 async function serving(place: "service" | "agent") {
   const tracked = await makeTracked();
@@ -43,7 +44,7 @@ describe("a service whose agents run the project's commands", () => {
 
     const tool = await toolNamed(client, "evidence_run");
 
-    expect(tool?.annotations).toEqual({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
+    expect(tool?.annotations).toEqual({ readOnlyHint: true, openWorldHint: false });
     expect(tool?.description).toContain("runs no command");
     expect(tool?.description).toContain("your own shell");
   });
@@ -66,7 +67,7 @@ describe("a service that runs the project's commands", () => {
 
     expect(answer.structured["recorded"]).toBe(true);
     expect(await listEvidence(repo, "B2")).toHaveLength(1);
-    expect((await toolNamed(client, "evidence_run"))?.annotations).toEqual({ readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true });
+    expect(withDefaults((await toolNamed(client, "evidence_run"))?.annotations)).toEqual({ readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true });
   });
 
   test("answers a run that exited 127 with recorded false and the runner line", async () => {

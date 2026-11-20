@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { connect, opened } from "./support/connect.ts";
+import { withDefaults } from "./support/hints.ts";
 
 async function serving() {
   const { repo, trees } = await makeTracked();
@@ -52,7 +53,7 @@ describe("task_remove", () => {
 
     const tool = (await client.listTools()).tools.find((one) => one.name === "task_remove");
 
-    expect(tool?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    expect(withDefaults(tool?.annotations)).toMatchObject({ readOnlyHint: false, destructiveHint: true });
     expect(tool?.title).toBe("Remove a planned task");
   });
 });

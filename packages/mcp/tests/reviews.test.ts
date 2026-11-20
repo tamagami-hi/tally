@@ -3,6 +3,7 @@ import { landedAt, requiring } from "../../core/tests/support/reviews.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import { connect, opened } from "./support/connect.ts";
+import { withDefaults } from "./support/hints.ts";
 
 async function serving(required = true) {
   const tracked = await makeTracked();
@@ -75,8 +76,8 @@ describe("review_list", () => {
     const tools = (await client.listTools()).tools;
     const named = (name: string) => tools.find((tool) => tool.name === name);
 
-    expect(named("review_list")?.annotations).toEqual({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
-    expect(named("review_record")?.annotations).toEqual({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false });
+    expect(named("review_list")?.annotations).toEqual({ readOnlyHint: true, openWorldHint: false });
+    expect(withDefaults(named("review_record")?.annotations)).toEqual({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false });
     for (const name of ["review_list", "review_record"]) expect((named(name)?.description ?? "").length, name).toBeLessThan(600);
   });
 });

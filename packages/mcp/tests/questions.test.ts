@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { answerQuestion } from "../../core/src/records/questions.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { connect, opened } from "./support/connect.ts";
+import { withDefaults } from "./support/hints.ts";
 
 async function serving() {
   const tracked = await makeTracked();
@@ -61,7 +62,7 @@ describe("question_edit", () => {
     const { client } = await serving();
     const tool = (await client.listTools()).tools.find((one) => one.name === "question_edit");
 
-    expect(tool?.annotations).toEqual({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false });
+    expect(withDefaults(tool?.annotations)).toEqual({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false });
     expect((tool?.description ?? "").length).toBeLessThan(600);
   });
 });

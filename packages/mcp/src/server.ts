@@ -18,6 +18,7 @@ import { registerReviewTools } from "./tools/reviews.ts";
 import { registerSessionTools } from "./tools/session.ts";
 import { registerTrackTools } from "./tools/tracks.ts";
 import { DECORATORS, decorating, type Decorator } from "./decorate.ts";
+import { listing } from "./listing.ts";
 import { isSource, oneRepo, type RepoSource } from "./source.ts";
 import { SERVER_VERSION } from "./server-info.ts";
 
@@ -43,6 +44,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
   registerContextTools(tools, source);
   registerRulebookTools(tools, source);
   registerPhaseTools(tools, source);
+  listing(server, tools.listed());
   return server;
 }
 

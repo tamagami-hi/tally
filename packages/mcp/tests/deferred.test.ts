@@ -4,6 +4,7 @@ import { withParts } from "../../core/tests/support/deferred.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { sh } from "../../core/tests/support/repo.ts";
 import { connect, opened } from "./support/connect.ts";
+import { withDefaults } from "./support/hints.ts";
 
 const PARKED = { why: "polish later", decision: "DEC-12", owner: "the design lead" };
 
@@ -106,8 +107,8 @@ describe("the new tools say what they are", () => {
     const tools = (await client.listTools()).tools;
     const named = (name: string) => tools.find((tool) => tool.name === name);
 
-    expect(named("deferred_list")?.annotations).toEqual({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
-    expect(named("deferred_set")?.annotations).toEqual({ readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false });
+    expect(named("deferred_list")?.annotations).toEqual({ readOnlyHint: true, openWorldHint: false });
+    expect(withDefaults(named("deferred_set")?.annotations)).toEqual({ readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false });
     for (const name of ["deferred_list", "deferred_set"]) {
       expect(named(name)?.title, name).toBeTruthy();
       expect((named(name)?.description ?? "").length, name).toBeLessThan(600);

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { TOOL_META } from "../src/meta.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { connect } from "./support/connect.ts";
+import { destroys, withDefaults } from "./support/hints.ts";
 
 interface Listed {
   name: string;
@@ -23,7 +24,7 @@ describe("what every tool says about itself", () => {
   test("a title, and the four hints a client decides with", async () => {
     const tools = await listed();
 
-    const bare = tools.filter((tool) => typeof tool.title !== "string" || tool.title === "" || HINTS.some((hint) => typeof tool.annotations?.[hint] !== "boolean"));
+    const bare = tools.filter((tool) => typeof tool.title !== "string" || tool.title === "" || HINTS.some((hint) => typeof withDefaults(tool.annotations)[hint] !== "boolean"));
 
     expect(bare.map((tool) => tool.name)).toEqual([]);
   });
@@ -46,14 +47,14 @@ describe("what every tool says about itself", () => {
 describe("the hints", () => {
   test("mark a tool that only reads as read-only, and no other", async () => {
     const tools = await listed();
-    const readOnly = tools.filter((tool) => tool.annotations?.["readOnlyHint"] === true).map((tool) => tool.name).sort();
+    const readOnly = tools.filter((tool) => withDefaults(tool.annotations)["readOnlyHint"] === true).map((tool) => tool.name).sort();
 
     expect(readOnly).toEqual(["activity_get", "board_get", "buildlog_render", "checks_fingerprint", "checks_get", "context_get", "context_pack", "decision_list", "deferred_list", "docs_list", "docs_read", "docs_search", "evidence_list", "handoff_read", "inbox_get", "ledger_check", "lock_list", "note_list", "phase_list", "question_list", "repo_list", "review_list", "rulebook_get", "session_list", "track_list"]);
   });
 
   test("mark as destructive only what removes or overwrites, and the tool that runs any command it is given", async () => {
     const tools = await listed();
-    const destructive = tools.filter((tool) => tool.annotations?.["destructiveHint"] === true).map((tool) => tool.name).sort();
+    const destructive = tools.filter((tool) => destroys(tool.annotations)).map((tool) => tool.name).sort();
 
     expect(destructive).toEqual(["checks_set", "deferred_set", "evidence_run", "handoff_write", "phase_close", "project_set", "repo_configure", "task_remove", "track_close", "views_claude"]);
   });
@@ -61,7 +62,7 @@ describe("the hints", () => {
   test("say that only the two tools that run a command reach outside the repository", async () => {
     const tools = await listed();
 
-    expect(tools.filter((tool) => tool.annotations?.["openWorldHint"] === true).map((tool) => tool.name).sort()).toEqual(["evidence_run", "land_run"]);
+    expect(tools.filter((tool) => withDefaults(tool.annotations)["openWorldHint"] === true).map((tool) => tool.name).sort()).toEqual(["evidence_run", "land_run"]);
   });
 });
 
