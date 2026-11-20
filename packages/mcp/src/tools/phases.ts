@@ -2,7 +2,7 @@ import { z } from "zod";
 import { addPhase, closePhase, commitWaitingRecords, listPhases } from "@tally/core";
 import { defined } from "../defined.ts";
 import { ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
@@ -25,9 +25,9 @@ export function registerPhaseTools(server: ToolHost, source: RepoSource): void {
     "phase_list",
     {
       description: "The build's phases: each one's goal, whether it is open or closed, how many of its tasks are landed, and `left`, what still stops an open phase from closing: tasks not landed, commits the ledger lacks, gaps ledger_check lists in its milestones and landings in the queue. Report `left` to the operator before asking to close.",
-      inputSchema: { state: z.enum(["open", "closed"]).optional().describe("only phases in this state"), ...WHERE },
+      inputSchema: { state: z.enum(["open", "closed"]).optional().describe("only phases in this state"), cycle: CYCLE, ...WHERE },
     },
-    ({ state, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok({ phases: await listPhases(repo, defined({ state })) })),
+    ({ state, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => ok({ phases: await listPhases(repo, defined({ state })) })),
   );
   server.registerTool(
     "phase_close",

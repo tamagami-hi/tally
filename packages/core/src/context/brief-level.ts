@@ -41,6 +41,12 @@ export interface Rulebook {
   changedAt: string | null;
 }
 
+export interface BriefCycle {
+  n: number;
+  complete?: boolean;
+  ask?: string;
+}
+
 export interface FullBrief {
   level: BriefLevel;
   project: Project;
@@ -49,6 +55,7 @@ export interface FullBrief {
   tailoring?: Tailoring[];
   recordsWaiting?: Waiting;
   checkout?: CheckoutState;
+  cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff: HandoffNote | null };
   entries: { id: string; kind: EntryKind; title: string }[];
   working: Working[];
@@ -64,6 +71,7 @@ export interface Brief {
   tailoring?: Tailoring[];
   recordsWaiting?: Waiting;
   checkout?: CheckoutState;
+  cycle: BriefCycle;
   track: { name: string; tasks: BriefTask[]; handoff?: HandoffNote | null };
   entries?: { id: string; kind: EntryKind; title: string }[];
   working: Working[];

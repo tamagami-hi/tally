@@ -13,7 +13,10 @@ import { readProject, type Project } from "./project.ts";
 import { inRulebookOrder, waitingRules } from "./rulebook.ts";
 import { recordsWaiting } from "../records/waiting.ts";
 import { checkoutState } from "../land/operator.ts";
-import { atLevel, landing, rulebookOf, type Brief, type BriefLevel, type BriefRule, type BriefTask, type FullBrief, type Tailoring, type Working } from "./brief-level.ts";
+import { atLevel, type BriefCycle, landing, rulebookOf, type Brief, type BriefLevel, type BriefRule, type BriefTask, type FullBrief, type Tailoring, type Working } from "./brief-level.ts";
+import { readCycles } from "../cycles/file.ts";
+import { isComplete } from "../cycles/list.ts";
+import { askOf } from "../cycles/state.ts";
 
 type Told = Task & { brief?: unknown; paths?: unknown };
 
@@ -72,7 +75,14 @@ function tailoringOf(repo: Repo, session: Session, rules: readonly Entry[]): { t
   return { tailoring: waiting.map(({ id, title, tailor }) => ({ id, title, tailor: tailor ?? "" })) };
 }
 
-export type { Brief, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
+async function briefCycle(repo: Repo, session: Session, ledger: Ledger): Promise<BriefCycle> {
+  const n = (await readCycles(repo.recordsDir)).current;
+  if (!isOperator(repo, session)) return { n };
+  const complete = await isComplete(repo, ledger, n);
+  return { n, complete, ...(complete ? { ask: askOf(n) } : {}) };
+}
+
+export type { Brief, BriefCycle, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
 
 export async function sessionBrief(repo: Repo, session: Session, level: BriefLevel = "full"): Promise<Brief> {
   const all = await readEntries(repo);
@@ -80,8 +90,10 @@ export async function sessionBrief(repo: Repo, session: Session, level: BriefLev
   const claims = await listClaims(repo);
   const rules = inForce.filter((entry) => entry.kind === RULE);
   const operator = isOperator(repo, session) ? { recordsWaiting: await recordsWaiting(repo), checkout: await checkoutState(repo) } : {};
-  const tasks = unlandedTasks(await new Records(repo).readLedger(), session.track, claims);
-  const shared = { rulebook: rulebookOf(all, rules.length), ...operator, working: working(await listSessions(repo), claims, session) };
+  const ledger = await new Records(repo).readLedger();
+  const tasks = unlandedTasks(ledger, session.track, claims);
+  const cycle = await briefCycle(repo, session, ledger);
+  const shared = { rulebook: rulebookOf(all, rules.length), ...operator, cycle, working: working(await listSessions(repo), claims, session) };
   if (level === "land") return { level, ...shared, track: { name: session.track, tasks: tasks.map(landing) } };
   const project = await readProject(repo);
   const handoff = await readHandoff(repo, session.track);

@@ -12,6 +12,7 @@ import { registerLandTools } from "./tools/land.ts";
 import { registerNoteTools } from "./tools/notes.ts";
 import { registerLedgerTools } from "./tools/ledger.ts";
 import { registerMilestoneTools } from "./tools/milestones.ts";
+import { registerCycleTools } from "./tools/cycles.ts";
 import { registerPhaseTools } from "./tools/phases.ts";
 import { registerRulebookTools } from "./tools/rulebook.ts";
 import { registerQuestionTools } from "./tools/questions.ts";
@@ -55,6 +56,7 @@ function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace):
   registerContextTools(tools, source);
   registerRulebookTools(tools, source);
   registerPhaseTools(tools, source);
+  registerCycleTools(tools, source);
 }
 
 export async function serveStdio(from: Repo | RepoSource, usage?: Usage): Promise<McpServer> {

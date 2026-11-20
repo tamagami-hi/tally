@@ -25,6 +25,8 @@ export { closedNumbers, cycleView } from "./cycles/view.ts";
 export { askOf, cycleState, isCarried } from "./cycles/state.ts";
 export type { CycleState } from "./cycles/state.ts";
 export { carryOut, closeCycle, finishPendingClose } from "./cycles/close.ts";
+export { cycleList, cycleOne, isComplete } from "./cycles/list.ts";
+export type { ClosedCycle, CurrentCycle, CycleList, CycleTotals } from "./cycles/list.ts";
 export type { CycleClosed, Parked } from "./cycles/close.ts";
 export { declaredOverlaps, editTrack } from "./tracks/edit.ts";
 export type { Declared, TrackEditInput, TrackEdited } from "./tracks/edit.ts";

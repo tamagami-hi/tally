@@ -32,7 +32,7 @@ describe("the brief's levels", () => {
 
     const brief = await sessionBrief(repo, data, "full");
 
-    expect(keys(brief)).toEqual(["entries", "level", "missing", "openQuestions", "project", "rulebook", "rules", "track", "working"]);
+    expect(keys(brief)).toEqual(["cycle", "entries", "level", "missing", "openQuestions", "project", "rulebook", "rules", "track", "working"]);
     expect(brief.level).toBe("full");
     expect(brief.rules).toEqual([{ id: "rule-1", section: "safety", title: "Never push main", text: "Pushing is the operator's." }]);
     expect(brief.rulebook).toEqual({ rules: 1, changedAt: T1.toISOString() });
@@ -43,7 +43,7 @@ describe("the brief's levels", () => {
 
     const brief = await sessionBrief(repo, data, "work");
 
-    expect(keys(brief)).toEqual(["entries", "level", "openQuestions", "project", "rulebook", "rules", "track", "working"]);
+    expect(keys(brief)).toEqual(["cycle", "entries", "level", "openQuestions", "project", "rulebook", "rules", "track", "working"]);
     expect(brief.project).toEqual({ name: "Test", purpose: "Replay market data." });
     expect(brief.rules).toEqual([{ id: "rule-1", section: "safety", title: "Never push main" }]);
     expect(brief.track?.handoff).toMatchObject({ lines: ["RED is in"] });
@@ -54,7 +54,7 @@ describe("the brief's levels", () => {
 
     const brief = await sessionBrief(repo, data, "land");
 
-    expect(keys(brief)).toEqual(["level", "rulebook", "track", "working"]);
+    expect(keys(brief)).toEqual(["cycle", "level", "rulebook", "track", "working"]);
     expect(keys(brief.track ?? {})).toEqual(["name", "tasks"]);
     expect(brief.track?.tasks[0]).toEqual({ milestone: "B2", id: "4 manifest" });
   });
@@ -118,9 +118,9 @@ describe("what each level keeps of a task, and of an operator's brief", () => {
 
     const [full, work, land] = await Promise.all((["full", "work", "land"] as const).map((level) => sessionBrief(repo, operator, level)));
 
-    expect(keys(full)).toEqual(["checkout", "entries", "level", "missing", "openQuestions", "project", "recordsWaiting", "rulebook", "rules", "track", "working"]);
-    expect(keys(work)).toEqual(["checkout", "entries", "level", "openQuestions", "project", "recordsWaiting", "rulebook", "rules", "track", "working"]);
-    expect(keys(land)).toEqual(["checkout", "level", "recordsWaiting", "rulebook", "track", "working"]);
+    expect(keys(full)).toEqual(["checkout", "cycle", "entries", "level", "missing", "openQuestions", "project", "recordsWaiting", "rulebook", "rules", "track", "working"]);
+    expect(keys(work)).toEqual(["checkout", "cycle", "entries", "level", "openQuestions", "project", "recordsWaiting", "rulebook", "rules", "track", "working"]);
+    expect(keys(land)).toEqual(["checkout", "cycle", "level", "recordsWaiting", "rulebook", "track", "working"]);
   });
 
   test("land reads nothing it does not answer, so a project record that does not parse cannot stop it", async () => {

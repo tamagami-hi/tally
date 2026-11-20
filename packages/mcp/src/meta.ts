@@ -85,6 +85,8 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   phase_add: { ...add("Add a phase"), since: "0.2.0" },
   phase_list: { ...read("List phases"), since: "0.2.0" },
   phase_close: { title: "Close a phase", effect: "remove", since: "0.2.0" },
+  cycle_list: { ...read("List cycles"), since: "0.7.0" },
+  cycle_close: { title: "Close the current cycle", effect: "remove", since: "0.7.0" },
   records_commit: { ...addAgain("Commit the waiting records"), since: "0.2.0" },
   deferred_list: { ...read("List deferred parts"), since: "0.3.0" },
   deferred_set: { ...replace("Place a deferred part"), since: "0.3.0" },

@@ -1,6 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { LiveRepo, TallyError, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
+import { LiveRepo, TallyError, cycleView, finishPendingClose, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
 import { SHARED_TEXT } from "./params.ts";
 import { attempt, jsonText } from "./respond.ts";
 
@@ -12,6 +12,7 @@ export interface Opened {
 export interface Where {
   sessionId?: string | undefined;
   repo?: string | undefined;
+  cycle?: number | undefined;
 }
 
 export interface ListedRepo {
@@ -31,6 +32,8 @@ export interface RepoSource {
   isOneOfMany(): Promise<boolean>;
   listed(): Promise<ListedRepo[]>;
 }
+
+export const CYCLE = z.number().int().positive().optional();
 
 export const WHERE = {
   sessionId: z.string().optional().describe(SHARED_TEXT.sessionId),
@@ -118,14 +121,31 @@ export function boundRepo(repos: Repos, name: string): RepoSource {
   };
 }
 
-export function inSession(source: RepoSource, sessionId: string, body: (repo: Repo, session: Session) => Promise<CallToolResult>): Promise<CallToolResult> {
+async function finished(repo: Repo): Promise<Repo> {
+  await finishPendingClose(repo).catch(() => undefined);
+  return repo;
+}
+
+export function inSession(source: RepoSource, sessionId: string, body: (repo: Repo, session: Session) => Promise<CallToolResult>, cycle?: number): Promise<CallToolResult> {
   return attempt(async () => {
-    const repo = await source.forSession(sessionId);
-    return body(repo, await getSession(repo, sessionId));
+    const repo = await finished(await source.forSession(sessionId));
+    const session = await getSession(repo, sessionId);
+    if (cycle === undefined) return body(repo, session);
+    return withKey(await body(await cycleView(repo, cycle), session), "cycle", cycle);
   });
 }
 
 const defaultLine = (name: string): string => `read from ${name}, the default repository; repo names another (repo_list lists them)`;
+
+function withKey(result: CallToolResult, key: string, value: unknown): CallToolResult {
+  const answer = result.structuredContent;
+  if (result.isError === true || answer === undefined || key in answer) return result;
+  const named = { ...answer, [key]: value };
+  const asJson = jsonText(answer);
+  const at = result.content.findIndex((part) => part.type === "text" && part.text === asJson);
+  const content = at < 0 ? result.content : result.content.map((part, index) => (index === at ? { type: "text" as const, text: jsonText(named) } : part));
+  return { ...result, content, structuredContent: named };
+}
 
 function namingTheDefault(result: CallToolResult, name: string): CallToolResult {
   const answer = result.structuredContent;
@@ -141,8 +161,9 @@ const isDefaultRead = async (source: RepoSource, where: Where): Promise<boolean>
 
 export function reading(source: RepoSource, where: Where, body: (repo: Repo) => Promise<CallToolResult>): Promise<CallToolResult> {
   return attempt(async () => {
-    const repo = await source.forRead(where);
-    const result = await body(repo);
+    const repo = await finished(await source.forRead(where));
+    const cycle = where.cycle;
+    const result = cycle === undefined ? await body(repo) : withKey(await body(await cycleView(repo, cycle)), "cycle", cycle);
     return (await isDefaultRead(source, where)) ? namingTheDefault(result, repo.name) : result;
   });
 }

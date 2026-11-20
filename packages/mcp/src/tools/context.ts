@@ -4,7 +4,7 @@ import { defined } from "../defined.ts";
 import { keeping } from "../entry-fields.ts";
 import { limitedText } from "../limited.ts";
 import { ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const DEFAULT_ENTRIES = 50;
@@ -83,9 +83,9 @@ export function registerContextTools(server: ToolHost, source: RepoSource): void
         since: z.string().optional().describe("an ISO time: only what came after it"),
         track: z.string().optional().describe("only this track's events"),
         limit: z.number().int().positive().max(MOST_EVENTS).default(DEFAULT_EVENTS),
-        ...WHERE,
+        cycle: CYCLE, ...WHERE,
       },
     },
-    ({ sessionId, repo: name, ...filter }) => reading(source, { sessionId, repo: name }, async (repo) => ok(await readActivity(repo, defined(filter)))),
+    ({ sessionId, repo: name, cycle, ...filter }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => ok(await readActivity(repo, defined(filter)))),
   );
 }

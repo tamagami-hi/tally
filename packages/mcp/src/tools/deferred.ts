@@ -3,7 +3,7 @@ import { Records, TallyError, commitRecords, countParts, deferredRows, deferredS
 import { parkedInput } from "../deferred-input.ts";
 import { FIELDS, pick } from "../filters.ts";
 import { ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const DEFAULT_PARTS = 50;
@@ -15,9 +15,9 @@ export function registerDeferredTools(server: ToolHost, source: RepoSource): voi
     "deferred_list",
     {
       description: "The parts landed tasks left undone, in ledger order, 50 unless `limit` says: each with its `part` number (from 1), `state` (unplaced, waiting for its task, done, or parked) and its `to` or `parked`. Filters narrow it; `counts` covers the whole ledger, `matched` the filter. A gap is an unplaced part, or one left to a task not in the ledger: place it with deferred_set.",
-      inputSchema: { state: z.enum(deferredStates).optional(), milestone: z.string().optional(), track: z.string().optional(), decision: z.string().optional(), owner: z.string().optional(), limit: z.number().int().positive().max(MOST_PARTS).optional(), fields: FIELDS, ...WHERE },
+      inputSchema: { state: z.enum(deferredStates).optional(), milestone: z.string().optional(), track: z.string().optional(), decision: z.string().optional(), owner: z.string().optional(), limit: z.number().int().positive().max(MOST_PARTS).optional(), fields: FIELDS, cycle: CYCLE, ...WHERE },
     },
-    ({ state, milestone, track, decision, owner, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    ({ state, milestone, track, decision, owner, limit, fields, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
       const rows = deferredRows(await new Records(repo).readLedger());
       const unknown = (fields ?? []).filter((key) => !ROW_KEYS.includes(key));
       if (unknown.length > 0) throw new TallyError(`a part has no '${unknown.join("', '")}'; its keys: ${ROW_KEYS.join(", ")}`);

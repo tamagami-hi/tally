@@ -3,7 +3,7 @@ import { MOST_REVIEWER, MOST_REVIEW_SUMMARY, Records, TallyError, needingReview,
 import { FIELDS, pick } from "../filters.ts";
 import { keyRefusal, limitedText } from "../limited.ts";
 import { ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const DEFAULT_REVIEWS = 20;
@@ -39,9 +39,9 @@ export function registerReviewTools(server: ToolHost, source: RepoSource): void 
     "review_list",
     {
       description: "Reviews, newest first: 20 unless `limit` says, with `matched`. Filters: milestone, task, track, and `state`, the reviewed task's (open: its newest review has blocking findings). Where reviews are required, `needing` names up to 20 landed tasks without a clear review, and the total.",
-      inputSchema: { milestone: z.string().optional(), task: z.string().optional(), track: z.string().optional(), state: z.enum(["open", "clear"]).optional(), limit: z.number().int().positive().max(MOST_REVIEWS).optional(), fields: FIELDS, ...WHERE },
+      inputSchema: { milestone: z.string().optional(), task: z.string().optional(), track: z.string().optional(), state: z.enum(["open", "clear"]).optional(), limit: z.number().int().positive().max(MOST_REVIEWS).optional(), fields: FIELDS, cycle: CYCLE, ...WHERE },
     },
-    ({ milestone, task, track, state, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    ({ milestone, task, track, state, limit, fields, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
       const unknown = (fields ?? []).filter((key) => !REVIEW_KEYS.includes(key));
       if (unknown.length > 0) throw new TallyError(`a review has no '${unknown.join("', '")}'; its keys: ${REVIEW_KEYS.join(", ")}`);
       const { reviews } = await readReviews(repo);

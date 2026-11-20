@@ -1,4 +1,5 @@
 export const SHARED_TEXT = {
+  cycle: "a closed cycle's number; left out, the current",
   sessionId: "from session_open",
   repo: "a repo_list name, else the default",
   limit: "at most this many",
@@ -37,6 +38,11 @@ const OWN: Readonly<Record<string, string>> = {
   "track_edit.addPaths": "folders or files from the worktree to add to what it may land",
   "track_edit.purpose": "its new purpose, one line",
   "track_close.endSessions": "true to end first its sessions that hold no claim",
+  "cycle_list.n": "a closed cycle's number, for that cycle whole",
+  "cycle_close.summary": "what the cycle built, at most 500 characters",
+  "cycle_close.said": "the operator's own words that close it, quoted",
+  "cycle_close.name": "a short name for the cycle",
+  "cycle_close.decision": "the decision it closes under, such as DEC-12",
   "milestone_add.group": "the group of documents its plans and build log belong to",
   "task_plan.tasks": "the tasks to add, each a name or {id, brief?, paths?, covers?}",
   "task_plan.track": "the track the tasks are for; the session's own when left out",

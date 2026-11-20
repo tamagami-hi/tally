@@ -5,7 +5,7 @@ import {
 import { FIELDS, LIMIT, lastStarted, pick, startedSince } from "../filters.ts";
 import { defined } from "../defined.ts";
 import { ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const summaryValue = z.union([z.number(), z.string(), z.boolean()]);
@@ -21,8 +21,8 @@ export function registerRecordTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "evidence_list",
-    { description: "The run records of a milestone, or of one of its tasks: the 20 started last unless `limit` says, with `matched`. `kind` and `since` (an ISO time: runs started at or after it) narrow them; `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(KINDS_AND_WORDS).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS, ...WHERE } },
-    ({ milestone, task, kind, since, limit, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    { description: "The run records of a milestone, or of one of its tasks: the 20 started last unless `limit` says, with `matched`. `kind` and `since` (an ISO time: runs started at or after it) narrow them; `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(KINDS_AND_WORDS).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS, cycle: CYCLE, ...WHERE } },
+    ({ milestone, task, kind, since, limit, fields, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
       const kept = await listEvidence(repo, milestone, task);
       if (kept.length === 0) findMilestone(await new Records(repo).readLedger(), milestone);
       const ofKind = kept.filter((record) => kind === undefined || isOfKind(record, kind));
@@ -37,8 +37,8 @@ export function registerRecordTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "handoff_read",
-    { description: "A track's current hand-off note and its earlier ones, oldest first. A session wants `history: 0`, the current note alone (`earlier` counts the rest), unless it reads how the hand-off changed.", inputSchema: { track: z.string(), history: z.number().int().nonnegative().optional().describe("how many of the latest earlier notes to answer; all when left out"), ...WHERE } },
-    ({ track, history, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    { description: "A track's current hand-off note and its earlier ones, oldest first. A session wants `history: 0`, the current note alone (`earlier` counts the rest), unless it reads how the hand-off changed.", inputSchema: { track: z.string(), history: z.number().int().nonnegative().optional().describe("how many of the latest earlier notes to answer; all when left out"), cycle: CYCLE, ...WHERE } },
+    ({ track, history, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
       const handoff = await readHandoff(repo, track);
       return ok(history === undefined ? handoff : latestHistory(handoff, history));
     }),

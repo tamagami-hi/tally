@@ -85,4 +85,14 @@ export async function cycleState(repo: Repo, ledger: Ledger, n: number): Promise
   return { finished, carried, unfinished, tracksCarried: tracks.carried, tracksToClose: tracks.others, blockers };
 }
 
+export async function cycleComplete(repo: Repo, ledger: Ledger, n: number): Promise<boolean> {
+  const finishedSet = await finishedIds(repo, ledger);
+  const carriedSet = new Set(ledger.milestones.filter(isCarried).map((milestone) => milestone.id));
+  if (finishedSet.size === 0 || ledger.milestones.some((milestone) => !carriedSet.has(milestone.id) && !finishedSet.has(milestone.id))) return false;
+  if ((await queueBlockers(repo)).length > 0 || (await owedBlockers(repo, ledger)).length > 0) return false;
+  if ((await phaseBlockers(repo, ledger, carriedSet)).length > 0) return false;
+  const opened = (await readableTracks(repo.recordsDir)).value.tracks.filter(isOpen).map((track) => track.name);
+  return (await trackBlockers(repo, tracksOf(ledger, carriedSet, opened).others)).length === 0;
+}
+
 export const askOf = (n: number): string => `everything planned in cycle ${n} has landed: ask the operator whether to close it; cycle_close takes their words in \`said\``;

@@ -1,13 +1,13 @@
 import { z } from "zod";
 import {
-  addMilestone, assertNewMilestone, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
+  addMilestone, askOf, assertNewMilestone, isComplete, readCycles, needingReview, reviewsWhenRequired, assertMayPark, assertMayWrite, checkoutLine, checkoutState, assertMilestoneOpen, assertStageOpen, checkLedger, claimTask, collect, commitRecords, deliver, deliverableInputSchema, entriesAbout, findMilestone, findTask, getSession, isOperator, listClaims,
   listLocks, other, plan, plannedOnMainNotice, Records, recordTask, recordsWaiting, releaseClaim, removeTask, resolveOnMain, rowsOf, TallyError, unwait, wait, type Ledger, type MilestoneRow, type Repo, type Session,
 } from "@tally/core";
 import { deferredInput } from "../deferred-input.ts";
 import { FIELDS, pickKnown } from "../filters.ts";
 import { plannedTasks } from "../planned-task.ts";
 import { ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 async function recorded(repo: Repo, message: string): Promise<{ message: string; commit: string | null }> {
@@ -30,6 +30,13 @@ function boardOf<B extends { rows: readonly MilestoneRow[] }>(board: B, rows: "a
   return Object.hasOwn(picked, "rows") ? { ...picked, finishedRows: board.rows.length - open.length } : picked;
 }
 
+async function cycleOf(repo: Repo, ledger: Ledger): Promise<{ cycle?: { n: number; complete: boolean; ask?: string } }> {
+  if (repo.cycle !== undefined) return {};
+  const n = (await readCycles(repo.recordsDir)).current;
+  const complete = await isComplete(repo, ledger, n);
+  return { cycle: { n, complete, ...(complete ? { ask: askOf(n) } : {}) } };
+}
+
 async function own(repo: Repo, sessionId: string | undefined): Promise<Session> {
   if (sessionId === undefined) throw new TallyError("scope 'mine' needs the sessionId");
   return getSession(repo, sessionId);
@@ -44,11 +51,11 @@ function scopedTrack(repo: Repo, session: Session, given: string | undefined): s
 export function registerLedgerTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
     "board_get",
-    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, and the live claims and locks. A row is `finished` when its tasks are all on main (or it is built) and ledger_check lists no gap for it. A whole board may be cut to fit: ask for rows 'open' unless you need finished work. scope 'mine' keeps the session's track: its rows, tasks and notes, its branch beside main, its claims.", inputSchema: { scope: SCOPE, rows: ROWS, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), ...WHERE } },
-    ({ scope, rows, fields, sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => {
+    { description: "The build's status as the board shows it: stages, milestones, tasks, tracks, problems, and the live claims and locks. A row is `finished` when its tasks are all on main (or it is built) and ledger_check lists no gap for it. A whole board may be cut to fit: ask for rows 'open' unless you need finished work. scope 'mine' keeps the session's track: its rows, tasks and notes, its branch beside main, its claims.", inputSchema: { scope: SCOPE, rows: ROWS, fields: FIELDS.describe("the top-level keys to keep, such as rows or claims"), cycle: CYCLE, ...WHERE } },
+    ({ scope, rows, fields, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
       const ledger = await new Records(repo).readLedger();
       const status = await collect(repo, ledger);
-      const board = { ...status, claims: await listClaims(repo), locks: await listLocks(repo) };
+      const board = { ...status, claims: await listClaims(repo), locks: await listLocks(repo), ...(await cycleOf(repo, ledger)) };
       if (scope === "all") return ok(boardOf(board, rows, fields));
       const session = await own(repo, sessionId);
       const needing = needingReview(ledger, await reviewsWhenRequired(repo), repo.config.reviews);

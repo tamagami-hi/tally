@@ -51,7 +51,7 @@ export async function collect(repo: Repo, ledger: Ledger, now = new Date()): Pro
   const { root, config } = repo;
   const main = config.mainBranch;
   const summary = await summarize(ledger, config.stages, onMainOf(repo), needingReview(ledger, await reviewsWhenRequired(repo), config.reviews));
-  const { missing } = await owedCommits(repo, ledger);
+  const { missing } = repo.cycle === undefined ? await owedCommits(repo, ledger) : { missing: [] };
   const problems = [...(repo.problems ?? []), ...summary.problems];
   if (missing.length > 0) problems.push(`commits on main not in the ledger (record them): ${missing.join("; ")}`);
   const origin = await gitOut(root, ["rev-parse", "--short", `origin/${main}`]);

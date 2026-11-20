@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { closeTrack, declaredOverlaps, editTrack, listTracks, openTrackWithPlan } from "@tally/core";
+import { closeTrack, declaredOverlaps, editTrack, listTracks, openTrackWithPlan, readTracks } from "@tally/core";
 import { plannedTasks } from "../planned-task.ts";
 import { ok } from "../respond.ts";
-import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
+import { CYCLE, WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
 
 export function registerTrackTools(server: ToolHost, source: RepoSource): void {
@@ -49,7 +49,7 @@ export function registerTrackTools(server: ToolHost, source: RepoSource): void {
   );
   server.registerTool(
     "track_list",
-    { description: "Every track of one repository: its name, branch, worktree and parent, its purpose when an agent opened it, the `paths` it may land if limited, whether it is the config's or opened with track_open (`source`), and whether a session is open on it (`hasSession`).", inputSchema: { ...WHERE } },
-    ({ sessionId, repo: name }) => reading(source, { sessionId, repo: name }, async (repo) => ok({ tracks: await listTracks(repo) })),
+    { description: "Every track of one repository: its name, branch, worktree and parent, its purpose when an agent opened it, the `paths` it may land if limited, whether it is the config's or opened with track_open (`source`), and whether a session is open on it (`hasSession`).", inputSchema: { cycle: CYCLE, ...WHERE } },
+    ({ cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => ok(cycle === undefined ? { tracks: await listTracks(repo) } : { tracks: await listTracks(repo), closed: (await readTracks(repo.recordsDir)).tracks })),
   );
 }
