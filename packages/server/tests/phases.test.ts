@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { addPhase } from "@tally/core";
+import { addPhase, recordManual } from "@tally/core";
 import { fingerprint } from "../src/watcher.ts";
 import { opening } from "../../core/tests/support/opening.ts";
 
@@ -10,6 +10,17 @@ describe("the watcher's view of the records", () => {
     const before = await fingerprint(repo);
 
     await addPhase(repo, operator, { id: "H", name: "imports", goal: "Take imports in.", weight: 2 });
+
+    expect(await fingerprint(repo)).not.toBe(before);
+  });
+
+  test("changes when a second check made by hand is written to a milestone's file, so the Evidence page is told", async () => {
+    const { repo, data } = await opening();
+    const check = { milestone: "B2", task: "4 manifest", who: "the operator", result: "pass" as const, steps: ["open it"] };
+    await recordManual(repo, data, check);
+    const before = await fingerprint(repo);
+
+    await recordManual(repo, data, { ...check, result: "fail" });
 
     expect(await fingerprint(repo)).not.toBe(before);
   });

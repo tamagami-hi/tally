@@ -1,7 +1,7 @@
 import { InfoCircledIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
 import { bytesText, countsText, kindTone, secondsText, summaryText } from "../format.ts";
-import type { EvidenceIndex, EvidenceRecord } from "../types.ts";
+import type { EvidenceIndex, EvidenceRecord, ManualCheck } from "../types.ts";
 import { here } from "../place.ts";
 
 const basename = (path: string): string => path.split("/").at(-1) ?? path;
@@ -60,27 +60,58 @@ function Run({ record }: { record: EvidenceRecord }) {
   );
 }
 
-function Task({ task, records }: { task: string; records: EvidenceRecord[] }) {
+function whoText(check: ManualCheck): string {
+  const on = check.device === undefined ? check.who : `${check.who} on ${check.device}`;
+  return check.build === undefined ? on : `${on}, build ${check.build}`;
+}
+
+function Manual({ check }: { check: ManualCheck }) {
+  const tone = check.result === "pass" ? "done" : "warn";
   return (
-    <li className="evidence-task">
-      <div className="evidence-task-head">
-        <span className="label">{task}</span>
-        <span className="faint small">{countsText(records)}</span>
-      </div>
-      <ul className="runs">{records.map((record) => <Run key={record.id} record={record} />)}</ul>
+    <li className={`run manual ${tone}`}>
+      <span className={`chip chip-${tone}`}>by hand: {check.result}</span>
+      <span className="small">{whoText(check)}</span>
+      <span className="faint small">{new Date(check.at).toLocaleString()}</span>
+      <span className="cmd truncate" title={check.steps.join("\n")}>{check.steps.join("; ")}</span>
+      <span className="meta small">
+        {check.note === undefined ? null : <span>{check.note}</span>}
+        {check.attachments.map((file) => <span key={file.path} className="mono" title={file.path}>{basename(file.path)} <span className="faint">{bytesText(file.bytes)}</span></span>)}
+      </span>
     </li>
   );
 }
 
-function byTask(records: EvidenceRecord[]): [string, EvidenceRecord[]][] {
-  const tasks = new Map<string, EvidenceRecord[]>();
-  for (const record of records) tasks.set(record.task, [...(tasks.get(record.task) ?? []), record]);
+interface TaskWork {
+  records: EvidenceRecord[];
+  manual: ManualCheck[];
+}
+
+function Task({ task, work }: { task: string; work: TaskWork }) {
+  return (
+    <li className="evidence-task">
+      <div className="evidence-task-head">
+        <span className="label">{task}</span>
+        <span className="faint small">{countsText(work.records)}</span>
+      </div>
+      <ul className="runs">
+        {work.records.map((record) => <Run key={record.id} record={record} />)}
+        {work.manual.map((check) => <Manual key={check.id} check={check} />)}
+      </ul>
+    </li>
+  );
+}
+
+function byTask(records: EvidenceRecord[], manual: ManualCheck[]): [string, TaskWork][] {
+  const tasks = new Map<string, TaskWork>();
+  const of = (task: string): TaskWork => tasks.get(task) ?? { records: [], manual: [] };
+  for (const record of records) tasks.set(record.task, { ...of(record.task), records: [...of(record.task).records, record] });
+  for (const check of manual) tasks.set(check.task, { ...of(check.task), manual: [...of(check.task).manual, check] });
   return [...tasks];
 }
 
 export function Evidence({ index }: { index: EvidenceIndex | undefined }) {
   if (index === undefined) return <section className="evidence" aria-label="Evidence" aria-busy="true"><div className="skeleton evidence-skeleton" /></section>;
-  const total = index.milestones.reduce((n, m) => n + m.records.length, 0);
+  const total = index.milestones.reduce((n, m) => n + m.records.length + (m.manual ?? []).length, 0);
   if (total === 0) {
     return (
       <section className="evidence" aria-label="Evidence">
@@ -98,10 +129,10 @@ export function Evidence({ index }: { index: EvidenceIndex | undefined }) {
       {index.milestones.map((milestone) => (
         <div key={milestone.milestone} className="stage">
           <div className="stage-head">
-            <h3>{milestone.milestone}<span className="name">{milestone.records.length} run records</span></h3>
+            <h3>{milestone.milestone}<span className="name">{milestone.records.length} run records{milestone.manual === undefined ? "" : `, ${milestone.manual.length} by hand`}</span></h3>
             <span className="faint small">{countsText(milestone.records)}</span>
           </div>
-          <ul>{byTask(milestone.records).map(([task, records]) => <Task key={task} task={task} records={records} />)}</ul>
+          <ul>{byTask(milestone.records, milestone.manual ?? []).map(([task, work]) => <Task key={task} task={task} work={work} />)}</ul>
         </div>
       ))}
     </section>

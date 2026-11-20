@@ -56,6 +56,21 @@ describe("the evidence page", () => {
     expect(run).toHaveTextContent("ran: the core package");
   });
 
+  test("lists the checks made by hand under their task, beside its runs, and a milestone that has only checks", () => {
+    const check = { id: "manual-1", task: "data 9 phone", who: "the operator", device: "a phone", build: "0.9.0", steps: ["open the app", "read a file"], result: "fail", note: "the list is empty", attachments: [{ path: "/w/.temp/shots/one.png", sha256: "0".repeat(64), bytes: 2048 }], by: { session: "s-1", track: "main", agent: "operator" }, at: "2026-11-20T10:00:00.000Z" };
+    render(<Evidence index={{ milestones: [{ milestone: "B6", records: [], manual: [check] }] }} />);
+
+    const task = screen.getAllByRole("listitem").find((li) => li.classList.contains("evidence-task"))!;
+    const made = within(task).getAllByRole("listitem").find((li) => li.classList.contains("manual"))!;
+
+    expect(task).toHaveTextContent("data 9 phone");
+    expect(within(made).getByText("by hand: fail")).toHaveClass("chip");
+    expect(made).toHaveTextContent("the operator on a phone, build 0.9.0");
+    expect(made).toHaveTextContent("open the app; read a file");
+    expect(made).toHaveTextContent("one.png");
+    expect(screen.queryByText(/No evidence records yet/)).toBeNull();
+  });
+
   test("says when nothing is recorded yet, and while loading", () => {
     render(<Evidence index={{ milestones: [] }} />);
     expect(screen.getByText(/No evidence records yet/)).toBeInTheDocument();

@@ -148,6 +148,10 @@ export { KINDS_AND_WORDS, MOST_SCOPE, RUN_WORDS, isOfKind, storedKind } from "./
 export type { KindOrWord, RunWord } from "./records/evidence.ts";
 export { evidenceFiles, evidenceKinds, findEvidence, judgeRun, listEvidence, readAllEvidence, readEvidence, recordEvidence } from "./records/evidence.ts";
 export type { EvidenceInput, EvidenceKind, Kept, MilestoneEvidence, RunRecord } from "./records/evidence.ts";
+export { MOST_ATTACHMENT_MB, MOST_STEPS, listManual, manualFiles, manualPath, manualResults, readAllManual, readManual, recordManual } from "./records/manual.ts";
+export { evidenceIndex } from "./records/evidence-index.ts";
+export type { IndexedMilestone } from "./records/evidence-index.ts";
+export type { ManualCheck, ManualFile, ManualInput } from "./records/manual.ts";
 export { runEvidence, runnerInstead } from "./records/run.ts";
 export type { NotRun } from "./records/run.ts";
 export { COMMANDS_ENV, commandPlaces, commandsRunIn } from "./land/where.ts";

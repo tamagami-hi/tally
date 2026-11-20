@@ -5,7 +5,7 @@ export const ROLES = ["builder", "reviewer"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_TOOLS: Readonly<Record<Role, readonly string[]>> = {
-  builder: ["session_open", "session_close", "task_claim", "task_release", "task_wait", "task_unwait", "evidence_record", "evidence_list", "land_start", "land_wait", "land_cancel", "handoff_read", "handoff_write", "note_post", "note_reply", "note_done", "inbox_get", "question_add", "question_list", "decision_list", "context_get", "context_put", "covering", "board_get"],
+  builder: ["session_open", "session_close", "task_claim", "task_release", "task_wait", "task_unwait", "evidence_record", "evidence_manual", "evidence_list", "land_start", "land_wait", "land_cancel", "handoff_read", "handoff_write", "note_post", "note_reply", "note_done", "inbox_get", "question_add", "question_list", "decision_list", "context_get", "context_put", "covering", "board_get"],
   reviewer: ["session_open", "session_close", "review_record", "review_list", "evidence_list", "decision_list", "context_get", "context_put", "covering", "rulebook_get", "question_add", "handoff_read", "note_post", "inbox_get", "board_get"],
 };
 

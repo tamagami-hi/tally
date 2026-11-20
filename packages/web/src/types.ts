@@ -174,8 +174,22 @@ export interface EvidenceRecord {
   scope?: string;
 }
 
+export interface ManualCheck {
+  id: string;
+  task: string;
+  who: string;
+  device?: string;
+  build?: string;
+  steps: string[];
+  result: string;
+  note?: string;
+  attachments: { path: string; sha256: string; bytes: number }[];
+  by: { session: string; track: string; agent: string };
+  at: string;
+}
+
 export interface EvidenceIndex {
-  milestones: { milestone: string; records: EvidenceRecord[] }[];
+  milestones: { milestone: string; records: EvidenceRecord[]; manual?: ManualCheck[] }[];
 }
 
 export interface DocumentRow {

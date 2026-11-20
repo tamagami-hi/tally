@@ -3,7 +3,7 @@ import { realpath } from "node:fs/promises";
 import { relative, sep } from "node:path";
 import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
-import { ENDED_LIMIT, MOST_ENDED, Records, TallyError, collect, cycleList, cycleView, doneWork, endedSessions, findEvidence, listDocs, messageOf, readAllEvidence, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
+import { ENDED_LIMIT, MOST_ENDED, Records, TallyError, collect, cycleList, cycleView, doneWork, endedSessions, findEvidence, listDocs, evidenceIndex, messageOf, readDoc, readDocuments, readEvidence, worktreeOf, type Config, type Repo } from "@tally/core";
 import { GRAPH_LIMIT, commitCount, commitGraph, graphBranches } from "./graph.ts";
 import { fileOrNull } from "./static.ts";
 import type { Watcher } from "./watcher.ts";
@@ -86,7 +86,7 @@ export function repoRoutes(served: Serve): Hono {
   });
   api.get("/ledger", async (c) => c.json(await new Records((await served(c)).repo).readLedger()));
   api.get("/config", async (c) => c.json(redactedConfig((await served(c)).repo.config)));
-  api.get("/evidence", async (c) => c.json({ milestones: await readAllEvidence((await served(c)).repo) }));
+  api.get("/evidence", async (c) => c.json({ milestones: await evidenceIndex((await served(c)).repo) }));
   api.get("/evidence/log/:id", async (c) => {
     const found = await findEvidence((await served(c)).repo, c.req.param("id"));
     if (found === null || found.record.log === undefined) return c.json({ error: "no log for that record" }, 404);

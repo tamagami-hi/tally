@@ -112,6 +112,16 @@ describe("the HTTP API", () => {
     }
   });
 
+  test("lists the checks made by hand under their milestone, beside the run records, and a milestone that has only checks", async () => {
+    const { app, repo } = await fixture();
+    const check = { id: "manual-1", task: "t1", who: "the operator", steps: ["open it"], result: "pass", attachments: [], by: { session: "s-1", track: "main", agent: "operator" }, at: "2026-11-20T10:00:00.000Z" };
+    await writeJsonAtomic(join(repo.recordsDir, "manual", "A1.json"), { schema: 1, milestone: "A1", checks: [check] });
+
+    const index = await (await app.request("/api/evidence")).json() as { milestones: { milestone: string; records: unknown[]; manual?: unknown[] }[] };
+
+    expect(index.milestones).toEqual([{ milestone: "A1", records: [], manual: [check] }]);
+  });
+
   test("lists the evidence records per milestone and serves a log in place, saying whether it still matches its hash", async () => {
     const { app, repo, root } = await fixture();
     expect(await (await app.request("/api/evidence")).json()).toEqual({ milestones: [] });

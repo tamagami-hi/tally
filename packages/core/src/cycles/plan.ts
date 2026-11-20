@@ -7,6 +7,7 @@ import { readablePhases } from "../phases/file.ts";
 import { ACTIVITY_DIR } from "../records/activity.ts";
 import { evidencePath } from "../records/evidence.ts";
 import { handoffPath } from "../records/handoffs.ts";
+import { manualPath } from "../records/manual.ts";
 import { MAX_NOTE, readNotes, type Note } from "../records/notes.ts";
 import { TALLY } from "../records/tell.ts";
 import { configSchema, type Config } from "../schema/config.ts";
@@ -71,7 +72,7 @@ async function dayFiles(repo: Repo): Promise<string[]> {
 export async function movesOf(repo: Repo, n: number, milestones: readonly string[], tracks: readonly string[], closing: readonly string[]): Promise<Move[]> {
   const open = (await readTracks(repo.recordsDir)).tracks.filter(isOpen).map((track) => track.name).filter((name) => !closing.includes(name));
   const staying = new Set([repo.config.mainBranch, ...(await baseConfig(repo)).tracks.map((track) => track.name), ...open]);
-  const paths = [...milestones.map((id) => evidencePath(repo, id)), ...tracks.filter((name) => !staying.has(name)).map((name) => handoffPath(repo, name)), ...(await dayFiles(repo))];
+  const paths = [...milestones.flatMap((id) => [evidencePath(repo, id), manualPath(repo, id)]), ...tracks.filter((name) => !staying.has(name)).map((name) => handoffPath(repo, name)), ...(await dayFiles(repo))];
   const present = await Promise.all(paths.map(isPresent));
   return paths.filter((_, index) => present[index] === true).map((path) => relative(repo.recordsDir, path)).map((from) => ({ from, to: inCycle(n, from) }));
 }

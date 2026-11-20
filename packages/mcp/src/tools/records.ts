@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  Records, acquireLock, KINDS_AND_WORDS, isOfKind, storedKind, findMilestone, latestHistory, listEvidence, listLocks, readHandoff, recordEvidence, releaseLock, writeHandoff,
+  Records, acquireLock, KINDS_AND_WORDS, isOfKind, storedKind, findMilestone, latestHistory, listEvidence, listLocks, listManual, manualResults, readHandoff, recordEvidence, recordManual, releaseLock, writeHandoff, type ManualCheck,
 } from "@tally/core";
 import { FIELDS, LIMIT, lastStarted, pick, startedSince } from "../filters.ts";
 import { defined } from "../defined.ts";
@@ -10,8 +10,17 @@ import type { ToolHost } from "../decorate.ts";
 
 const summaryValue = z.union([z.number(), z.string(), z.boolean()]);
 
-
 const DEFAULT_RECORDS = 20;
+
+const MANUAL = "manual";
+
+const EVIDENCE_MANUAL = "A check a person made that no command can show, in 1 to 30 steps. Each attachment is a file under the repository's .temp/, at most 200 MB, kept in place by path, hash and size.";
+
+const manualInput = { sessionId: z.string(), milestone: z.string(), task: z.string(), who: z.string().min(1), result: z.enum(manualResults), steps: z.array(z.string()), device: z.string().optional(), build: z.string().optional(), note: z.string().optional(), attachments: z.array(z.string()).optional() };
+
+const atSince = (checks: ManualCheck[], since: string | undefined): ManualCheck[] => (since === undefined ? checks : checks.filter((check) => check.at >= since));
+
+const manualCount = (checks: readonly ManualCheck[]): { manual?: number } => (checks.length === 0 ? {} : { manual: checks.length });
 
 export function registerRecordTools(server: ToolHost, source: RepoSource): void {
   server.registerTool(
@@ -21,14 +30,24 @@ export function registerRecordTools(server: ToolHost, source: RepoSource): void 
   );
   server.registerTool(
     "evidence_list",
-    { description: "The run records of a milestone, or of one of its tasks: the 20 started last unless `limit` says, with `matched`. `kind` and `since` (an ISO time: runs started at or after it) narrow them; `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum(KINDS_AND_WORDS).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS, cycle: CYCLE, ...WHERE } },
+    { description: "The run records of a milestone, or of one of its tasks: the 20 started last unless `limit` says, with `matched`. `kind` and `since` (an ISO time: runs started at or after it) narrow them; `fields` keeps only those keys of each record.", inputSchema: { milestone: z.string(), task: z.string().optional(), kind: z.enum([...KINDS_AND_WORDS, MANUAL]).optional(), since: z.string().optional().describe("an ISO time, such as 2026-11-04T09:00:00Z"), limit: LIMIT, fields: FIELDS, cycle: CYCLE, ...WHERE } },
     ({ milestone, task, kind, since, limit, fields, cycle, sessionId, repo: name }) => reading(source, { sessionId, repo: name, cycle }, async (repo) => {
       const kept = await listEvidence(repo, milestone, task);
-      if (kept.length === 0) findMilestone(await new Records(repo).readLedger(), milestone);
+      const checks = await listManual(repo, milestone, task);
+      if (kept.length === 0 && checks.length === 0) findMilestone(await new Records(repo).readLedger(), milestone);
+      if (kind === MANUAL) {
+        const made = atSince(checks, since);
+        return ok({ checks: made.slice(-(limit ?? DEFAULT_RECORDS)).map((check) => pick(check, fields)), matched: made.length });
+      }
       const ofKind = kept.filter((record) => kind === undefined || isOfKind(record, kind));
       const found = startedSince(ofKind, since);
-      return ok({ records: lastStarted(found, limit ?? DEFAULT_RECORDS).map((record) => pick(record, fields)), matched: found.length });
+      return ok({ records: lastStarted(found, limit ?? DEFAULT_RECORDS).map((record) => pick(record, fields)), matched: found.length, ...manualCount(checks) });
     }),
+  );
+  server.registerTool(
+    "evidence_manual",
+    { description: EVIDENCE_MANUAL, inputSchema: manualInput },
+    ({ sessionId, ...input }) => inSession(source, sessionId, async (repo, session) => ok(await recordManual(repo, session, defined(input)))),
   );
   server.registerTool(
     "handoff_write",

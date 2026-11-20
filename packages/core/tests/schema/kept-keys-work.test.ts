@@ -6,6 +6,7 @@ import { activityPath, logActivity } from "../../src/records/activity.ts";
 import { appendBuildlog, buildlogPath } from "../../src/records/buildlog.ts";
 import { evidencePath, recordEvidence } from "../../src/records/evidence.ts";
 import { handoffPath, writeHandoff } from "../../src/records/handoffs.ts";
+import { manualPath, recordManual } from "../../src/records/manual.ts";
 import { notesPath, postNote, replyNote } from "../../src/records/notes.ts";
 import { openSession } from "../../src/state/sessions.ts";
 import { Records } from "../../src/store/records.ts";
@@ -114,5 +115,20 @@ describe("a build keeps the keys it does not know in the records of work", () =>
     const raw = await readRaw(path);
     expect(raw["future"]).toEqual(FUTURE);
     expect(itemsOf(raw, "events")[0]!["future"]).toEqual(FUTURE);
+  });
+
+  it("keeps them on a file of checks made by hand and on a check", async () => {
+    const { repo, trees } = await makeTracked();
+    const data = await openSession(repo, { worktree: trees["data"]!, agent: "claude" });
+    const check = { milestone: "B2", task: "4 manifest", who: "the operator", result: "pass" as const, steps: ["open it"] };
+    await recordManual(repo, data, check, NOW);
+    await addExtras(manualPath(repo, "B2"), (raw) => ({ ...raw, future: FUTURE, checks: itemsOf(raw, "checks").map((one) => ({ ...one, future: FUTURE, by: { ...(one["by"] as Raw), future: FUTURE } })) }));
+
+    await recordManual(repo, data, check, NOW);
+
+    const raw = await readRaw(manualPath(repo, "B2"));
+    expect(raw["future"]).toEqual(FUTURE);
+    expect(itemsOf(raw, "checks")[0]!["future"]).toEqual(FUTURE);
+    expect((itemsOf(raw, "checks")[0]!["by"] as Raw)["future"]).toEqual(FUTURE);
   });
 });

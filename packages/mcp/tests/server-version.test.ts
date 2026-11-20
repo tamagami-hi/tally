@@ -10,6 +10,7 @@ const SINCE_0_2 = ["phase_add", "phase_close", "phase_list", "records_commit", "
 const SINCE_0_3 = ["deferred_list", "deferred_set", "question_edit", "review_list", "review_record"];
 const SINCE_0_7 = ["cycle_close", "cycle_list", "milestone_edit", "milestone_remove", "track_edit"];
 const SINCE_0_8 = ["covering", "decision_record", "decision_status", "question_answer"];
+const SINCE_0_9 = ["evidence_manual"];
 
 const versionOf = async (path: string): Promise<string> => (JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { version: string }).version;
 
@@ -29,10 +30,11 @@ describe("the server's version", () => {
     expect(since("0.3.0")).toEqual(SINCE_0_3);
     expect(since("0.7.0")).toEqual(SINCE_0_7);
     expect(since("0.8.0")).toEqual(SINCE_0_8);
+    expect(since("0.9.0")).toEqual(SINCE_0_9);
   });
 
-  test("names as newest exactly the tools of the two latest versions that added one: 0.7.0 and 0.8.0", () => {
-    expect([...newestTools()].sort()).toEqual([...SINCE_0_7, ...SINCE_0_8].sort());
+  test("names as newest exactly the tools of the two latest versions that added one: 0.8.0 and 0.9.0", () => {
+    expect([...newestTools()].sort()).toEqual([...SINCE_0_8, ...SINCE_0_9].sort());
   });
 
   test("is answered by session_open and repo_list, with the tool count and the newest tools", async () => {
