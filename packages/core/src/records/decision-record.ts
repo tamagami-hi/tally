@@ -39,6 +39,17 @@ export const isUnconfirmed = (decision: Decision): boolean => decision.via !== u
 
 export const isDisputed = (decision: Decision): boolean => decision.disputed !== undefined && !isWithdrawn(decision);
 
+export interface DecisionMarks {
+  unconfirmed?: true;
+  disputed?: true;
+}
+
+export function marksOf(decision: Decision): DecisionMarks {
+  if (isWithdrawn(decision)) return {};
+  if (isDisputed(decision)) return { disputed: true };
+  return isUnconfirmed(decision) ? { unconfirmed: true } : {};
+}
+
 export interface ToConfirm {
   id: string;
   group: string;

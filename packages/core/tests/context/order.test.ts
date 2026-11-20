@@ -45,7 +45,7 @@ describe("the work order", () => {
     const order = await orderOf(repo, eng);
 
     expect(order.level).toBe("order");
-    expect(citedOf(order, "DEC-1")).toEqual({ id: "DEC-1", of: "decision", group: "core", state: "in force", text: DECISION, accept: ACCEPT });
+    expect(citedOf(order, "DEC-1")).toEqual({ id: "DEC-1", of: "decision", group: "core", state: "in force", text: DECISION, accept: ACCEPT, unconfirmed: true });
     expect(JSON.stringify(order)).not.toContain("A decision no task cites.");
   });
 

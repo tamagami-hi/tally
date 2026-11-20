@@ -18,6 +18,7 @@ export const ROLE_PROTOCOL: Readonly<Record<Role, string>> = {
     "4. Run each check with the runner line session_open gave, so the run is recorded; evidence_record records a run already made.",
     "5. land_start, then land_wait. task_wait marks a task that waits on another.",
     "6. handoff_write what the next session needs, then session_close.",
+    "A decision marked disputed is not built to: tell the main track with note_post. One marked unconfirmed is the coordinator's record of the operator's words, not yet confirmed by the operator.",
     "A choice that is the operator's goes to question_add. Never push, release or deploy.",
   ].join("\n"),
   reviewer: [
@@ -28,6 +29,7 @@ export const ROLE_PROTOCOL: Readonly<Record<Role, string>> = {
     "4. review_record your verdict, with your own text.",
     "5. A brief that differs from a record is reported with note_post, kind request, with record set to the record's id; a finding worth keeping goes in with context_put.",
     "6. session_close.",
+    "A decision marked disputed is not built to: tell the main track with note_post. One marked unconfirmed is the coordinator's record of the operator's words, not yet confirmed by the operator.",
     "A choice that is the operator's goes to question_add.",
   ].join("\n"),
 };

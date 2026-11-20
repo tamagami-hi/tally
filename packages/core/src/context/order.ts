@@ -15,6 +15,7 @@ import { readEntries, type Entry, type EntryKind } from "./entries.ts";
 import { isInForce } from "./find.ts";
 import { overlaps } from "./match.ts";
 import { inRulebookOrder } from "./rulebook.ts";
+import { isWithdrawn, marksOf } from "../records/decision-record.ts";
 
 export const ORDER_ROOM = 20_000;
 
@@ -23,7 +24,7 @@ export interface OrderOptions {
 }
 
 export type OrderCited =
-  | { id: string; of: "decision"; group: string; state: DecisionState; text: string; accept?: string[]; changed?: string }
+  | { id: string; of: "decision"; group: string; state: DecisionState; text: string; accept?: string[]; changed?: string; unconfirmed?: true; disputed?: true }
   | { id: string; of: "entry"; kind: EntryKind; title: string; text: string; changed?: string }
   | { id: string; of: "question"; question: string; meanwhile: string; answer?: { decision: string; said?: string; at: string } }
   | { id: string; of: "note"; from: string; text: string; changed?: string; cycle?: number }
@@ -75,9 +76,10 @@ function orderTasks(ledger: Ledger, track: string, claims: readonly Claim[]): Or
 function shaped(cited: Cited, decisions: DecisionsFile): OrderCited {
   const at = (cited.kind === "note" || cited.kind === "review") && cited.cycle !== undefined ? { cycle: cited.cycle } : {};
   if (cited.kind === "decision") {
-    const { group, state, text, accept } = cited.record;
+    const { group, state, text, accept, status } = cited.record;
     const replaced = decisions.replaced.filter((row) => row.id === cited.id && row.group === group).at(-1);
-    return { id: cited.id, of: "decision", group, state, text, ...(accept === undefined ? {} : { accept }), ...(replaced === undefined ? {} : { changed: `replaced ${replaced.replaced}: ${replaced.why}` }) };
+    const changed = isWithdrawn(cited.record) ? `withdrawn, its status: ${status}` : replaced === undefined ? undefined : `replaced ${replaced.replaced}: ${replaced.why}`;
+    return { id: cited.id, of: "decision", group, state, text, ...(accept === undefined ? {} : { accept }), ...marksOf(cited.record), ...(changed === undefined ? {} : { changed }) };
   }
   if (cited.kind === "entry") {
     const { kind, title, text, retiredAt, retiredWhy } = cited.record;

@@ -12,7 +12,7 @@ import { cycling } from "../support/cycling.ts";
 async function covered() {
   const made = await cycling();
   const { repo, operator } = made;
-  const decide = (id: string, state: "in force" | "built", paths?: string[], status: string = state) => addDecision(repo, { id, group: "core", text: `${id} text`, since: "2026-11-20", status, state }, { operator: true }).then(async () => {
+  const decide = (id: string, state: "in force" | "built" | "other", paths?: string[], status: string = state) => addDecision(repo, { id, group: "core", text: `${id} text`, since: "2026-11-20", status, state }, { operator: true }).then(async () => {
     if (paths === undefined) return;
     const { changeDecisions } = await import("../../src/records/decisions.ts");
     await changeDecisions(repo, (file) => ({ file: { ...file, decisions: file.decisions.map((one) => (one.id === id ? { ...one, paths, accept: [`${id} holds`] } : one)) }, result: undefined }));
@@ -21,7 +21,7 @@ async function covered() {
   await decide("DEC-2", "in force", ["src/**"]);
   await decide("DEC-3", "in force");
   await decide("DEC-4", "built");
-  await decide("DEC-5", "in force", undefined, "withdrawn: wrong");
+  await decide("DEC-5", "other", undefined, "withdrawn: wrong");
   await putEntry(repo, operator, { kind: "rule", title: "Everywhere", text: "applies to every file", section: "working", source: "the operator" });
   await putEntry(repo, operator, { kind: "area", title: "The a file", text: "a.txt is the reader's", paths: ["a.txt"] });
   await putEntry(repo, operator, { kind: "area", title: "The source", text: "src is elsewhere", paths: ["src/**"] });

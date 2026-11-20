@@ -64,6 +64,7 @@ describe.each(Object.entries(ROLES))("the %s's address", (role, { tools, most })
     expect(instructions.length).toBeGreaterThan(200);
     expect(instructions.length).toBeLessThanOrEqual(1_500);
     expect(instructions).toContain("session_open");
+    expect(instructions).toContain("A decision marked disputed is not built to: tell the main track with note_post. One marked unconfirmed is the coordinator's record of the operator's words, not yet confirmed by the operator.");
   });
 });
 

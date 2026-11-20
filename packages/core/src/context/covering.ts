@@ -1,7 +1,7 @@
 import { TallyError } from "../errors.ts";
 import { provedCommit } from "../git/proved.ts";
 import { gitMust } from "../git/run.ts";
-import { isWithdrawn } from "../records/decision-record.ts";
+import { isWithdrawn, marksOf } from "../records/decision-record.ts";
 import { readDecisions, type Decision, type DecisionState } from "../records/decisions.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { readEntries, type Entry, type EntryKind } from "./entries.ts";
@@ -22,7 +22,7 @@ export interface CoveringInput {
 export interface Covering {
   files: string[];
   filesTotal: number;
-  decisions: { id: string; state: DecisionState; text: string; accept?: string[] }[];
+  decisions: { id: string; state: DecisionState; text: string; accept?: string[]; unconfirmed?: true; disputed?: true }[];
   entries: { id: string; kind: EntryKind; title: string; text: string }[];
   cited: OrderCited[];
   unplaced: number;
@@ -76,7 +76,7 @@ export async function covering(repo: Repo, input: CoveringInput): Promise<Coveri
   return {
     files: all.slice(0, Math.min(input.limit ?? MOST_FILES, MOST_FILES)),
     filesTotal: all.length,
-    decisions: decisions.filter((one) => matches(one, all)).map(({ id, state, text, accept }) => ({ id, state, text, ...(accept === undefined ? {} : { accept }) })),
+    decisions: decisions.filter((one) => matches(one, all)).map((one) => ({ id: one.id, state: one.state, text: one.text, ...(one.accept === undefined ? {} : { accept: one.accept }), ...marksOf(one) })),
     entries: entriesOn(await readEntries(repo), all),
     cited: await citedOf(repo, input.task),
     unplaced: decisions.filter((one) => one.state === "in force" && (one.paths ?? []).length === 0).length,
