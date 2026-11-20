@@ -1,7 +1,7 @@
 import { worktreeOf } from "../land/paths.ts";
 import { listSessions } from "../state/sessions.ts";
 import type { Repo } from "../store/records.ts";
-import { isOpen, readTracks } from "./file.ts";
+import { isOpen, readableTracks } from "./file.ts";
 
 export interface ListedTrack {
   name: string;
@@ -15,7 +15,7 @@ export interface ListedTrack {
 }
 
 export async function listTracks(repo: Repo): Promise<ListedTrack[]> {
-  const opened = new Map((await readTracks(repo.recordsDir)).tracks.filter(isOpen).map((track) => [track.name, track]));
+  const opened = new Map((await readableTracks(repo.recordsDir)).value.tracks.filter(isOpen).map((track) => [track.name, track]));
   const busy = new Set((await listSessions(repo)).map((session) => session.track));
   return repo.config.tracks.map((track) => {
     const record = opened.get(track.name);

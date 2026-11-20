@@ -2,7 +2,7 @@ import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { TRACKS_FILE, tracksFileSchema, type OpenedTrack, type TracksFile } from "../schema/tracks.ts";
-import { readJson, writeJsonAtomic } from "../store/json.ts";
+import { readJson, tolerated, writeJsonAtomic, type Tolerated } from "../store/json.ts";
 import { withLock } from "../store/lock.ts";
 
 export const tracksPath = (recordsDir: string): string => join(recordsDir, TRACKS_FILE);
@@ -26,6 +26,8 @@ export async function readTracks(recordsDir: string): Promise<TracksFile> {
     throw error;
   }
 }
+
+export const readableTracks = (recordsDir: string): Promise<Tolerated<TracksFile>> => tolerated(readTracks(recordsDir), { schema: 1, tracks: [] });
 
 export function changeTracks<R>(recordsDir: string, change: (file: TracksFile) => Promise<{ file: TracksFile; result: R }>): Promise<R> {
   const path = tracksPath(recordsDir);

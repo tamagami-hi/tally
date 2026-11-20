@@ -1,6 +1,6 @@
 import { reopenRepo, type Repo } from "../store/records.ts";
 import type { PhaseRecord } from "../schema/phases.ts";
-import { readPhases } from "./file.ts";
+import { readablePhases } from "./file.ts";
 
 export interface PhaseRow extends PhaseRecord {
   name: string;
@@ -16,7 +16,7 @@ export function andList(ids: readonly string[]): string {
 
 export async function phaseRows(repo: Repo): Promise<PhaseRow[]> {
   const fresh = await reopenRepo(repo);
-  const { phases } = await readPhases(fresh.recordsDir);
+  const { phases } = (await readablePhases(fresh.recordsDir)).value;
   return fresh.config.stages.map((stage) => {
     const record = phases.find((one) => one.id === stage.id);
     return { ...record, id: stage.id, name: stage.name, weight: stage.weight };

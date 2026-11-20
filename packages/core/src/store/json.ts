@@ -4,6 +4,20 @@ import { dirname } from "node:path";
 import type { ZodType } from "zod";
 import { TallyError } from "../errors.ts";
 
+const KNOWN_SCHEMA = 1;
+
+export class UnknownSchema extends TallyError {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnknownSchema";
+  }
+}
+
+const declaresUnknownSchema = (parsed: unknown): boolean => {
+  const declared = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>)["schema"] : undefined;
+  return typeof declared === "number" && declared !== KNOWN_SCHEMA;
+};
+
 export async function readJson<T>(path: string, schema: ZodType<T>): Promise<T> {
   let text: string;
   try {
@@ -21,9 +35,26 @@ export async function readJson<T>(path: string, schema: ZodType<T>): Promise<T> 
   const result = schema.safeParse(parsed);
   if (!result.success) {
     const issues = result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`);
-    throw new TallyError(`${path} does not fit its schema:\n  ${issues.join("\n  ")}`);
+    const message = `${path} does not fit its schema:\n  ${issues.join("\n  ")}`;
+    throw declaresUnknownSchema(parsed) ? new UnknownSchema(message) : new TallyError(message);
   }
   return result.data;
+}
+
+export interface Tolerated<T> {
+  value: T;
+  problem?: string;
+}
+
+export const UNREADABLE_TAIL = "; until it is mended the repository reads as if it were empty, and a write that needs it is refused";
+
+export async function tolerated<T>(reading: Promise<T>, empty: T): Promise<Tolerated<T>> {
+  try {
+    return { value: await reading };
+  } catch (error: unknown) {
+    if (!(error instanceof TallyError) || error instanceof UnknownSchema) throw error;
+    return { value: empty, problem: `${error.message}${UNREADABLE_TAIL}` };
+  }
 }
 
 export const TEMPORARY_SUFFIX = ".tmp";

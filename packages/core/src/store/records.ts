@@ -7,8 +7,8 @@ import { ledgerSchema, type Ledger } from "../schema/ledger.ts";
 import { STATE_DIR } from "../repos/home.ts";
 import { nameFromFolder } from "../repos/name.ts";
 import { TRACKS_FILE, type OpenedTrack, type TracksFile } from "../schema/tracks.ts";
-import { isOpen, readTracks } from "../tracks/file.ts";
-import { readPhases } from "../phases/file.ts";
+import { isOpen, readableTracks } from "../tracks/file.ts";
+import { readablePhases } from "../phases/file.ts";
 import type { PhasesFile } from "../schema/phases.ts";
 import { readJson, writeJsonAtomic } from "./json.ts";
 import { withLock } from "./lock.ts";
@@ -23,7 +23,10 @@ export interface Repo {
   config: Config;
   recordsDir: string;
   stateDir: string;
+  problems?: readonly string[];
 }
+
+export const problemOf = (repo: Repo): string | undefined => (repo.problems === undefined || repo.problems.length === 0 ? undefined : repo.problems.join("; "));
 
 export interface Listed {
   name: string;
@@ -80,12 +83,16 @@ export async function openRepo(root: string, listed?: Listed): Promise<Repo> {
   const absolute = resolve(root);
   const config = await readJson(join(absolute, RECORDS_DIR, CONFIG_FILE), configSchema);
   const recordsDir = join(absolute, config.records.dir);
+  const tracks = await readableTracks(recordsDir);
+  const phases = await readablePhases(recordsDir);
+  const problems = [tracks.problem, phases.problem].filter((problem): problem is string => problem !== undefined);
   return {
     root: absolute,
     name: listed?.name ?? nameFromFolder(absolute),
-    config: withAddedPhases(withOpenedTracks(config, await readTracks(recordsDir)), await readPhases(recordsDir)),
+    config: withAddedPhases(withOpenedTracks(config, tracks.value), phases.value),
     recordsDir,
     stateDir: listed?.stateDir ?? join(absolute, STATE_DIR),
+    ...(problems.length === 0 ? {} : { problems }),
   };
 }
 

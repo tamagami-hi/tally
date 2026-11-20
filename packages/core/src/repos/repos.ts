@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises";
 import { TallyError, messageOf } from "../errors.ts";
 import { listSessions, type Session } from "../state/sessions.ts";
-import { openRepo, type Repo } from "../store/records.ts";
+import { openRepo, problemOf, type Repo } from "../store/records.ts";
 import { rootOfWorktree } from "./find.ts";
 import { listPath, stateDirOf } from "./home.ts";
 import { readRepoList, unknownRepo, type RepoEntry, type RepoList } from "./list.ts";
@@ -119,9 +119,11 @@ export class Repos {
     if (cached !== undefined && cached.stamp === stamp) return cached.repo;
     try {
       const repo = await openRepo(entry.root, { name: entry.name, stateDir: stateDirOf(this.home, entry.name) });
-      this.loaded = new Map([...this.loaded, [entry.name, { root: entry.root, stamp, repo }]]);
+      const problem = problemOf(repo);
+      const kept = problem !== undefined && cached !== undefined && cached.repo.problems === undefined ? cached.repo : repo;
+      this.loaded = new Map([...this.loaded, [entry.name, { root: entry.root, stamp, repo: kept, ...(problem === undefined ? {} : { problem }) }]]);
       this.troubles = new Map([...this.troubles].filter(([name]) => name !== entry.name));
-      return repo;
+      return kept;
     } catch (error: unknown) {
       const gone = await isGone(entry.root);
       const problem = gone ? `${entry.root}, listed as ${entry.name}, is gone; put it back, or remove ${entry.name} from the list` : messageOf(error);

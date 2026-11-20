@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { TallyError, messageOf } from "../errors.ts";
-import { CONFIG_FILE, RECORDS_DIR, reopenRepo, type Repo } from "../store/records.ts";
+import { CONFIG_FILE, RECORDS_DIR, problemOf, reopenRepo, type Repo } from "../store/records.ts";
 import { phasesPath } from "../phases/file.ts";
 import { tracksPath } from "../tracks/file.ts";
 
@@ -26,6 +26,7 @@ export class LiveRepo {
   constructor(repo: Repo) {
     this.repo = repo;
     this.stamp = recordsStamp(repo.root, repo.recordsDir);
+    this.trouble = problemOf(repo);
   }
 
   get problem(): string | undefined {
@@ -37,8 +38,10 @@ export class LiveRepo {
     const now = await recordsStamp(this.repo.root, this.repo.recordsDir);
     if (now === seen) return this.repo;
     try {
-      this.repo = await reopenRepo(this.repo);
-      this.trouble = undefined;
+      const next = await reopenRepo(this.repo);
+      const problem = problemOf(next);
+      if (problem === undefined || this.repo.problems !== undefined) this.repo = next;
+      this.trouble = problem;
     } catch (error: unknown) {
       if (!(error instanceof TallyError)) throw error;
       this.trouble = messageOf(error);
