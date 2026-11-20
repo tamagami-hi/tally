@@ -33,6 +33,17 @@ describe("the landing script's check runner", () => {
     expect([await text(join(out, "signals")), await text(join(out, "group")), await text(join(out, "pid"))]).toEqual(["", "", ""]);
   });
 
+  test("sends the second signal only if the check's file still names the same group, or the same process", async () => {
+    const ending = ['kill() { echo "kill $*" >> "$out/signals"; }', 'sleep() { rm -f "$out/group" "$out/pid"; }'];
+    const grouped = await harness([...ending, 'echo 4242 > "$out/group"', 'echo 4243 > "$out/pid"', "stop_check"]);
+    const alone = await harness([...ending, 'echo 4243 > "$out/pid"', "stop_check"]);
+
+    await ran("sh", [grouped.script]);
+    await ran("sh", [alone.script]);
+
+    expect([await text(join(grouped.out, "signals")), await text(join(alone.out, "signals"))]).toEqual(["kill -TERM -4242\n", "kill -TERM 4243\n"]);
+  });
+
   test("uses setsid --wait where the installed setsid takes it", async () => {
     const { script, out } = await harness(['printf "%s" "$setsid_wait" > "$out/wait"']);
 
