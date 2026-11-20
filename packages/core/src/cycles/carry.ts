@@ -118,7 +118,7 @@ function withClosings(file: PhasesFile, plan: ClosePlan): PhasesFile {
   return { ...file, phases: [...file.phases.map(shut), ...missing] };
 }
 
-const leaves = (record: PhaseRecord, plan: ClosePlan): boolean => plan.phases.archive.includes(record.id) && record.closedAt !== undefined;
+const leaves = (record: PhaseRecord, plan: ClosePlan): boolean => plan.phases.archive.includes(record.id) && record.closedAt !== undefined && !plan.phases.listed.includes(record.id);
 
 const phasesArchive: Step = async (repo, plan) => {
   const current = withClosings((await maybe(here(repo, PHASES_FILE), phasesFileSchema)) ?? NO_PHASES, plan);

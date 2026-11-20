@@ -83,7 +83,7 @@ async function phasePlan(repo: Repo, ledger: Ledger, archived: ReadonlySet<strin
   const owned = (stage: string): string[] => ledger.milestones.filter((milestone) => milestone.stage === stage).map((milestone) => milestone.id);
   const closes = (stage: string): boolean => owned(stage).length > 0 && owned(stage).every((id) => archived.has(id));
   const close = rows.filter((row) => !isClosed(row) && closes(row.id)).map((row) => row.id);
-  const archive = [...new Set([...records.map((record) => record.id), ...close])];
+  const archive = [...new Set([...records.filter(isClosed).map((record) => record.id), ...close])];
   return { close, archive, listed: archive.filter((id) => listed.has(id)) };
 }
 

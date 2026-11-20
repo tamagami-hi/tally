@@ -57,7 +57,7 @@ describe("cycle_list with a number", () => {
 
     const one = await cycleOne(repo, 1);
 
-    expect(one).toMatchObject({ n: 1, said: SAID, summary: "the reader is built", totals: { phases: 2, milestones: 1, tasks: 1, tracks: 1, runs: 1, reviews: 1, notes: 2, days: 1 }, parked: [{ task: "A1:1 read", what: "the XML", why: "no client reads it" }] });
+    expect(one).toMatchObject({ n: 1, said: SAID, summary: "the reader is built", totals: { phases: 1, milestones: 1, tasks: 1, tracks: 1, runs: 1, reviews: 1, notes: 2, days: 1 }, parked: [{ task: "A1:1 read", what: "the XML", why: "no client reads it" }] });
   });
 
   test("refuses the current cycle and one that never was", async () => {

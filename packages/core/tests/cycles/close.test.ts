@@ -32,8 +32,8 @@ describe("closing a cycle", () => {
     expect(ids((await raw(join(repo.recordsDir, "ledger.json")))["milestones"])).toEqual(["A2"]);
     expect(ids((await raw(join(cycle, "tracks.json")))["tracks"])).toEqual(["docs"]);
     expect(ids((await raw(join(repo.recordsDir, "tracks.json")))["tracks"])).toEqual(["eng"]);
-    expect((await raw(join(cycle, "phases.json")))["phases"]).toEqual(expect.arrayContaining([expect.objectContaining({ id: "B", summary: "closed with cycle 1" }), expect.objectContaining({ id: "C" })]));
-    expect(ids((await raw(join(repo.recordsDir, "phases.json")))["phases"])).toEqual(["C"]);
+    expect((await raw(join(cycle, "phases.json")))["phases"]).toEqual([expect.objectContaining({ id: "B", summary: "closed with cycle 1" })]);
+    expect(ids((await raw(join(repo.recordsDir, "phases.json")))["phases"])).toEqual(["C", "B"]);
     expect(ids((await raw(join(cycle, "reviews.json")))["reviews"])).toEqual(["review-1"]);
     expect((await raw(join(repo.recordsDir, "reviews.json")))).toMatchObject({ nextId: 2, reviews: [] });
     expect(ids((await raw(join(cycle, "buildlog.json")))["entries"])).toEqual(["A1"]);
