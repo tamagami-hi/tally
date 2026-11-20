@@ -1,4 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ZodType } from "zod";
 import { TallyError } from "../errors.ts";
@@ -25,9 +26,27 @@ export async function readJson<T>(path: string, schema: ZodType<T>): Promise<T> 
   return result.data;
 }
 
+export const TEMPORARY_SUFFIX = ".tmp";
+const UNIQUE_LENGTH = 8;
+
+async function writeFlushed(path: string, text: string): Promise<void> {
+  const handle = await open(path, "w");
+  try {
+    await handle.writeFile(text);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  const temporary = `${path}.${process.pid}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`);
-  await rename(temporary, path);
+  const temporary = `${path}.${process.pid}.${randomUUID().slice(0, UNIQUE_LENGTH)}${TEMPORARY_SUFFIX}`;
+  try {
+    await writeFlushed(temporary, `${JSON.stringify(value, null, 2)}\n`);
+    await rename(temporary, path);
+  } catch (error: unknown) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
 }

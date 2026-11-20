@@ -3,6 +3,7 @@ import { asIdentity, git, gitMust, type GitResult } from "../git/run.ts";
 import { statePath } from "../land/paths.ts";
 import { turnInProgress } from "../land/queue.ts";
 import type { Config } from "../schema/config.ts";
+import { TEMPORARY_SUFFIX } from "../store/json.ts";
 import { LANDING_RETRIES, LockBusy, withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 import { clearPendingPhase, readPendingPhase } from "./pending-phase.ts";
@@ -53,6 +54,8 @@ export function recordsMode(config: Pick<Config, "records">): RecordsMode {
   return commitAt === "phase" ? "phase" : "rest";
 }
 
+const recordsOnly = (dir: string): string[] => ["--", dir, `:(exclude,glob)${dir}/**/*${TEMPORARY_SUFFIX}`];
+
 async function untilIndexFree(root: string, args: readonly string[]): Promise<GitResult> {
   for (let attempt = 1; ; attempt += 1) {
     const result = await git(root, args);
@@ -65,7 +68,7 @@ export async function commitStaged(repo: Repo, subject: Subject, body?: string):
   const { config, root } = repo;
   return withLock(statePath(repo, "locks", "landing.lock"), async () => {
     if (await turnInProgress(repo)) return WAITS;
-    const added = await untilIndexFree(root, ["add", "--", config.records.dir]);
+    const added = await untilIndexFree(root, ["add", ...recordsOnly(config.records.dir)]);
     if (added.code !== 0) throw new TallyError(`git add -- ${config.records.dir} failed in ${root}:\n${added.stderr.trim()}`);
     const staged = await git(root, ["diff", "--cached", "--name-only", "--", config.records.dir]);
     const files = staged.stdout.split("\n").filter((line) => line !== "").length;
@@ -73,7 +76,7 @@ export async function commitStaged(repo: Repo, subject: Subject, body?: string):
     const head = await gitMust(root, ["rev-parse", "--short=7", "HEAD"]);
     const fitted = fittedSubject(config.records.commitPrefix, subject(files, head));
     const message = ["-m", fitted.subject, ...[fitted.moved, body].flatMap((part) => (part === undefined ? [] : ["-m", part]))];
-    const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", ...message, "--", config.records.dir]);
+    const committed = await untilIndexFree(root, [...asIdentity(config.identity), "commit", "-q", ...message, ...recordsOnly(config.records.dir)]);
     if (committed.code !== 0) throw new TallyError(`git commit failed in ${root}:\n${committed.stderr.trim()}`);
     return { commit: await gitMust(root, ["rev-parse", "--short=7", "HEAD"]), files };
   }, LANDING_RETRIES);
