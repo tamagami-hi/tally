@@ -40,7 +40,7 @@ export function createTallyServer(from: Repo | RepoSource, decorators: readonly 
 }
 
 function registerAll(tools: Decorated, source: RepoSource, place: CommandPlace): void {
-  registerSessionTools(tools, source);
+  registerSessionTools(tools, source, place);
   registerLedgerTools(tools, source);
   registerMilestoneTools(tools, source);
   registerDeferredTools(tools, source);

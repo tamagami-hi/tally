@@ -4,6 +4,7 @@ import { KINDS_AND_WORDS, Records, landingLog, landingTarget, landTrack, loggedT
 import { defined } from "../defined.ts";
 import { ok } from "../respond.ts";
 import { inSession, type RepoSource } from "../source.ts";
+import { isListed } from "../meta.ts";
 import type { ToolHost } from "../decorate.ts";
 
 const LAND_RUN = "Land the session's track here: rebase, the configured tests (logged in the worktree), a commit as the operator from messageFile and the named files, a fast-forward. With commands.landing the commit comes first and each commit ahead of main is tested in a clean checkout; a failure names the commit and log, undoes the commit and leaves its files staged. With milestone and task it records the task and frees its claim (`recording`); else use task_land. Refused at once if the operator checkout is off main or holds uncommitted changes to a file the landing changes.";
@@ -34,7 +35,7 @@ function registerLandRun(server: ToolHost, source: RepoSource): void {
 }
 
 export function registerCommandTools(server: ToolHost, source: RepoSource, place: CommandPlace): void {
-  if (place !== "agent") registerLandRun(server, source);
+  if (isListed("land_run", place)) registerLandRun(server, source);
   server.registerTool(
     "evidence_run",
     { description: EVIDENCE_RUN[place], inputSchema: runInput },

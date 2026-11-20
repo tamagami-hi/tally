@@ -98,6 +98,12 @@ const AGENT_META: Readonly<Record<string, ToolMeta>> = {
   evidence_run: read("Give the line that runs and records a command"),
 };
 
+const SERVICE_ONLY: ReadonlySet<string> = new Set(["land_run"]);
+
+export const isListed = (tool: string, place: CommandPlace): boolean => place !== "agent" || !SERVICE_ONLY.has(tool);
+
+export const listedTools = (place: CommandPlace): string[] => Object.keys(TOOL_META).filter((tool) => isListed(tool, place));
+
 export const metaOf = (tool: string, place: CommandPlace): ToolMeta | undefined => (place === "agent" ? (AGENT_META[tool] ?? TOOL_META[tool]) : TOOL_META[tool]);
 
 export function annotationsOf(meta: ToolMeta): ToolAnnotations {
@@ -120,9 +126,9 @@ const compareVersions = (a: string, b: string): number => {
   return at === -1 ? 0 : (left[at] ?? 0) - (right[at] ?? 0);
 };
 
-export function newestTools(): string[] {
+export function newestTools(place: CommandPlace = "service"): string[] {
   const versions = [...new Set(Object.values(TOOL_META).flatMap((meta) => (meta.since === undefined ? [] : [meta.since])))].sort(compareVersions).slice(-NEWEST_VERSIONS);
-  return Object.entries(TOOL_META).filter(([, meta]) => meta.since !== undefined && versions.includes(meta.since)).map(([name]) => name);
+  return Object.entries(TOOL_META).filter(([name, meta]) => meta.since !== undefined && versions.includes(meta.since) && isListed(name, place)).map(([name]) => name);
 }
 
 export const newestFirst = (tool: string): boolean => TOOL_META[tool]?.newestFirst === true;

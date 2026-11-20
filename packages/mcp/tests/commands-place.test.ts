@@ -62,6 +62,18 @@ describe("a service whose agents run the project's commands", () => {
   });
 });
 
+describe("what a service that runs no command says of itself", () => {
+  test("counts in session_open's server the tools it lists, which leave out land_run", async () => {
+    const { call, client, trees } = await serving("agent");
+
+    const opened = await call("session_open", { worktree: trees["engine"]!, agent: "kiro" });
+    const listed = (await client.listTools()).tools.map((tool) => tool.name);
+
+    expect((opened.structured["server"] as { tools: number }).tools).toBe(listed.length);
+    expect((opened.structured["server"] as { newest: string[] }).newest.every((name) => listed.includes(name))).toBe(true);
+  });
+});
+
 describe("a service that runs the project's commands", () => {
   test("keeps evidence_run's hints and runs the command", async () => {
     const { call, client, data, repo } = await serving("service");

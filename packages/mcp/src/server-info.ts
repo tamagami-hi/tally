@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { TallyError, messageOf } from "@tally/core";
 import { z } from "zod";
-import { TOOL_META, newestTools } from "./meta.ts";
+import type { CommandPlace } from "@tally/core";
+import { listedTools, newestTools } from "./meta.ts";
 
 export interface ServerInfo {
   version: string;
@@ -23,4 +24,4 @@ function versionOfPackage(): string {
 
 export const SERVER_VERSION = versionOfPackage();
 
-export const serverInfo = (): ServerInfo => ({ version: SERVER_VERSION, tools: Object.keys(TOOL_META).length, newest: newestTools() });
+export const serverInfo = (place: CommandPlace = "service"): ServerInfo => ({ version: SERVER_VERSION, tools: listedTools(place).length, newest: newestTools(place) });

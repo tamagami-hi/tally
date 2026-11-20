@@ -904,7 +904,7 @@ Every record read from the records folder and written back keeps the keys its sc
 
 - **One function shapes each entry** (`mcp/src/listing.ts`), replacing the SDK's `tools/list` handler: no `$schema` in an input, no `execution` block that says only the protocol's default, and a hint only where it differs from the protocol's default (19.10). A client that fills in the defaults reads the four hints `TOOL_META` gives.
 - **The shared parameter texts** are said once: `sessionId` "from session_open", `repo` "a repo_list name, else the default", `limit` "at most this many", `fields` "the keys of each item to keep", `cycle` "a closed cycle's number; left out, the current". What a limit keeps and its default are in the tool's description or schema.
-- **`land_run` is not registered** where `TALLY_COMMANDS=agent`: it could only refuse there.
+- **`land_run` is not registered** where `TALLY_COMMANDS=agent`: it could only refuse there. One rule (`isListed`, `mcp/src/meta.ts`) says what a place lists, and `session_open` and `repo_list` count in `server.tools` and `server.newest` only the tools listed there.
 - **The ten longest descriptions** say the same in 5,627 characters where they held 6,062; a test holds them under 5,700. New tools' descriptions hold at most 300.
 - **The sizes.** 76,927 characters at 0.6.1 as the host lists it; 66,889 after Part T; 73,193 at 0.7.0 with 72 tools (71,831 and 71 tools where no command runs).
 

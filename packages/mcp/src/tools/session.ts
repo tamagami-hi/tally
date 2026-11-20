@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { TallyError, briefLevels, closedMessage, closedTrackAt, endSession, keepsContextAsRecords, listSessions, openScratch, openSession, sessionBrief, writeRunner } from "@tally/core";
+import type { CommandPlace } from "@tally/core";
 import { attempt, ok } from "../respond.ts";
 import { WHERE, inSession, reading, type RepoSource } from "../source.ts";
 import type { ToolHost } from "../decorate.ts";
@@ -35,7 +36,7 @@ async function explainedClosed(source: RepoSource, worktree: string): Promise<st
   }
 }
 
-export function registerSessionTools(server: ToolHost, source: RepoSource): void {
+export function registerSessionTools(server: ToolHost, source: RepoSource, place: CommandPlace = "service"): void {
   server.registerTool(
     "session_open",
     {
@@ -48,7 +49,7 @@ export function registerSessionTools(server: ToolHost, source: RepoSource): void
       const runner = await writeRunner(opened.repo, session.worktree, session.track);
       const brief = keepsContextAsRecords(opened.repo.config) ? { brief: await sessionBrief(opened.repo, session, level) } : {};
       const scratch = await openScratch(session.worktree, session.track);
-      return ok({ ...session, repo: opened.repo.name, runner, scratch, ...brief, server: serverInfo() });
+      return ok({ ...session, repo: opened.repo.name, runner, scratch, ...brief, server: serverInfo(place) });
     })),
   );
   server.registerTool(
@@ -64,6 +65,6 @@ export function registerSessionTools(server: ToolHost, source: RepoSource): void
   server.registerTool(
     "repo_list",
     { description: "The repositories this server tracks: each one's name, its folder, its project name, how many sessions are open in it, and which is the default for a call that names none. `server` names the version and its newest tools: if one is missing from your list, reconnect.", inputSchema: {} },
-    () => attempt(async () => ok({ repos: await source.listed(), server: serverInfo() })),
+    () => attempt(async () => ok({ repos: await source.listed(), server: serverInfo(place) })),
   );
 }
