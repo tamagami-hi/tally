@@ -171,6 +171,16 @@ export async function carryOut(repo: Repo, plan: ClosePlan, steps = Number.POSIT
   for (const operation of operationsOf(plan).slice(0, steps)) await operation(repo, plan);
 }
 
+export async function assertReadable(repo: Repo): Promise<void> {
+  await readJson(here(repo, LEDGER_FILE), ledgerSchema);
+  await maybe(here(repo, TRACKS_FILE), tracksFileSchema);
+  await maybe(here(repo, PHASES_FILE), phasesFileSchema);
+  await maybe(here(repo, REVIEWS.file), reviewsFileSchema);
+  await maybe(here(repo, BUILDLOG.file), buildlogFileSchema);
+  await maybe(here(repo, NOTES_FILE), notesFileSchema);
+  await readCycles(repo.recordsDir);
+}
+
 export const ledgerLock = (repo: Repo): string => here(repo, LEDGER_FILE);
 
 export const recordLocks = (repo: Repo): string[] => [tracksPath(repo.recordsDir), phasesPath(repo.recordsDir), reviewsPath(repo), buildlogPath(repo), notesPath(repo), cyclesPath(repo.recordsDir)];

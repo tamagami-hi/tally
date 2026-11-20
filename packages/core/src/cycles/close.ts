@@ -1,6 +1,6 @@
 import { readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { TallyError } from "../errors.ts";
+import { TallyError, messageOf } from "../errors.ts";
 import { landingLockPath } from "../records/commit.ts";
 import { readDecisions } from "../records/decisions.ts";
 import { readNotes } from "../records/notes.ts";
@@ -14,7 +14,7 @@ import { LANDING_RETRIES, LockBusy, RETRIES, withLock, withLocks, type Retries }
 import { Records, assertCurrent, type Repo } from "../store/records.ts";
 import { closedIn } from "../tracks/close.ts";
 import { isOpen, readTracks, tracksPath } from "../tracks/file.ts";
-import { carryOut, ledgerLock, moveLocks, recordLocks } from "./carry.ts";
+import { assertReadable, carryOut, ledgerLock, moveLocks, recordLocks } from "./carry.ts";
 import { closingPath, cycleDir, readCycles } from "./file.ts";
 import { committed, finishHeld } from "./finish.ts";
 import { archivedIds, closedNames, movesOf, planClose, type CloseInput, type ClosePlan, type Move } from "./plan.ts";
@@ -126,7 +126,16 @@ async function answerOf(repo: Repo, plan: ClosePlan, read: Read, tracksClosed: s
   };
 }
 
+async function readableFor(repo: Repo, n: number | undefined): Promise<void> {
+  try {
+    await assertReadable(repo);
+  } catch (error: unknown) {
+    throw new TallyError(`${n === undefined ? "the cycle" : `cycle ${n}`} was not closed: ${messageOf(error)}; nothing was written: mend that file and call again`);
+  }
+}
+
 async function carried(repo: Repo, closing: Closing, read: Read): Promise<CycleClosed> {
+  await readableFor(repo, closing.n);
   const tracksClosed = await closeTracks(repo, closing, read.state.tracksToClose);
   const plan = await planClose(repo, read.ledger, { by: closing.by, now: closing.now, input: closing.input, tracks: read.tracks, moves: read.moves });
   const answer = await answerOf(repo, plan, read, tracksClosed);
@@ -137,6 +146,7 @@ async function carried(repo: Repo, closing: Closing, read: Read): Promise<CycleC
 }
 
 async function readFor(repo: Repo, n: number): Promise<Read> {
+  await readableFor(repo, n);
   const ledger = await new Records(repo).readLedger();
   const state = await cycleState(repo, ledger, n);
   if (state.blockers.length > 0) throw refusal(n, state.blockers);
@@ -167,6 +177,7 @@ export async function closeCycle(repo: Repo, session: Session, input: CloseInput
   const by = { track: session.track, agent: session.agent };
   return withLock(landingLockPath(repo), async () => {
     await finishHeld(repo, retries);
+    await readableFor(repo, undefined);
     const n = (await readCycles(repo.recordsDir)).current;
     const answer = await closedHeld(repo, { n, by, now, input: checked, retries });
     const commit = await committed(repo, n, checked.summary);
