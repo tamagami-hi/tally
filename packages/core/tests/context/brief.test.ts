@@ -94,13 +94,14 @@ describe("a session's brief", () => {
     const mine = await sessionBrief(repo, data);
     const theirs = await sessionBrief(repo, operator);
 
-    expect(mine.rules).toHaveLength(29 + 1);
-    expect(mine.rules[0]).toEqual({ id: "rule-31", section: "authority", title: RULEBOOK[0]?.title, text: RULEBOOK[0]?.text });
+    expect(mine.rules).toHaveLength(31 + 1);
+    expect(mine.rules[0]).toEqual({ id: "rule-3", section: "authority", title: RULEBOOK[1]?.title, text: RULEBOOK[1]?.text });
+    expect(mine.rules[2]).toMatchObject({ id: "rule-33", section: "authority", title: RULEBOOK[0]?.title });
     expect(Object.keys(mine.rules[1] ?? {})).toEqual(["id", "section", "title", "text"]);
     expect(mine.rules.map((rule) => rule.section).filter((section, index, all) => all.indexOf(section) === index)).toEqual(["authority", "safety", "working", "once"]);
     expect(mine).not.toHaveProperty("tailoring");
     expect(theirs.tailoring).toHaveLength(8);
-    expect(theirs.tailoring?.[0]).toEqual({ id: "rule-3", title: RULEBOOK[1]?.title, tailor: RULEBOOK[1]?.tailor });
+    expect(theirs.tailoring?.[0]).toEqual({ id: "rule-5", title: RULEBOOK[3]?.title, tailor: RULEBOOK[3]?.tailor });
     expect(Object.keys(theirs.tailoring?.[0] ?? {})).toEqual(["id", "title", "tailor"]);
   });
 

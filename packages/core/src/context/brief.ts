@@ -8,7 +8,7 @@ import { isOperator, listSessions, type Session } from "../state/sessions.ts";
 import { Records, type Repo } from "../store/records.ts";
 import { readEntries, type Entry, type EntryKind } from "./entries.ts";
 import { isInForce } from "./find.ts";
-import { overlaps } from "./match.ts";
+import { applying, orderBrief, type OrderBrief, type OrderOptions } from "./order.ts";
 import { readProject, type Project } from "./project.ts";
 import { inRulebookOrder, waitingRules } from "./rulebook.ts";
 import { recordsWaiting } from "../records/waiting.ts";
@@ -64,12 +64,6 @@ export function missingFrom(repo: Repo, project: Project, inForce: readonly Entr
   ];
 }
 
-function applying(repo: Repo, track: string, inForce: readonly Entry[]): Entry[] {
-  const area = repo.config.tracks.find((t) => t.name === track)?.paths;
-  const isWithin = (entry: Entry): boolean => area === undefined || entry.paths.length === 0 || entry.paths.some((path) => area.some((within) => overlaps(path, within)));
-  return inForce.filter((entry) => entry.kind !== RULE && isWithin(entry));
-}
-
 const slim = ({ id, section, title, text }: Entry): BriefRule => ({ id, ...(section === undefined ? {} : { section }), title, text });
 
 function tailoringOf(repo: Repo, session: Session, rules: readonly Entry[]): { tailoring?: Tailoring[] } {
@@ -92,7 +86,8 @@ async function marking(repo: Repo): Promise<{ decisionsToMark?: ToMark[] }> {
 
 export type { Brief, BriefCycle, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./brief-level.ts";
 
-export async function sessionBrief(repo: Repo, session: Session, level: BriefLevel = "full"): Promise<Brief> {
+export async function sessionBrief(repo: Repo, session: Session, level: BriefLevel = "full", options: OrderOptions = {}): Promise<Brief | OrderBrief> {
+  if (level === "order") return isOperator(repo, session) ? { ...(await sessionBrief(repo, session, "work")), asked: "order" } : orderBrief(repo, session, options);
   const all = await readEntries(repo);
   const inForce = all.filter(isInForce);
   const claims = await listClaims(repo);

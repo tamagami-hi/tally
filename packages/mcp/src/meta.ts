@@ -20,7 +20,7 @@ const replace = (title: string): ToolMeta => ({ title, effect: "replace", again:
 const runs = (title: string): ToolMeta => ({ title, effect: "add", outside: true });
 
 export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
-  session_open: { title: "Open a session", effect: "add", newestFirst: true, whole: ["brief.rules"] },
+  session_open: { title: "Open a session", effect: "add", newestFirst: true, whole: ["brief.rules", "brief.cited"] },
   session_close: add("Close a session"),
   session_list: read("List open sessions"),
   repo_list: read("List repositories"),

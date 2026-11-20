@@ -6,7 +6,7 @@ import type { Waiting } from "../records/waiting.ts";
 import type { Entry, EntryKind } from "./entries.ts";
 import type { Project } from "./project.ts";
 
-export const briefLevels = ["full", "work", "land"] as const;
+export const briefLevels = ["full", "work", "land", "order"] as const;
 export type BriefLevel = (typeof briefLevels)[number];
 
 export interface BriefTask {
@@ -69,6 +69,7 @@ export interface FullBrief {
 
 export interface Brief {
   level: BriefLevel;
+  asked?: BriefLevel;
   project?: Project | { name: string; purpose: string };
   rules?: BriefRule[];
   rulebook: Rulebook;

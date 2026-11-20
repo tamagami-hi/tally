@@ -10,9 +10,9 @@ const KEBAB = /^[a-z]+(-[a-z]+)*$/;
 const count = (section: string): number => RULEBOOK.filter((rule) => rule.section === section).length;
 
 describe("tally's rulebook template", () => {
-  test("holds 29 rules in four sections: one of authority, nine of safety, thirteen of working and six of once", () => {
-    expect(RULEBOOK).toHaveLength(29);
-    expect(RULE_SECTIONS.map(count)).toEqual([1, 9, 13, 6]);
+  test("holds 31 rules in four sections: three of authority, nine of safety, thirteen of working and six of once", () => {
+    expect(RULEBOOK).toHaveLength(31);
+    expect(RULE_SECTIONS.map(count)).toEqual([3, 9, 13, 6]);
   });
 
   test("lists the sections in their order, and starts and ends with the rules that anchor it", () => {
@@ -59,7 +59,7 @@ describe("tally's rulebook template", () => {
   test("fits, in the slim form a brief carries, within 13,000 characters", () => {
     const slim = RULEBOOK.map(({ section, title, text }, index) => ({ id: `rule-${index + 1}`, section, title, text }));
 
-    expect(slim).toHaveLength(29);
+    expect(slim).toHaveLength(31);
     expect(JSON.stringify(slim).length).toBeLessThan(MOST_SLIM_BRIEF);
   });
 

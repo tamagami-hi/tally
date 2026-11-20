@@ -28,6 +28,18 @@ export const RULEBOOK: readonly TemplateRule[] = [
     tailor: "Is there a source outside this repository (a specification, another system's documents) that wins over this repository's summary of it? Name it and where it is.",
   },
   {
+    key: "record-over-brief",
+    section: "authority",
+    title: "A record wins over a brief that restates it",
+    text: "A record is the authority over any brief or prompt that restates it. Where they differ, the record is right, and the builder says so to the main track before building: a note_post of kind request whose about.record names the record.",
+  },
+  {
+    key: "cite-not-restate",
+    section: "authority",
+    title: "A brief cites a record and does not restate it",
+    text: "A brief cites a record by its id and does not restate it.",
+  },
+  {
     key: "ship-only-when-asked",
     section: "safety",
     title: "Never push, release or deploy unasked",

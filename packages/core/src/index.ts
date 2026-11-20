@@ -173,6 +173,8 @@ export type { EntryFilter, EntryTitle, Found } from "./context/find.ts";
 export { applies, overlaps as pathsOverlap } from "./context/match.ts";
 export { missingFrom, sessionBrief, unlandedTasks } from "./context/brief.ts";
 export type { Brief, BriefLevel, BriefRule, BriefTask, Tailoring, Working } from "./context/brief.ts";
+export { ORDER_ROOM, orderBrief } from "./context/order.ts";
+export type { OrderBrief, OrderCited, OrderOptions, OrderTask } from "./context/order.ts";
 export { briefLevels } from "./context/brief-level.ts";
 export { adoptRulebook, inRulebookOrder, readRulebook, tailorRule, waitingRules } from "./context/rulebook.ts";
 export type { Adopted, RulebookFilter, RulebookRead, TailorInput, Tailored } from "./context/rulebook.ts";

@@ -19,7 +19,7 @@ export const noteSchema = z.looseObject({
   to: z.union([z.literal("all"), z.array(z.string().min(1)).min(1)]),
   kind: z.enum(noteKinds),
   text: z.string().min(1).max(MAX_NOTE),
-  about: z.looseObject({ paths: z.array(z.string()).optional(), task: z.string().optional() }).optional(),
+  about: z.looseObject({ paths: z.array(z.string()).optional(), task: z.string().optional(), record: z.string().min(1).optional() }).optional(),
   at: z.string(),
   replies: z.array(z.looseObject({ from: writerSchema, text: z.string().min(1).max(MAX_NOTE), at: z.string() })).default([]),
   doneAt: z.string().optional(),
@@ -34,7 +34,7 @@ export interface NoteInput {
   to: "all" | readonly string[];
   kind: Note["kind"];
   text: string;
-  about?: { paths?: string[]; task?: string };
+  about?: { paths?: string[]; task?: string; record?: string };
 }
 
 export interface NoteFilter {

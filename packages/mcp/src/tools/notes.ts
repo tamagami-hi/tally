@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LIMIT } from "../filters.ts";
-import { MAX_NOTE, doneNote, listNotes, noteKinds, peekInbox, postNote, replyNote } from "@tally/core";
+import { MAX_NOTE, assertCited, doneNote, listNotes, noteKinds, peekInbox, postNote, replyNote } from "@tally/core";
 import type { ToolHost } from "../decorate.ts";
 import { ok } from "../respond.ts";
 import { CYCLE, inSession, type RepoSource } from "../source.ts";
@@ -10,10 +10,11 @@ export function registerNoteTools(server: ToolHost, source: RepoSource): void {
     "note_post",
     {
       description: `Leave a note for the agents on other tracks of this repository: a heads-up about something you changed, a request, an answer, or a finding. It reaches each track it is for in that track's next tool answer, under \`inbox\`. At most ${MAX_NOTE} characters.`,
-      inputSchema: { sessionId: z.string(), to: z.union([z.literal("all"), z.array(z.string()).min(1)]).describe("\"all\", or the tracks it is for; the main branch's name reaches the operator's session"), kind: z.enum(noteKinds), text: z.string(), paths: z.array(z.string()).optional().describe("the files it is about"), task: z.string().optional().describe("the task it is about, as MILESTONE:TASK") },
+      inputSchema: { sessionId: z.string(), to: z.union([z.literal("all"), z.array(z.string()).min(1)]).describe("\"all\", or the tracks it is for; the main branch's name reaches the operator's session"), kind: z.enum(noteKinds), text: z.string(), paths: z.array(z.string()).optional().describe("the files it is about"), task: z.string().optional().describe("the task it is about, as MILESTONE:TASK"), record: z.string().min(1).optional().describe("the id of a record your brief differs from") },
     },
-    ({ sessionId, to, kind, text, paths, task }) => inSession(source, sessionId, async (repo, session) => {
-      const about = paths === undefined && task === undefined ? undefined : { ...(paths === undefined ? {} : { paths }), ...(task === undefined ? {} : { task }) };
+    ({ sessionId, to, kind, text, paths, task, record }) => inSession(source, sessionId, async (repo, session) => {
+      if (record !== undefined) await assertCited(repo, [record]);
+      const about = paths === undefined && task === undefined && record === undefined ? undefined : { ...(paths === undefined ? {} : { paths }), ...(task === undefined ? {} : { task }), ...(record === undefined ? {} : { record }) };
       return ok(await postNote(repo, session, { to, kind, text, ...(about === undefined ? {} : { about }) }));
     }),
   );

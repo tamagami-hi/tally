@@ -43,7 +43,7 @@ async function fromNotes(repo: Repo, session: Session, since: string): Promise<I
   for (const note of (await readNotes(repo)).notes) {
     const mine = note.from.track === session.track;
     const forMe = isFor(note, session.track);
-    if (!mine && forMe && note.at > since) items.push({ kind: "note", at: note.at, from: note.from.track, text: `${note.kind} from ${note.from.track} (${note.from.agent}): ${note.text}` });
+    if (!mine && forMe && note.at > since) items.push({ kind: "note", at: note.at, from: note.from.track, text: `${note.kind} from ${note.from.track} (${note.from.agent})${note.about?.record === undefined ? "" : ` about ${note.about.record}`}: ${note.text}` });
     for (const reply of note.replies) {
       if ((mine || forMe) && reply.from.track !== session.track && reply.at > since) items.push({ kind: "reply", at: reply.at, from: reply.from.track, text: `${reply.from.track} (${reply.from.agent}) replied to ${note.id}: ${reply.text}` });
     }

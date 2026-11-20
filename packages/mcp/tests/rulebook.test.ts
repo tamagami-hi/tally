@@ -21,7 +21,7 @@ describe("rulebook_adopt", () => {
     const answer = await call("rulebook_adopt", { sessionId: operator });
 
     expect(answer.isError).toBe(false);
-    expect((answer.structured["added"] as unknown[]).length).toBe(29);
+    expect((answer.structured["added"] as unknown[]).length).toBe(31);
     expect((answer.structured["added"] as unknown[])[0]).toEqual({ id: "rule-1", section: "authority", title: RULEBOOK[0]?.title });
     expect((answer.structured["waiting"] as unknown[]).length).toBe(9);
     expect(answer.structured["already"]).toBe(0);
@@ -36,7 +36,7 @@ describe("rulebook_adopt", () => {
 
     const again = await call("rulebook_adopt", { sessionId: operator });
 
-    expect(again.structured).toMatchObject({ added: [], already: 29, commit: null });
+    expect(again.structured).toMatchObject({ added: [], already: 31, commit: null });
   });
 
   test("is refused to a track session, with what to do instead", async () => {
@@ -76,7 +76,7 @@ describe("rulebook_get", () => {
     const rules = answer.structured["rules"] as { id: string; section: string; by: unknown }[];
 
     expect(answer.isError).toBe(false);
-    expect(rules).toHaveLength(29);
+    expect(rules).toHaveLength(31);
     expect(rules[0]).toMatchObject({ id: "rule-1", section: "authority", template: "authority-order", by: { agent: "operator" } });
     expect(answer.structured["waiting"]).toBe(9);
     expect(answer.structured["template"]).toEqual({ adopted: RULEBOOK.map((rule) => rule.key), notAdopted: [] });
@@ -100,7 +100,7 @@ describe("rulebook_get", () => {
 
     expect((safety.structured["rules"] as unknown[]).length).toBe(9);
     expect((waiting.structured["rules"] as unknown[]).length).toBe(9);
-    expect(slim.structured["rules"]).toEqual([{ id: "rule-1", title: RULEBOOK[0]?.title }]);
+    expect(slim.structured["rules"]).toEqual([0, 1, 2].map((n) => ({ id: `rule-${n + 1}`, title: RULEBOOK[n]?.title })));
   });
 
   test("refuses a field an entry does not have, and a section that is not one of the four", async () => {
@@ -130,21 +130,21 @@ describe("rule_tailor", () => {
     const { call, operator } = await serving();
     await call("rulebook_adopt", { sessionId: operator });
 
-    const answer = await call("rule_tailor", { sessionId: operator, id: "rule-2", source: SOURCE });
+    const answer = await call("rule_tailor", { sessionId: operator, id: "rule-4", source: SOURCE });
 
     expect(answer.isError).toBe(false);
-    expect(answer.structured["entry"]).toMatchObject({ id: "rule-30", title: RULEBOOK[1]?.title, template: "ship-only-when-asked", source: SOURCE });
-    expect(answer.structured["retired"]).toMatchObject({ id: "rule-2", retiredWhy: "replaced by rule-30" });
+    expect(answer.structured["entry"]).toMatchObject({ id: "rule-32", title: RULEBOOK[3]?.title, template: "ship-only-when-asked", source: SOURCE });
+    expect(answer.structured["retired"]).toMatchObject({ id: "rule-4", retiredWhy: "replaced by rule-32" });
     expect(answer.structured["waiting"]).toBe(8);
   });
 
   test("refuses with what to do next", async () => {
     const { call, operator, data } = await serving();
     await call("rulebook_adopt", { sessionId: operator });
-    await call("rule_tailor", { sessionId: operator, id: "rule-2", source: SOURCE });
+    await call("rule_tailor", { sessionId: operator, id: "rule-4", source: SOURCE });
 
     expect((await call("rule_tailor", { sessionId: operator, id: "rule-99", source: SOURCE })).text).toBe("no rule rule-99; rulebook_get lists the rules");
-    expect((await call("rule_tailor", { sessionId: operator, id: "rule-2", source: SOURCE })).text).toMatch(/^rule-2 was replaced by rule-30 on \d{4}-\d{2}-\d{2}; tailor rule-30$/);
+    expect((await call("rule_tailor", { sessionId: operator, id: "rule-4", source: SOURCE })).text).toMatch(/^rule-4 was replaced by rule-32 on \d{4}-\d{2}-\d{2}; tailor rule-32$/);
     expect((await call("rule_tailor", { sessionId: data, id: "rule-3", source: SOURCE })).text).toBe("only an operator session tailors a rule; a track that wants one changed asks a question with question_add");
     expect((await call("rule_tailor", { sessionId: operator, id: "rule-3", source: "a\nb" })).text).toContain("one line");
     expect((await call("rule_tailor", { sessionId: operator, id: "rule-3", source: SOURCE, colour: "red" })).text).toContain("colour");

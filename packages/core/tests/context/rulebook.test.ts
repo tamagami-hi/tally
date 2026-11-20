@@ -30,10 +30,10 @@ describe("adoptRulebook", () => {
     const { added } = await adoptRulebook(repo, OPERATOR, NINE);
     const { entries } = await readKind(repo, "rule");
 
-    expect(added).toHaveLength(29);
+    expect(added).toHaveLength(31);
     expect(entries.map((entry) => entry.id)).toEqual(RULEBOOK.map((_, index) => `rule-${index + 1}`));
     expect(entries.map((entry) => entry.template)).toEqual(RULEBOOK.map((rule) => rule.key));
-    expect(entries[1]).toEqual({ id: "rule-2", kind: "rule", title: RULEBOOK[1]?.title, text: RULEBOOK[1]?.text, paths: [], tags: [], refs: [], by: OPERATOR, at: NINE.toISOString(), section: "safety", source: RULEBOOK_SOURCE, template: "ship-only-when-asked", tailor: RULEBOOK[1]?.tailor });
+    expect(entries[3]).toEqual({ id: "rule-4", kind: "rule", title: RULEBOOK[3]?.title, text: RULEBOOK[3]?.text, paths: [], tags: [], refs: [], by: OPERATOR, at: NINE.toISOString(), section: "safety", source: RULEBOOK_SOURCE, template: "ship-only-when-asked", tailor: RULEBOOK[3]?.tailor });
     expect(entries[2]).not.toHaveProperty("tailor");
   });
 
@@ -57,7 +57,7 @@ describe("adoptRulebook", () => {
 
     const again = await adoptRulebook(repo, OPERATOR, TEN);
 
-    expect(again).toMatchObject({ added: [], already: 29, commit: null });
+    expect(again).toMatchObject({ added: [], already: 31, commit: null });
     expect(again.waiting).toHaveLength(9);
     expect(await ruleFile(root)).toBe(before.file);
     expect(await sh(root, ["rev-list", "--count", "HEAD"])).toBe(before.commits);
@@ -71,19 +71,19 @@ describe("adoptRulebook", () => {
 
     expect(commit).toMatch(/^[0-9a-f]{7}$/);
     expect(Number(await sh(root, ["rev-list", "--count", "HEAD"]))).toBe(before + 1);
-    expect(await sh(root, ["log", "-1", "--format=%s"])).toBe("records: 29 rules of tally's rulebook template added by operator");
+    expect(await sh(root, ["log", "-1", "--format=%s"])).toBe("records: 31 rules of tally's rulebook template added by operator");
   });
 
   test("never brings back a template rule that was tailored or retired, in force or not", async () => {
     const { repo } = await adopting();
     await adoptRulebook(repo, OPERATOR, NINE);
     await tailorRule(repo, OPERATOR, { id: "rule-1", source: SOURCE, text: "our own order" }, NINE);
-    await retireEntry(repo, OPERATOR, "rule-3", "we do not handle credentials", NINE);
+    await retireEntry(repo, OPERATOR, "rule-5", "we do not handle credentials", NINE);
 
     const again = await adoptRulebook(repo, OPERATOR, TEN);
 
-    expect(again).toMatchObject({ added: [], already: 29 });
-    expect((await readKind(repo, "rule")).entries).toHaveLength(30);
+    expect(again).toMatchObject({ added: [], already: 31 });
+    expect((await readKind(repo, "rule")).entries).toHaveLength(32);
   });
 
   test("brings only the rules a later template added, and never a changed wording of one the repository has", async () => {
@@ -123,11 +123,11 @@ describe("tailorRule", () => {
     const { repo } = await adopting();
     await adoptRulebook(repo, OPERATOR, NINE);
 
-    const { entry, retired, waiting } = await tailorRule(repo, OPERATOR, { id: "rule-2", source: SOURCE }, TEN);
+    const { entry, retired, waiting } = await tailorRule(repo, OPERATOR, { id: "rule-4", source: SOURCE }, TEN);
 
-    expect(entry).toMatchObject({ id: "rule-30", title: RULEBOOK[1]?.title, text: RULEBOOK[1]?.text, section: "safety", source: SOURCE, template: "ship-only-when-asked", replaces: "rule-2", at: TEN.toISOString() });
+    expect(entry).toMatchObject({ id: "rule-32", title: RULEBOOK[3]?.title, text: RULEBOOK[3]?.text, section: "safety", source: SOURCE, template: "ship-only-when-asked", replaces: "rule-4", at: TEN.toISOString() });
     expect(entry).not.toHaveProperty("tailor");
-    expect(retired).toMatchObject({ id: "rule-2", retiredAt: TEN.toISOString(), retiredWhy: "replaced by rule-30" });
+    expect(retired).toMatchObject({ id: "rule-4", retiredAt: TEN.toISOString(), retiredWhy: "replaced by rule-32" });
     expect(waiting).toBe(8);
   });
 
@@ -135,11 +135,11 @@ describe("tailorRule", () => {
     const { repo } = await adopting();
     await adoptRulebook(repo, OPERATOR, NINE);
 
-    const { entry } = await tailorRule(repo, OPERATOR, { id: "rule-11", source: "DEC-4", title: "Tests live in tests/", text: "Every test sits in tests/ beside its package.", section: "safety", paths: ["packages/core"], tags: ["tests"], refs: ["DEC-4"] }, TEN);
+    const { entry } = await tailorRule(repo, OPERATOR, { id: "rule-13", source: "DEC-4", title: "Tests live in tests/", text: "Every test sits in tests/ beside its package.", section: "safety", paths: ["packages/core"], tags: ["tests"], refs: ["DEC-4"] }, TEN);
 
     expect(entry).toMatchObject({ title: "Tests live in tests/", text: "Every test sits in tests/ beside its package.", section: "safety", paths: ["packages/core"], tags: ["tests"], refs: ["DEC-4"], source: "DEC-4", template: "tests-first" });
-    const kept = await tailorRule(repo, OPERATOR, { id: "rule-12", source: SOURCE, paths: ["src"] }, TEN);
-    expect(kept.entry).toMatchObject({ title: RULEBOOK[11]?.title, paths: ["src"], tags: [], refs: [] });
+    const kept = await tailorRule(repo, OPERATOR, { id: "rule-14", source: SOURCE, paths: ["src"] }, TEN);
+    expect(kept.entry).toMatchObject({ title: RULEBOOK[13]?.title, paths: ["src"], tags: [], refs: [] });
   });
 
   test("counts down the rules that still wait, and a rule that asks nothing leaves the count as it is", async () => {
@@ -174,20 +174,20 @@ describe("tailorRule", () => {
     await putEntry(repo, DATA, { kind: "finding", title: "f", text: "g" }, NINE);
 
     await expect(tailorRule(repo, OPERATOR, { id: "rule-99", source: SOURCE })).rejects.toThrow("no rule rule-99; rulebook_get lists the rules");
-    await expect(tailorRule(repo, OPERATOR, { id: "rule-7", source: SOURCE })).rejects.toThrow("rule-7 was replaced by rule-30 on 2026-11-15; tailor rule-30");
+    await expect(tailorRule(repo, OPERATOR, { id: "rule-7", source: SOURCE })).rejects.toThrow("rule-7 was replaced by rule-32 on 2026-11-15; tailor rule-32");
     await expect(tailorRule(repo, OPERATOR, { id: "rule-8", source: SOURCE })).rejects.toThrow("rule-8 was retired on 2026-11-15 (not our data); a new rule is added with context_put");
     await expect(tailorRule(repo, OPERATOR, { id: "finding-1", source: SOURCE })).rejects.toThrow("finding-1 is not a rule; rule_tailor changes a rule");
     await expect(tailorRule(repo, DATA, { id: "rule-1", source: SOURCE })).rejects.toThrow("only an operator session tailors a rule; a track that wants one changed asks a question with question_add");
-    expect((await readKind(repo, "rule")).nextNumber).toBe(31);
+    expect((await readKind(repo, "rule")).nextNumber).toBe(33);
   });
 
   test("points a replaced rule at the newest successor still in force", async () => {
     const { repo } = await adopting();
     await adoptRulebook(repo, OPERATOR, NINE);
     await tailorRule(repo, OPERATOR, { id: "rule-7", source: SOURCE }, TEN);
-    await tailorRule(repo, OPERATOR, { id: "rule-30", source: SOURCE }, TEN);
+    await tailorRule(repo, OPERATOR, { id: "rule-32", source: SOURCE }, TEN);
 
-    await expect(tailorRule(repo, OPERATOR, { id: "rule-7", source: SOURCE })).rejects.toThrow("rule-7 was replaced by rule-31 on 2026-11-15; tailor rule-31");
+    await expect(tailorRule(repo, OPERATOR, { id: "rule-7", source: SOURCE })).rejects.toThrow("rule-7 was replaced by rule-33 on 2026-11-15; tailor rule-33");
   });
 });
 
@@ -214,9 +214,9 @@ describe("readRulebook", () => {
 
     expect(before.rules.map((each) => each.id)).toEqual(["rule-1"]);
     expect(before.template).toEqual({ adopted: [], notAdopted: RULEBOOK.map((each) => each.key) });
-    expect(after.rules.map((each) => each.id).slice(0, 3)).toEqual(["rule-1", "rule-31", "rule-3"]);
-    expect(after.rules.find((each) => each.id === "rule-31")).toMatchObject({ template: "authority-order" });
-    expect(after.rules).toHaveLength(30);
+    expect(after.rules.map((each) => each.id).slice(0, 4)).toEqual(["rule-1", "rule-3", "rule-4", "rule-33"]);
+    expect(after.rules.find((each) => each.id === "rule-33")).toMatchObject({ template: "authority-order" });
+    expect(after.rules).toHaveLength(32);
     expect(after.waiting).toBe(8);
     expect(after.template.notAdopted).toEqual([]);
     expect(after.template.adopted).toEqual(RULEBOOK.map((each) => each.key));
