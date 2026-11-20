@@ -133,7 +133,12 @@ export class Usage {
   private async write(): Promise<void> {
     if (!this.dirty) return;
     this.dirty = false;
-    await writeJsonAtomic(this.path, usageFileSchema.parse(this.file));
+    try {
+      await writeJsonAtomic(this.path, usageFileSchema.parse(this.file));
+    } catch (error: unknown) {
+      this.dirty = true;
+      throw error;
+    }
   }
 
   start(intervalMs = FLUSH_MS): void {

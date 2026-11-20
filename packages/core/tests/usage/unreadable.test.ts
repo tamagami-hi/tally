@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { USAGE_FILE, Usage, readUsage } from "../../src/usage/counts.ts";
@@ -49,6 +49,22 @@ describe("a usage file that cannot be read", () => {
     const usage = await Usage.open(path, "0.7.0", AT);
     usage.count({ tool: "board_get", outcome: "answered", by: "none" }, AT);
     await usage.stop();
+
+    expect((await readUsage(path, AT)).tools["board_get"]?.calls).toBe(1);
+  });
+});
+
+describe("a usage write that fails", () => {
+  test("leaves the count to be written by the next flush", async () => {
+    const dir = await tmpDir("tally-usage-");
+    await writeFile(join(dir, "held"), "a file where the folder should be");
+    const path = join(dir, "held", USAGE_FILE);
+    const usage = await Usage.open(path, "0.7.0", AT);
+    usage.count({ tool: "board_get", outcome: "answered", by: "none" }, AT);
+
+    await expect(usage.flush()).rejects.toThrow();
+    await rm(join(dir, "held"));
+    await usage.flush();
 
     expect((await readUsage(path, AT)).tools["board_get"]?.calls).toBe(1);
   });
