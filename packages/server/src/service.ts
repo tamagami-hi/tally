@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { NotListed, TallyError, messageOf, type StartDefaults, type Usage } from "@tally/core";
-import { SERVER_VERSION, manyRepos, mcpHandler, usageNow } from "@tally/mcp";
+import { SERVER_VERSION, boundRepo, manyRepos, mcpHandler, usageNow } from "@tally/mcp";
 import { cliRoutes, type CliRunner } from "./cli-api.ts";
 import { listFolders } from "./folders.ts";
 import { Forbidden, loopbackOnly } from "./guard.ts";
@@ -43,6 +43,11 @@ export function createServiceApp({ hub, webDir, workspace, defaults, cli, usage 
   app.all("/api/*", (c) => c.json({ error: "not found" }, 404));
   const mcp = mcpHandler(manyRepos(hub.repos), usage);
   app.all("/mcp", (c) => mcp(c.req.raw));
+  app.all("/r/:name/mcp", async (c) => {
+    const name = c.req.param("name");
+    if (!(await hub.repos.entries()).some((entry) => entry.name === name)) return c.json({ error: `no repository ${name} is listed; repo_list names those that are` }, 404);
+    return mcpHandler(boundRepo(hub.repos, name), usage)(c.req.raw);
+  });
   app.get("/events", async (c) => eventStream(c, (await hub.default()).watcher));
   app.get("/*", staticFiles(webDir));
   return app;

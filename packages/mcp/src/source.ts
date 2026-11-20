@@ -100,6 +100,24 @@ export function manyRepos(repos: Repos): RepoSource {
   };
 }
 
+export const repoAddress = (name: string): string => `/r/${name}/mcp`;
+
+export function boundRepo(repos: Repos, name: string): RepoSource {
+  const many = manyRepos(repos);
+  return {
+    instructions: `tally tracks the build of ${name} at this address, ${repoAddress(name)}: a read that names no session and no repo reads ${name}. Begin with session_open: give it the folder you work in, which must be in ${name}. Read context_pack at your level before you write. Records change only through these tools; main is never pushed from here.`,
+    forSession: (sessionId) => many.forSession(sessionId),
+    forWorktree: async (path) => {
+      const opened = await many.forWorktree(path);
+      if (opened.repo.name !== name) throw new TallyError(`${path} is in ${opened.repo.name}, not ${name}; its address is ${repoAddress(opened.repo.name)}`);
+      return opened;
+    },
+    forRead: ({ sessionId, repo }) => many.forRead(sessionId === undefined && repo === undefined ? { repo: name } : { sessionId, repo }),
+    isOneOfMany: async () => false,
+    listed: () => many.listed(),
+  };
+}
+
 export function inSession(source: RepoSource, sessionId: string, body: (repo: Repo, session: Session) => Promise<CallToolResult>): Promise<CallToolResult> {
   return attempt(async () => {
     const repo = await source.forSession(sessionId);

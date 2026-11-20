@@ -2,7 +2,7 @@ export { SERVER_NAME, SERVER_VERSION, createTallyServer, listedEntries, mcpHandl
 export { usageRanking } from "./usage.ts";
 export type { Ranked, Ranking } from "./usage.ts";
 export { attempt, ok, refused } from "./respond.ts";
-export { WHERE, inSession, isSource, manyRepos, oneRepo, reading } from "./source.ts";
+export { WHERE, boundRepo, inSession, isSource, manyRepos, oneRepo, reading, repoAddress } from "./source.ts";
 export type { ListedRepo, Opened, RepoSource, Where } from "./source.ts";
 export { DECORATORS, decorating } from "./decorate.ts";
 export type { Called, Decorator, ToolHost } from "./decorate.ts";
