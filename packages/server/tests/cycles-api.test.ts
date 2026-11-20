@@ -7,6 +7,7 @@ import { closeCycle } from "../../core/src/cycles/close.ts";
 import { addRepo } from "../../core/src/repos/list.ts";
 import { Repos } from "../../core/src/repos/repos.ts";
 import { closeSession } from "../../core/src/state/sessions.ts";
+import { markRelease } from "../../core/src/releases/mark.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
 import { AT, cycling } from "../../core/tests/support/cycling.ts";
 
@@ -16,8 +17,9 @@ afterEach(async () => {
   while (hubs.length > 0) await hubs.pop()?.stop();
 });
 
-async function served() {
+async function served(release = false) {
   const made = await cycling();
+  if (release) await markRelease(made.repo, made.operator, { version: "1.0.0" }, AT);
   await closeCycle(made.repo, made.operator, { summary: "the reader is built", said: "close it", name: "the reader" }, AT);
   await closeSession(made.repo, made.operator.id);
   const home = await tmpDir("tally-home-");
@@ -38,6 +40,15 @@ describe("the cycles over HTTP", () => {
 
     expect(answer.current.n).toBe(2);
     expect(answer.closed).toEqual([expect.objectContaining({ n: 1, name: "the reader", summary: "the reader is built" })]);
+  });
+
+  test("/cycles answers with each cycle the releases whose commit lies in its range, and none where it has none", async () => {
+    const app = await served(true);
+
+    const answer = (await (await app.request("/api/r/alpha/cycles")).json()) as { current: Record<string, unknown>; closed: { releases?: { version: string }[] }[] };
+
+    expect(answer.closed[0]?.releases?.map((one) => one.version)).toEqual(["1.0.0"]);
+    expect(answer.current).not.toHaveProperty("releases");
   });
 
   test("/cycles/<n>/done answers the finished work of a closed cycle, and refuses the current one", async () => {

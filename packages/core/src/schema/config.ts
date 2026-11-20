@@ -79,6 +79,7 @@ export const configSchema = z.object({
   context: z.literal(CONTEXT_AS_RECORDS).optional(),
   reviews: z.object({ required: z.boolean(), from: z.iso.datetime({ offset: true }).optional() }).optional(),
   questions: z.object({ nudgeDays: z.number().int().positive() }).optional(),
+  releases: z.object({ notes: z.string().min(1).refine((path) => staysInWorktree(path) && path.includes("{version}"), "releases.notes is a path from the root with {version} in it, such as docs/releases/{version}.md") }).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;

@@ -45,6 +45,8 @@ export const TOOL_META: Readonly<Record<string, ToolMeta>> = {
   evidence_run: { title: "Run a command and record it", effect: "remove", outside: true },
   evidence_record: add("Record a run that already happened"),
   evidence_list: read("List run records"),
+  release_mark: { ...add("Mark a release"), since: "0.9.0" },
+  release_list: { ...read("List releases"), since: "0.9.0" },
   evidence_manual: { ...add("Record a check made by hand"), since: "0.9.0" },
   handoff_read: read("Read a track's hand-off"),
   handoff_write: replace("Write the track's hand-off"),

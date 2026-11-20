@@ -107,7 +107,7 @@ export async function assertCited(repo: Repo, ids: readonly string[]): Promise<v
   throw new TallyError(`no record has the id ${namedList(unknown)}; a task cites a decision, a context entry, a question, a note or a review by its id${unread}`);
 }
 
-async function closedLedgers(repo: Repo): Promise<Ledger[]> {
+export async function closedLedgers(repo: Repo): Promise<Ledger[]> {
   const problems: string[] = [];
   const ledgers = await Promise.all((await closedCycles(repo, problems)).map(async (n) => {
     const path = join(cycleDir(repo.recordsDir, n), "ledger.json");

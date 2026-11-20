@@ -7,6 +7,7 @@ import type { Decision, DecisionsFile, Replaced } from "../records/decisions.ts"
 import type { EvidenceFile, RunRecord } from "../records/evidence.ts";
 import type { Handoff, HandoffNote } from "../records/handoffs.ts";
 import type { ManualCheck, ManualFile } from "../records/manual.ts";
+import type { Release, ReleasesFile } from "../releases/file.ts";
 import type { Note, NotesFile } from "../records/notes.ts";
 import type { AnsweredQuestion, Question, QuestionEdit, QuestionsFile } from "../records/questions.ts";
 import type { ToolCount, UsageFile } from "../usage/counts.ts";
@@ -26,7 +27,7 @@ export const EXACT_RECORDS: {
   evidence: Indexed<EvidenceFile>; run: Indexed<RunRecord>; handoff: Indexed<Handoff>; handoffNote: Indexed<HandoffNote>; entries: Indexed<KindFile>; entry: Indexed<Entry>;
   notes: Indexed<NotesFile>; note: Indexed<Note>; buildlog: Indexed<BuildlogFile>; buildlogEntry: Indexed<BuildlogEntry>; activity: Indexed<ActivityFile>; event: Indexed<ActivityEvent>;
   cycles: Indexed<CyclesFile>; cycle: Indexed<CycleRecord>; closing: Indexed<ClosePlan>; usage: Indexed<UsageFile>; toolCount: Indexed<ToolCount>;
-  manual: Indexed<ManualFile>; manualCheck: Indexed<ManualCheck>;
+  manual: Indexed<ManualFile>; manualCheck: Indexed<ManualCheck>; releases: Indexed<ReleasesFile>; release: Indexed<Release>;
 } = {
   ledger: false, milestone: false, task: false, deliverable: false, dropped: false, waitOn: false, deferred: false, parked: false, other: false,
   tracks: false, track: false, phases: false, phase: false, reviews: false, review: false,
@@ -34,5 +35,5 @@ export const EXACT_RECORDS: {
   evidence: false, run: false, handoff: false, handoffNote: false, entries: false, entry: false,
   notes: false, note: false, buildlog: false, buildlogEntry: false, activity: false, event: false,
   cycles: false, cycle: false, closing: false, usage: false, toolCount: false,
-  manual: false, manualCheck: false,
+  manual: false, manualCheck: false, releases: false, release: false,
 };

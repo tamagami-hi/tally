@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useCycleDone, useCycles, type Loaded } from "../live.ts";
-import type { ClosedCycle, CurrentCycle } from "../types.ts";
+import type { ClosedCycle, CurrentCycle, Released } from "../types.ts";
 import { DonePhases } from "./DonePhases.tsx";
 
 const LOCALE = "en-GB";
@@ -16,12 +16,18 @@ function Failure<T>({ state, what }: { state: Loaded<T>; what: string }) {
   );
 }
 
+function Releases({ releases }: { releases: Released[] | undefined }) {
+  if (releases === undefined || releases.length === 0) return null;
+  return <p className="small" title={releases.map((one) => `${one.version} at ${one.commit}`).join(", ")}>{`released ${releases.map((one) => one.version).join(", ")}`}</p>;
+}
+
 function Current({ cycle }: { cycle: CurrentCycle }) {
   const label = `Cycle ${cycle.n}, the current cycle`;
   return (
     <section className="cycle current" aria-label={label}>
       <h3>{label}</h3>
       <p className="small">{`${cycle.milestones.finished} of ${cycle.milestones.open + cycle.milestones.finished} milestones finished · ${cycle.tasks.landed} of ${cycle.tasks.total} tasks landed`}{cycle.since === undefined ? "" : ` · since ${when(cycle.since)}`}</p>
+      <Releases releases={cycle.releases} />
       {cycle.ask === undefined ? null : <p className="cycle-ask">{cycle.ask}</p>}
     </section>
   );
@@ -44,6 +50,7 @@ function Closed({ cycle }: { cycle: ClosedCycle }) {
       <h3>{cycle.name === undefined ? `Cycle ${cycle.n}` : `Cycle ${cycle.n}: ${cycle.name}`}</h3>
       <p className="faint small">{`closed ${when(cycle.closedAt)} by ${cycle.closedBy.agent} · ${cycle.milestones} milestones · ${cycle.tasks} tasks · ${cycle.from}..${cycle.to}`}</p>
       <p>{cycle.summary}</p>
+      <Releases releases={cycle.releases} />
       {cycle.said === undefined ? null : <blockquote className="cycle-said small">{`“${cycle.said}”`}</blockquote>}
       <details onToggle={(event) => setOpen(event.currentTarget.open)}>
         <summary className="small">Phases, milestones and tasks</summary>

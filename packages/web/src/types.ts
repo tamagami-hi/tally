@@ -347,6 +347,12 @@ export interface CurrentCycle {
   complete: boolean;
   blockers: string[];
   ask?: string | undefined;
+  releases?: Released[];
+}
+
+export interface Released {
+  version: string;
+  commit: string;
 }
 
 export interface ClosedCycle {
@@ -360,6 +366,7 @@ export interface ClosedCycle {
   to: string;
   milestones: number;
   tasks: number;
+  releases?: Released[];
 }
 
 export interface CycleListing {

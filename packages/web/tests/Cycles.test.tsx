@@ -46,6 +46,17 @@ describe("the Cycles page", () => {
     expect(screen.getByText("“yes, close it”")).toBeInTheDocument();
   });
 
+  test("names the releases marked in a cycle, the current one and a closed one, and none where it has none", async () => {
+    const released = { ...listing, current: { ...listing.current, releases: [{ version: "1.1.0", commit: "fff0001" }] }, closed: [{ ...listing.closed[0]!, releases: [{ version: "1.0.0", commit: "def5678" }, { version: "1.0.1", commit: "def5679" }] }, listing.closed[1]!] };
+    serving({ "/cycles": json(released) });
+
+    render(<Cycles version="v1" />);
+
+    expect(await screen.findByRole("region", { name: "Cycle 3, the current cycle" })).toHaveTextContent("released 1.1.0");
+    expect(screen.getByRole("group", { name: "Cycle 2" })).toHaveTextContent("released 1.0.0, 1.0.1");
+    expect(screen.getByRole("group", { name: "Cycle 1" })).not.toHaveTextContent("released");
+  });
+
   test("unfolds a closed cycle into its phases, milestones and tasks, read when it is opened", async () => {
     const server = serving({ "/cycles": json(listing), "/cycles/2/done": json(work) });
     render(<Cycles version="v1" />);

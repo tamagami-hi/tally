@@ -7,6 +7,9 @@ import { appendBuildlog, buildlogPath } from "../../src/records/buildlog.ts";
 import { evidencePath, recordEvidence } from "../../src/records/evidence.ts";
 import { handoffPath, writeHandoff } from "../../src/records/handoffs.ts";
 import { manualPath, recordManual } from "../../src/records/manual.ts";
+import { releasesPath } from "../../src/releases/file.ts";
+import { markRelease } from "../../src/releases/mark.ts";
+import { sh } from "../support/repo.ts";
 import { notesPath, postNote, replyNote } from "../../src/records/notes.ts";
 import { openSession } from "../../src/state/sessions.ts";
 import { Records } from "../../src/store/records.ts";
@@ -130,5 +133,19 @@ describe("a build keeps the keys it does not know in the records of work", () =>
     expect(raw["future"]).toEqual(FUTURE);
     expect(itemsOf(raw, "checks")[0]!["future"]).toEqual(FUTURE);
     expect((itemsOf(raw, "checks")[0]!["by"] as Raw)["future"]).toEqual(FUTURE);
+  });
+  it("keeps them on the releases file and on a release", async () => {
+    const { repo, root } = await makeTracked();
+    const operator = await openSession(repo, { worktree: root, agent: "operator" });
+    await markRelease(repo, operator, { version: "1.0.0" }, NOW);
+    await addExtras(releasesPath(repo), (raw) => ({ ...raw, future: FUTURE, releases: itemsOf(raw, "releases").map((one) => ({ ...one, future: FUTURE, by: { ...(one["by"] as Raw), future: FUTURE } })) }));
+    await sh(root, ["commit", "-q", "--allow-empty", "-m", "chore: next"]);
+
+    await markRelease(repo, operator, { version: "1.0.1" }, NOW);
+
+    const raw = await readRaw(releasesPath(repo));
+    expect(raw["future"]).toEqual(FUTURE);
+    expect(itemsOf(raw, "releases")[0]!["future"]).toEqual(FUTURE);
+    expect((itemsOf(raw, "releases")[0]!["by"] as Raw)["future"]).toEqual(FUTURE);
   });
 });

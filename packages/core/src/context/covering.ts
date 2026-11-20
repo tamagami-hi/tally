@@ -1,5 +1,6 @@
 import { TallyError } from "../errors.ts";
-import { gitMust, gitOut } from "../git/run.ts";
+import { provedCommit } from "../git/proved.ts";
+import { gitMust } from "../git/run.ts";
 import { isWithdrawn } from "../records/decision-record.ts";
 import { readDecisions, type Decision, type DecisionState } from "../records/decisions.ts";
 import { Records, type Repo } from "../store/records.ts";
@@ -27,15 +28,12 @@ export interface Covering {
   unplaced: number;
 }
 
-const SIDE = /^[^\s-]\S*$/;
 const RANGE = "..";
 const RULE: EntryKind = "rule";
 
 async function commitOf(repo: Repo, side: string): Promise<string> {
-  const refused = new TallyError(`'${side}' is not a commit of ${repo.name}: each side of range is a commit, a branch or a tag`);
-  if (!SIDE.test(side)) throw refused;
-  const full = await gitOut(repo.root, ["rev-parse", "--verify", "--quiet", "--end-of-options", `${side}^{commit}`]);
-  if (full === null) throw refused;
+  const full = await provedCommit(repo.root, side);
+  if (full === null) throw new TallyError(`'${side}' is not a commit of ${repo.name}: each side of range is a commit, a branch or a tag`);
   return full;
 }
 
