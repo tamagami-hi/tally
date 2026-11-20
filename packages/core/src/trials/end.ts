@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { TallyError } from "../errors.ts";
 import { gitOut } from "../git/run.ts";
 import { statusEntries } from "../git/status.ts";
@@ -5,6 +6,8 @@ import { isOperator, type Session } from "../state/sessions.ts";
 import { withLock } from "../store/lock.ts";
 import type { Repo } from "../store/records.ts";
 import { readTrials, trialNamed, type Trial } from "./file.ts";
+import { RESULTS } from "../land/runner.ts";
+import { heldResults, takeTrialResults } from "../records/results.ts";
 import { assertOwn, isThere, removeTrial } from "./remove.ts";
 import { trialsLock } from "./start.ts";
 
@@ -19,8 +22,17 @@ async function beyond(trial: Trial, cwd: string, tip: string): Promise<string[]>
   return out === "" ? [] : out.split("\n");
 }
 
+async function assertResultsTaken(repo: Repo, trial: Trial): Promise<void> {
+  await takeTrialResults(repo, trial);
+  const held = await heldResults(trial.worktree);
+  if (held.length === 0) return;
+  const named = held.map((one) => (one.problem === undefined ? `${one.id} (waiting)` : `${one.id} (${one.problem})`));
+  throw new TallyError(`the trial ${trial.name} holds run results not recorded: ${named.join(", ")}; mend what each says and let the service take it, or remove it from ${join(trial.worktree, RESULTS)}, then end the trial again`);
+}
+
 async function assertNothingToLose(repo: Repo, trial: Trial): Promise<void> {
   if (!(await isThere(trial.worktree))) return;
+  await assertResultsTaken(repo, trial);
   const dirty = (await statusEntries(trial.worktree, ["--ignored"])).filter((entry) => entry.code !== IGNORED && !entry.path.startsWith(TALLYS_OWN)).map((entry) => entry.path);
   if (dirty.length > 0) throw new TallyError(`the trial ${trial.name} has uncommitted work in ${trial.worktree}: ${dirty.join(", ")}; move it to a lane first`);
   const extra = [...new Set([...(await beyond(trial, repo.root, trial.branch)), ...(await beyond(trial, trial.worktree, "HEAD"))])];

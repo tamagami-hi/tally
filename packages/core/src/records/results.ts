@@ -250,3 +250,21 @@ export async function takeResults(repo: Repo, now = new Date()): Promise<Taken[]
   for (const place of await placesOf(repo)) taken.push(...(await takeAt(repo, place, ledgerAt, now)));
   return taken;
 }
+
+export interface HeldResult {
+  id: string;
+  problem?: string;
+}
+
+export async function takeTrialResults(repo: Repo, trial: { name: string; worktree: string; branch: string; base: string; head?: string | undefined }, now = new Date()): Promise<Taken[]> {
+  const place: Place = { worktree: trial.worktree, track: repo.config.mainBranch, branch: trial.branch, trial: { name: trial.name, head: trial.head ?? trial.base } };
+  return takeAt(repo, place, await ledgerChangedAt(repo), now);
+}
+
+export async function heldResults(worktree: string): Promise<HeldResult[]> {
+  const results = join(worktree, RESULTS);
+  const names = async (folder: string): Promise<string[]> => (await readdir(folder, { withFileTypes: true }).catch(() => [])).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  const waiting = (await names(results)).filter((name) => name !== TAKEN && name !== REFUSED).map((id) => ({ id }));
+  const refused = await Promise.all((await names(join(results, REFUSED))).map(async (id) => ({ id, problem: (await problemIn(join(results, REFUSED, id))) ?? "refused" })));
+  return [...waiting, ...refused];
+}
