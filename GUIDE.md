@@ -468,7 +468,7 @@ tally counts the calls each tool receives, and nothing else: per tool, the calls
 
 ### 10.23 A builder's and a reviewer's address
 
-Register a building session at `/mcp/builder` and a reviewing one at `/mcp/reviewer` (or `/r/<name>/mcp/builder` and `/r/<name>/mcp/reviewer`): each lists only its role's tools, opens with the work order, and carries the role's protocol as the server's instructions. `repo_list` answers each role's tools and the names an allow-list takes; `GET /api/roles/<role>` answers the protocol and a sub-agent definition to save where your client reads them. The plain `/mcp` keeps every tool.
+Register a building session at `/mcp/builder` and a reviewing one at `/mcp/reviewer` (or `/r/<name>/mcp/builder` and `/r/<name>/mcp/reviewer`): each lists only its role's tools, opens with the work order, and carries the role's protocol as the server's instructions. `repo_list` answers each role's tools and the names an allow-list takes; `GET /api/roles/<role>` answers the protocol and a sub-agent definition to save where your client reads them. The plain `/mcp` keeps every tool. A call to a tool the address does not serve (one outside the role's set, `land_run` where no command runs, or a name tally lacks) is answered by the SDK, not by tally: a protocol error `-32602` with the text `Tool <name> not found`, which your client shows as a failed call. Before 0.9.2 it was a refused result reading `MCP error -32602: Tool <name> not found`. Call the tool at the address that serves it.
 
 ### 10.24 A check made by hand
 
