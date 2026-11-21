@@ -1112,9 +1112,9 @@ The last pass, after a second review of the whole tip:
 - **The limit.** With the five tools of 0.9.0 the whole list could not stay within 77,000 characters: after the planner's T.5 and T.6 and the bounds it held 76,292 with 77 tools, and the hints' parameters and the four tools of releases and the trial tree needed about 3,300 more. The operator raised the limit to 80,000 for this release on 2026-11-21; it is to come down again when tools are removed by their use at the next upgrade. The role lists stay within 30,000 and 22,000.
 
 
-## 26. Version 2 of the MCP SDK, both protocol revisions, a trial of asking the person, and the page tabs (0.9.2, built 2026-11-21)
+## 26. Version 2 of the MCP SDK, both protocol revisions, a trial of asking the person, and the page tabs (0.9.2), with its fix round (0.9.3, built 2026-11-21)
 
-Built from the plan of 2026-11-21 (`docs/plans/2026-11-21-1051-sdk-v2-both-revisions-plan.md`), with the seven corrections of the planner's review of its Parts A and B folded in. No listed tool is new and no stored format changes: going back to 0.9.1 is free.
+Built from the plan of 2026-11-21 (`docs/plans/2026-11-21-1051-sdk-v2-both-revisions-plan.md`), with the seven corrections of the planner's review of its Parts A and B folded in, and then from the fix round that followed the planner's final review (26.11). 0.9.2 was not released by itself: the parts and the fix round ship together as 0.9.3. No listed tool is new and no stored format changes: going back to 0.9.1 is free.
 
 ### 26.1 The decisions
 
@@ -1126,6 +1126,7 @@ Built from the plan of 2026-11-21 (`docs/plans/2026-11-21-1051-sdk-v2-both-revis
 6. **A call to a tool the address does not serve** is the SDK's protocol error `-32602`, `Tool <name> not found`; tally does not wrap it.
 7. **Tally declares `tools.listChanged: false` on both revisions** (26.3). The plan had listen streams served and held; what a real client did settled it otherwise.
 8. **The limits on `tools/list` are unchanged** (80,000, 30,000, 22,000), and the list is the same byte for byte.
+9. **The version is 0.9.3.**
 
 ### 26.2 The move (Part A)
 
@@ -1179,3 +1180,10 @@ In the wide layout the middle column and its panel shrink to their track (as gri
 - Asking the person on `cycle_close` and `decision_record`, a 2025-era wiring with sessions so that an older client could be asked over HTTP, cache hints for the tool list, a refusal of tally's own for a tool outside a role's set, a shorter hold of the locks during a cycle's close, removing tools and lowering the 80,000, output schemas: as the plan's section 10.
 - The other objects of 26.8's second item.
 - As in 0.9.1 (both images behave the same): on stdio an answer still pending when the input ends is not written (three lines piped into `tally mcp` get the answer to `initialize` and not the tool call's); `tally mcp` does not end when its input closes with an error and no end; a broken output pipe exits before the count is written (`cli/src/io.ts`); two requests that read different lists at the same moment can each replace the other's handler, and after three tries one is told tally is stopping when it is not.
+
+### 26.11 The fix round (0.9.3)
+
+The planner's final review of 0.9.2 checked the build with a real client and the first tracked repository's script against the gated check, the pages in a real browser at the five widths, and the image's service app in process, and found two things to fix:
+
+- **A request whose body never arrives held the stop.** A POST that sent its head and part of its body and then stopped was given up on after the grace, as it should be, but the handler's close then waited for the body to name the call in the log, so the close never returned, and the cut, armed only after the close, never came. The stop ended only when the client left, or Node gave up on the request after 300 seconds; in the container the kill came first. 0.9.1 also waited on such a request without limit. Now a call in flight is named from the request's head (`mcp-method`, `mcp-name`) and from its body only once it has come, as "a request" when nothing is known; the cut is armed when the stop begins, for the grace and half a second; and a request that finishes reading its body only after its handler closed is handed on, so a stopping service answers it 503 with nothing in the log. Measured over a real socket with a grace of 300 ms: the service with such a request alone, beside a whole call, and with the method and tool named in its head, and a server of one repository, were all still stopping after 9.2 seconds; now each settles within 2.3 seconds. With its handler being handed over (its repository taken off the list) it settled before and after.
+- **One line of the Overall panel at the narrowest wide layout.** At a window of 1024 px with the repositories list open, each stage's line was wider than the middle column: in headless Chromium the column's `scrollWidth` was 287 against a `clientWidth` of 231, each stage's bar had no width, and each percentage lay under the Graph panel's head. Where the board's frame is 800 px or narrower, the Overall panel now takes one column and a stage's line keeps its bar at least 3em: the column fits, each percentage is the element at its own centre, and each bar is 45 px. Every other width measures as before. Left as found, since they fit their column: the stage bars are 0 px at 1150 px with the list open and at 1024 px with it collapsed, 1 px at 1366 px open and 15 px at 1280 px open.

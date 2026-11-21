@@ -33,6 +33,8 @@ A tracked repository gets `docs/records/config.json` and `docs/records/ledger.js
 
 **0.9.2** (2026-11-21, [DESIGN.md](DESIGN.md) §26): tally runs on version 2 of the MCP SDK (`@modelcontextprotocol/server`) and serves both protocol revisions at every address and on stdio: 2026-07-28, which current clients ask for first, and the 2025 ones, answered as before, each answer one JSON body, so a script that posts a bare call keeps working. A stop answers the calls in flight first, within five seconds. `/mcp/ask` serves `ask_trial`, a trial that asks the person through the client's own dialog and writes nothing. The board's page tabs keep their place in the wide layout. The tool list is the same byte for byte: 81 tools, 80 where the service runs no command. `npm run smoke` checks the built `tally mcp` on both revisions.
 
+**0.9.3** (2026-11-21, [DESIGN.md](DESIGN.md) §26.11): the fix round after the review of 0.9.2. A stop is no longer held by a request whose body never arrives: the cut is armed when the stop begins, for the five seconds' grace and half a second. The Overall panel's stage lines fit the middle column at its narrowest, a window of 1024 px with the repositories list open. The tool list is the same byte for byte: 81 tools, 80 where the service runs no command.
+
 ```bash
 cp .env.example .env        # your uid and gid, the workspace folder, your git config
 docker compose up -d --build
