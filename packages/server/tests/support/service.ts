@@ -8,6 +8,7 @@ import { addRepo } from "../../../core/src/repos/list.ts";
 import { Repos } from "../../../core/src/repos/repos.ts";
 import { tmpDir } from "../../../core/tests/support/tmp.ts";
 import { makeTracked, type Tracked } from "../../../core/tests/support/tracked.ts";
+import type { Usage } from "../../../core/src/usage/counts.ts";
 
 export interface Service {
   home: string;
@@ -24,7 +25,7 @@ afterEach(async () => {
   while (hubs.length > 0) await hubs.pop()?.stop();
 });
 
-export async function service(): Promise<Service> {
+export async function service(usage?: Usage): Promise<Service> {
   const home = await tmpDir("tally-home-");
   const alpha = await makeTracked();
   const beta = await makeTracked();
@@ -37,5 +38,5 @@ export async function service(): Promise<Service> {
   const workspace = join(alpha.root, "..");
   const hub = new Hub(new Repos(home), { intervalMs: 50 });
   hubs.push(hub);
-  return { home, workspace, hub, app: createServiceApp({ hub, webDir: web, workspace }), alpha, beta };
+  return { home, workspace, hub, app: createServiceApp({ hub, webDir: web, workspace, ...(usage === undefined ? {} : { usage }) }), alpha, beta };
 }

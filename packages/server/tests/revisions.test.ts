@@ -35,6 +35,17 @@ describe.each(ADDRESSES)("both revisions at %s", (path) => {
     expect(opened.result).toMatchObject({ protocolVersion: LATEST_OLDER });
   });
 
+  test("declares tools.listChanged false on the 2025 revisions, as before, and true on 2026-07-28, where a listen stream is held", async () => {
+    const { app } = await service();
+    const client = await newerClient(app, path);
+
+    const opened = await answerOf(await bare(app, path, "initialize", initializing(LATEST_OLDER)));
+
+    expect((opened.result as { capabilities: unknown }).capabilities).toEqual({ tools: { listChanged: false } });
+    expect(client.getServerCapabilities()).toMatchObject({ tools: { listChanged: true } });
+    await client.close();
+  });
+
   test("a client pinned to 2026-07-28 connects, lists the same tools and is refused in the same words", async () => {
     const { app } = await service();
     const client = await newerClient(app, path);
