@@ -14,7 +14,8 @@
     "build": "npm run build -w packages/web && tsc -b packages/core packages/mcp packages/server packages/cli && node packages/cli/dist/stamp-build.js",
     "test": "vitest run",
     "typecheck": "tsc -b packages/core packages/mcp packages/server packages/cli && npm run typecheck -w packages/web",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

@@ -11,6 +11,7 @@ npm install
 npm run build          # the web build, tsc -b (packages/*/dist), then the build stamp
 npm test               # vitest
 npm run coverage
+npm run smoke          # the built tally mcp on a scratch repository, on 2025-03-26 and on 2026-07-28; exit 1 on a failure
 node packages/cli/dist/main.js --help
 node packages/cli/dist/main.js version   # the source's version and the build's; exit 1 when the build is older
 node packages/cli/dist/main.js usage     # the tools by calls since counting began, and those never called

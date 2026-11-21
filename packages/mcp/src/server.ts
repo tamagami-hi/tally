@@ -1,4 +1,4 @@
-import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { StdioServerTransport, serveStdio as serveOnStdio } from "@modelcontextprotocol/server/stdio";
 import { McpServer } from "@modelcontextprotocol/server";
 import type { Tool } from "@modelcontextprotocol/server";
 import { TallyError, commandsRunIn, type CommandPlace, type Repo, type Usage } from "@tally/core";
@@ -75,10 +75,14 @@ export interface Streams {
   output: Writable;
 }
 
-export async function serveStdio(from: Repo | RepoSource, usage?: Usage, streams?: Streams): Promise<McpServer> {
-  const server = createTallyServer(from, DECORATORS, commandsRunIn(), usage);
-  await server.connect(new StdioServerTransport(streams?.input, streams?.output));
-  return server;
+export interface StdioServing {
+  close: () => Promise<void>;
+}
+
+export function serveStdio(from: Repo | RepoSource, usage?: Usage, streams?: Streams): StdioServing {
+  const source = isSource(from) ? from : oneRepo(from);
+  const place = commandsRunIn();
+  return serveOnStdio((opened) => createTallyServer(source, DECORATORS, place, usage, undefined, opened.era), { transport: new StdioServerTransport(streams?.input, streams?.output) });
 }
 
 const LISTING_ONLY: RepoSource = {
