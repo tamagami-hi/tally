@@ -58,7 +58,7 @@ Tracking today is spread over five places, each with its own format, and each fa
 | package | holds |
 | --- | --- |
 | `core` | the Zod schemas of every record (one source for files, API and MCP inputs), the store (read, validate, write atomically, commit), the git reader, the scope rules, the landing and lock protocols, the view renderers |
-| `server` | Hono: HTTP API, SSE `/events`, the MCP server (`@modelcontextprotocol/sdk`, streamable HTTP), static serving of `web` |
+| `server` | Hono: HTTP API, SSE `/events`, the MCP server over streamable HTTP (`@modelcontextprotocol/server`, version 2 of the SDK, from 0.9.2; `@modelcontextprotocol/sdk` before), static serving of `web` |
 | `cli` | `tally`: every verb of the MCP surface for scripts and humans, `tally status` (the terminal tables `status.py` prints today), `tally serve`, `tally init`, `tally import` |
 | `web` | Vite + React + TanStack Query: the pages of §7 |
 | `shim` | `tally-mcp-stdio`: a stdio MCP client-to-HTTP bridge for agents that cannot speak HTTP MCP |
@@ -1111,3 +1111,70 @@ The last pass, after a second review of the whole tip:
 - **A fourth way a dispute ends,** beside the three that `decision_status` names: the command line's `decision replace --operator`, the operator's own hand, which replaces the record and drops `via` and `said`. Nothing stops an agent from typing that flag on the operator's machine (rule 11).
 - **The limit.** With the five tools of 0.9.0 the whole list could not stay within 77,000 characters: after the planner's T.5 and T.6 and the bounds it held 76,292 with 77 tools, and the hints' parameters and the four tools of releases and the trial tree needed about 3,300 more. The operator raised the limit to 80,000 for this release on 2026-11-21; it is to come down again when tools are removed by their use at the next upgrade. The role lists stay within 30,000 and 22,000.
 
+
+## 26. Version 2 of the MCP SDK, both protocol revisions, a trial of asking the person, and the page tabs (0.9.2, built 2026-11-21)
+
+Built from the plan of 2026-11-21 (`docs/plans/2026-11-21-1051-sdk-v2-both-revisions-plan.md`), with the seven corrections of the planner's review of its Parts A and B folded in. No listed tool is new and no stored format changes: going back to 0.9.1 is free.
+
+### 26.1 The decisions
+
+1. **What 0.9.2 is:** the move to version 2 of the SDK, both protocol revisions, a trial of asking the person, the page tabs, and four small items.
+2. **Both revisions are served,** at every address and on stdio: 2026-07-28, which the operator's client asks for first, and the 2025 ones served before.
+3. **A 2025-era request is answered as 0.9.1 answers it:** one JSON body, by the transport the codemod keeps, behind the SDK's own classifier. The SDK's own 2025 leg is not used: it answers such a request as an event stream.
+4. **Asking the person is a trial only:** one tool at its own address that writes nothing (26.6).
+5. **A client of version 1 of the SDK stays in the tests,** as a root devDependency used by one test file; the image is built without it.
+6. **A call to a tool the address does not serve** is the SDK's protocol error `-32602`, `Tool <name> not found`; tally does not wrap it.
+7. **Tally declares `tools.listChanged: false` on both revisions** (26.3). The plan had listen streams served and held; what a real client did settled it otherwise.
+8. **The limits on `tools/list` are unchanged** (80,000, 30,000, 22,000), and the list is the same byte for byte.
+
+### 26.2 The move (Part A)
+
+- **The record first.** Before any package changed, `server/tests/surface.test.ts` recorded the SHA-256 of the compact JSON of the `tools` array, read over the wire at `/mcp`, `/mcp/builder`, `/mcp/reviewer`, `/r/<name>/mcp` and its role addresses, and where no command runs (81 tools and 79,623 characters; 25 and 25,647; 15 and 18,094; 80 and 78,313), and `older-client.test.ts` what a bare POST with no handshake gets at each: one JSON body, a default read whose text is one JSON value carrying `repo`, tally's refusals word for word, a GET that opens an event stream and a DELETE answered 200. One changed description fails the fingerprint.
+- **The packages.** The SDK's codemod (2.4.0) rewrote the imports of `packages/mcp`. By hand: `@modelcontextprotocol/server` is the MCP package's dependency, `client` and `core` are for tests; zod is `^4.2.0` wherever declared, one copy installed; the input schemas come from zod's own `toJSONSchema` (draft 2020-12, input side), identical for every tool once `$schema` is stripped; tally keeps its own narrower `CallToolResult`, since the SDK types `structuredContent` loosely. A guard test refuses an import of version 1 anywhere in a package's source or tests but the one older-client test, and another that a package imports what it does not declare (it found `graceful-fs` in a core test and `zod` in the cli's and the server's source, each installed only through another package).
+- **The one answer that changed** is decision 6's; `GUIDE.md` 10.23 says so.
+
+### 26.3 Both revisions over HTTP (Part B)
+
+- **Routing** (`mcp/src/endpoint.ts`): `isLegacyRequest` classes each request. A 2025-era one is answered by `WebStandardStreamableHTTPServerTransport` with JSON answers, from a fresh server; a 2026-07-28 one by `createMcpHandler` with `legacy: "reject"`. Served by the SDK's own 2025 leg instead, the older client's wire test fails 22 of 22.
+- **One handler for each address,** made on first use and kept (`server/src/endpoints.ts`): the service's three, `/mcp/ask`, and each listed repository's, keyed by its name and folder. A repository taken off the list, or listed again at another folder, has its handler closed when the hub next reads the list; a request that took the old handler and has not yet reached the SDK is handed to the address's handler now (the new folder's, or the answer that the repository is not listed).
+- **The stop.** Each handler counts its calls in flight. A stop ends its streams at once, waits up to `STOP_GRACE_MS` (5 seconds; the container is killed ten after it is told to stop) for its calls, writes one line naming each call it gave up on, and only then closes the SDK's handler, which would otherwise abort a 2026-07-28 call in flight and answer it 499 while the tool ran on. The HTTP server stops accepting first and cuts what is left half a second after. A request that arrives meanwhile is refused with 503, `Retry-After: 1` and a JSON-RPC error in tally's words that says to call again; nothing is logged for it. A server of one repository does the same, and now has the service's guard and answers an error as the service does.
+- **Listen streams, and what was found.** The SDK acknowledges a `subscriptions/listen` and ends it at once when the server honours nothing in its filter, which it does when the server declares `tools.listChanged: false`. The build first declared `true` on 2026-07-28 so that the stream would stay open, as the plan expected. The planner then ran Claude Code 2.1.327 against each: with `true` it held one listen stream for the whole session; with `false` it sent `server/discover`, `tools/list` and its calls and no `subscriptions/listen` at all. So tally declares `false` on both revisions, which is true (the list changes only with a release), and holds no stream for any session. A client that sends a listen anyway is acknowledged and the stream ended; nothing stays held. The measure the plan asked for was taken while streams were held: 50 streams for a minute beside 500 calls took the process from 198 MB to 1,125 MB of resident memory and back to 212 MB once collected, the swell being the server built for each request, not the streams. It no longer describes the service.
+- **An older client's GET** opens an event stream, as in 0.9.1; it is held only while that stream is open and let go when it ends, is cancelled or its client leaves, so a refused GET (406 without `Accept: text/event-stream`, as a browser sends; 400 for an unknown revision) holds nothing. New from version 2 of the SDK: such a stream carries a keep-alive comment every 15 seconds, which 0.9.1 did not send.
+- **What 2026-07-28 adds around an answer:** `tools/list` is 139 characters longer at each address (`resultType`, `ttlMs: 0`, `cacheScope: "private"` and the server's name and version in `_meta`), and each tool's answer 106 (`resultType` and the server's name and version). All of it is outside the `tools` array, which the limits count.
+- **The SDK's limits now apply, with one number on both revisions:** a body over 4 MiB is refused with 413 before it is read, and a POST that is not JSON with 415, in the SDK's words.
+- **The SDK's lines in the log.** The handler takes the SDK's default `responseMode`, `auto`, which answers one JSON body unless a tool sends a message before its result; no tool of tally does, and a test holds every answer on 2026-07-28 to one JSON body. With `json` the SDK warned on the console each time a handler was made. An error inside its handler writes one line (`tally's MCP handler on 2026-07-28: …`).
+
+### 26.4 Both revisions on stdio (Part C)
+
+`tally mcp` serves through the SDK's stdio entry, which pins a connection to the revision of its first exchange. The command ends on the end of its input, on SIGINT and on SIGTERM, and now also when its output is closed or broken, for which the entry gives nothing to wait on; the count is written first on each path. `npm run smoke` starts the built command on a scratch repository, lists and reads on each revision, checks one refusal, and exits 1 on a failure. The suite drives the command's own function over pipe streams rather than the built command, since no test depends on a build and two suites run side by side (26.8).
+
+### 26.5 The gated check
+
+`server/tests/check-serve.test.ts`, skipped unless `CHECK_PORT` is set, serves the service app, its pages included, with two scratch repositories on `127.0.0.1:<CHECK_PORT>` for `CHECK_SECONDS`, and writes each MCP request's path, method, revision and status to the file `CHECK_OUT` names. It refuses 47560. It is the test harness with a port, not `tally serve`.
+
+### 26.6 A trial of asking the person (Part D)
+
+- **The pipeline:** a round that answers `input_required` goes back to the client untouched, not decorated, cut or counted; the call that finishes is treated as any call. This holds for every tool.
+- **`ask_trial`** at `/mcp/ask` and nowhere else (`mcp/src/tools/ask-trial.ts`, `ask.ts`): in no other list, not counted, its meta outside the listed table. It asks with a form (`confirm`, `said`) and answers `asked`, the action, `confirmed`, `said` and `waitedMs`; a decline or a cancel with a note that a client with nobody at hand cancels at once; `asked: false` with the reason where the connection cannot carry a question. The question and the time are sealed into the request's state by the SDK's codec with a key made when the process starts, and the finishing round answers from them; a state the process cannot open, or older than an hour, is refused with a sentence to call again. It writes nothing.
+
+### 26.7 The page tabs (Part E)
+
+In the wide layout the middle column and its panel shrink to their track (as grid items they had kept their content's width and run under the Graph panel), its head and the tabs wrap there, and where the repositories list takes the width the side columns give the middle more room, judged by the board's own frame (a size container) rather than the window. Measured in headless Chromium at 1024, 1150, 1280, 1366 and 1440 px with the list open and collapsed: each tab is the element at its own centre, no panel overlaps another, and the page does not scroll sideways. The narrow layout does not change.
+
+### 26.8 Small items (Part F)
+
+- **Tests that assumed a quiet machine.** Two copies of the suite side by side at full parallelism failed six tests in ten runs on the base. The watcher takes a clock, so the test of a held failure moves time itself; the test of a lost lock waits for the lock file's own `stat` to call back; the runner's record is awaited for 15 seconds, not 3; and the suite's window for a test is 30 seconds for every test (`vitest.config.ts`), in place of vitest's 5, since tests that run git many times took more than 5 under that load and under a second alone. The product's timings are unchanged.
+- **The objects that say who** opened or closed a track or a phase, and who widened a track, are read loosely and keep what a later build adds. Found of the same kind and left: the ledger's `dropped.by`, a review's `by`, a cycle's `closedBy`, a decision's `via`, `confirmed` and `disputed`, a note's `from`, a context entry's `by`, an evidence run's `log`.
+- **The writers of `tracks.json`, `phases.json` and `cycles.json`** refuse a closed cycle's folder, naming the cycle.
+- **The test of the landing script's `setsid --wait`** passed with or without `--wait`; it is replaced by one that fails without it.
+
+### 26.9 The surface
+
+- **MCP tools:** 81 (80 where the service runs no command), unchanged, and `ask_trial` alone at `/mcp/ask`.
+- **`tools/list`:** 79,623 characters with 81 tools (78,313 with 80); the builder's 25,647 (25), the reviewer's 18,094 (15); the same byte for byte as 0.9.1.
+- **Addresses:** `/mcp/ask` is new. **Commands:** `npm run smoke`. **Stored:** nothing new.
+
+### 26.10 Left out
+
+- Asking the person on `cycle_close` and `decision_record`, a 2025-era wiring with sessions so that an older client could be asked over HTTP, cache hints for the tool list, a refusal of tally's own for a tool outside a role's set, a shorter hold of the locks during a cycle's close, removing tools and lowering the 80,000, output schemas: as the plan's section 10.
+- The other objects of 26.8's second item.
