@@ -1,4 +1,4 @@
-import type { McpServer } from "@modelcontextprotocol/server";
+import { isInputRequiredResult, type InputRequiredResult, type McpServer } from "@modelcontextprotocol/server";
 import type { CallToolResult } from "./respond.ts";
 import { TallyError, type CommandPlace, type Usage } from "@tally/core";
 import { z } from "zod";
@@ -33,7 +33,9 @@ export type Decorated = ToolHost & { listed: () => readonly ListedTool[] };
 
 export const DECORATORS: readonly Decorator[] = [outcome, sharing, activity, sized];
 
-type Handler = (args: unknown, extra: unknown) => CallToolResult | Promise<CallToolResult>;
+type Answer = CallToolResult | InputRequiredResult;
+
+type Handler = (args: unknown, extra: unknown) => Answer | Promise<Answer>;
 
 type Shape = Record<string, z.ZodType>;
 
@@ -84,7 +86,9 @@ export function decorating(server: McpServer, source: RepoSource, serving: Servi
         return result;
       }
       const given = parsed.data;
-      let result = await asCall(!writesNothing(name, place), () => handler(given, extra));
+      const answered = await asCall(!writesNothing(name, place), () => handler(given, extra));
+      if (isInputRequiredResult(answered)) return answered;
+      let result = answered;
       for (const decorate of decorators) result = await decorate({ tool: name, args: given, params: Object.keys(shape), result, source, place });
       await countCall(usage, { tool: name, args: given, result, source, via });
       return result;
