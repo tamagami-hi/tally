@@ -5,6 +5,7 @@ import { BARE_HEADERS } from "./support/wire.ts";
 import { REVISIONS, type Revision } from "./support/revisions.ts";
 import { addRepo } from "../../core/src/repos/list.ts";
 import { notesPath, readNotes } from "../../core/src/records/notes.ts";
+import { Usage } from "../../core/src/usage/counts.ts";
 import { holding } from "../../core/tests/support/pending.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
@@ -69,6 +70,7 @@ describe.each(REVISIONS)("a call in flight when the service stops, on %s", (revi
   });
 
   test("that outlives the grace does not hold the stop, and the log names it", async () => {
+    const counted = vi.spyOn(Usage.prototype, "count");
     const { running, tracked, call, operator } = await serving(SHORT_GRACE_MS);
     const session = await operator(revision);
     const held = await holding(notesPath(tracked.repo));
@@ -86,7 +88,9 @@ describe.each(REVISIONS)("a call in flight when the service stops, on %s", (revi
     const tookMs = Date.now() - started;
     await held.release();
     await posting;
+    const finished = await until(() => counted.mock.calls.some(([called]) => called.tool === "note_post"));
 
+    expect(finished).toBe(true);
     expect(tookMs).toBeLessThan(SHORT_GRACE_MS + MARGIN_MS);
     expect(said.filter((line) => line.includes("note_post"))).toHaveLength(1);
   });

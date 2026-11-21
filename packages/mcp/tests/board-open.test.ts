@@ -5,6 +5,8 @@ import { sh } from "../../core/tests/support/repo.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
 import { connect, opened } from "./support/connect.ts";
 
+const timeless = ({ time: _minute, ...board }: Record<string, unknown>): Record<string, unknown> => board;
+
 interface Row {
   id: string;
   finished: boolean;
@@ -50,7 +52,7 @@ describe("board_get with rows open", () => {
 
     expect(rowsOf(board.structured).map((row) => row.id)).toEqual(["S1", "S2", "S3", "W1", "W2"]);
     expect(board.structured).not.toHaveProperty("finishedRows");
-    expect((await call("board_get", { rows: "all" })).structured).toStrictEqual(board.structured);
+    expect(timeless((await call("board_get", { rows: "all" })).structured)).toStrictEqual(timeless(board.structured));
   });
 
   test("works with scope mine, counting only the track's finished rows", async () => {

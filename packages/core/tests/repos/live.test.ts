@@ -51,6 +51,7 @@ describe("a repository held open by one process", () => {
     const { repo, root } = await opening();
     const listed = { ...repo, name: "alpha", stateDir: join(root, ".temp/elsewhere") };
     const live = new LiveRepo(listed);
+    await live.current();
     const path = join(root, "docs/records/config.json");
     const config = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
 
@@ -62,6 +63,7 @@ describe("a repository held open by one process", () => {
   test("keeps the last good one when a file breaks, says why, and mends with the file", async () => {
     const { repo, root } = await opening();
     const live = new LiveRepo(repo);
+    await live.current();
     const path = join(root, "docs/records/tracks.json");
 
     await writeFile(path, "{ not json");
