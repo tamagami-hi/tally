@@ -293,6 +293,10 @@ h1, h2, h3, p { margin: 0; }
 @container frame-main (max-width: 1100px) {
   .shell.landscape { grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) minmax(220px, 260px); }
 }
+@container frame-main (max-width: 800px) {
+  .shell.landscape .hero { grid-template-columns: 1fr; }
+  .shell.landscape .stage-line { grid-template-columns: 4.6em minmax(3em, 1fr) 3.2em minmax(0, 0.8fr); }
+}
 .frame-main > .problems { margin: var(--pad-s) var(--pad) 0; }
 .sidebar { position: sticky; top: 0; height: 100dvh; width: 236px; padding: var(--pad-s); display: flex; flex-direction: column; gap: var(--gap); background: var(--panel); border-right: 1px solid var(--line); overflow: auto; scrollbar-width: thin; }
 .sidebar.collapsed { width: 40px; padding: var(--pad-s) var(--gap); align-items: center; }
