@@ -8,7 +8,7 @@ import { addRepo, removeRepo } from "../../core/src/repos/list.ts";
 import { Records } from "../../core/src/store/records.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
-import { LISTENING, newerInit, readUntil } from "../../mcp/tests/support/newer.ts";
+import { LISTENING, newerInit, readUntil, until } from "../../mcp/tests/support/newer.ts";
 
 interface Made {
   closed: number;
@@ -38,6 +38,7 @@ vi.mock("@tally/mcp", async (importOriginal) => {
 
 const ADDRESSES = ["/mcp", "/mcp/builder", "/r/alpha/mcp", "/r/alpha/mcp/reviewer"];
 const REQUESTS_EACH = 3;
+const REFUSED_GETS = 5;
 
 const rowsAt = async (app: Awaited<ReturnType<typeof service>>["app"], path: string): Promise<number> => ((await answerOf(await bareCall(app, path, "board_get"))).result as { structuredContent: { rows: unknown[] } }).structuredContent.rows.length;
 
@@ -104,5 +105,27 @@ describe("the service's MCP handlers", () => {
     await running.close();
 
     expect([heard.includes('"notifications":{}'), heard.includes('"resultType":"complete"'), held]).toEqual([true, true, 0]);
+  });
+
+  test("hold an older client's GET only while its event stream is open, over a socket", async () => {
+    made.all = [];
+    const home = await tmpDir("tally-home-");
+    const running = await startService({ home, workspace: await tmpDir("tally-workspace-"), port: 0, host: "127.0.0.1", webDir: home, intervalMs: 50 });
+    const at = new URL("mcp", running.url);
+    const held = (): number => made.all.reduce((sum, one) => sum + one.listening(), 0);
+    const refused: number[] = [];
+
+    for (let sent = 0; sent < REFUSED_GETS; sent += 1) refused.push((await fetch(at, { method: "GET" })).status);
+    refused.push((await fetch(at, { method: "GET", headers: { accept: "text/event-stream", "mcp-protocol-version": "1999-01-01" } })).status);
+    const afterRefused = held();
+    const gone = new AbortController();
+    const streaming = await fetch(at, { method: "GET", headers: { accept: "text/event-stream" }, signal: gone.signal });
+    const whileOpen = await until(() => held() === afterRefused + 1);
+    gone.abort();
+    const released = await until(() => held() === afterRefused);
+    await running.close();
+
+    expect(refused).toEqual([406, 406, 406, 406, 406, 400]);
+    expect([streaming.status, afterRefused, whileOpen, released]).toEqual([200, 0, true, true]);
   });
 });

@@ -16,6 +16,29 @@ export interface McpEndpoint {
 
 type Older = WebStandardStreamableHTTPServerTransport;
 
+const EVENT_STREAM = "text/event-stream";
+
+const isEventStream = (answer: Response): boolean => (answer.headers.get("content-type") ?? "").startsWith(EVENT_STREAM);
+
+function watched(body: ReadableStream<Uint8Array>, ended: () => void): ReadableStream<Uint8Array> {
+  const reader = body.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const chunk = await reader.read().catch((error: unknown) => {
+        ended();
+        throw error;
+      });
+      if (!chunk.done) return controller.enqueue(chunk.value);
+      ended();
+      return controller.close();
+    },
+    async cancel(reason) {
+      ended();
+      await reader.cancel(reason);
+    },
+  });
+}
+
 export function endpointFor(build: (revision: Revision) => McpServer): McpEndpoint {
   const bus = new InMemoryServerEventBus();
   const newer = createMcpHandler(() => build("modern"), { legacy: "reject", responseMode: "json", bus, maxRequestBodySize: MOST_BODY_BYTES });
@@ -23,14 +46,17 @@ export function endpointFor(build: (revision: Revision) => McpServer): McpEndpoi
   const letGo = (transport: Older): void => {
     streams = new Set([...streams].filter((held) => held !== transport));
   };
+  const holding = (transport: Older, request: Request, answer: Response): Response => {
+    if (answer.body === null || !isEventStream(answer)) return answer;
+    streams = new Set([...streams, transport]);
+    request.signal.addEventListener("abort", () => letGo(transport), { once: true });
+    return new Response(watched(answer.body, () => letGo(transport)), { status: answer.status, statusText: answer.statusText, headers: answer.headers });
+  };
   const older = async (request: Request): Promise<Response> => {
     const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true, maxRequestBodySize: MOST_BODY_BYTES });
     await build("legacy").connect(transport);
-    if (request.method === "GET") {
-      streams = new Set([...streams, transport]);
-      request.signal.addEventListener("abort", () => letGo(transport), { once: true });
-    }
-    return transport.handleRequest(request);
+    const answer = await transport.handleRequest(request);
+    return request.method === "GET" ? holding(transport, request, answer) : answer;
   };
   return {
     fetch: async (request) => ((await isLegacyRequest(request, undefined, { maxRequestBodySize: MOST_BODY_BYTES })) ? older(request) : newer.fetch(request)),
