@@ -12,12 +12,14 @@ import { createServiceApp } from "./service.ts";
 import { Watcher } from "./watcher.ts";
 
 const IDLE_SWEEP_MS = 100;
+const CUT_AFTER_MS = 500;
 
 interface Listening {
   port: number;
   host: string;
   webDir?: string;
   intervalMs?: number;
+  stopGraceMs?: number;
 }
 
 export interface ServeOptions extends Listening {
@@ -47,14 +49,16 @@ function listen(app: Hono, options: Listening, started: () => void, stopping: ()
       done({
         url: `http://${options.host}:${info.port}/`,
         close: async () => {
-          await stopping();
-          await new Promise<void>((closed) => {
-            const sweep = setInterval(() => server.closeIdleConnections(), IDLE_SWEEP_MS);
-            server.close(() => {
-              clearInterval(sweep);
-              closed();
-            });
-          });
+          const closed = new Promise<void>((done) => server.close(() => done()));
+          const sweep = setInterval(() => server.closeIdleConnections(), IDLE_SWEEP_MS);
+          try {
+            await stopping();
+            const cut = setTimeout(() => server.closeAllConnections(), CUT_AFTER_MS);
+            await closed;
+            clearTimeout(cut);
+          } finally {
+            clearInterval(sweep);
+          }
         },
       });
     }) as Server;
@@ -65,7 +69,7 @@ export async function startServer(options: ServeOptions): Promise<Running> {
   const live = new LiveRepo(options.repo);
   const watcher = new Watcher(() => live.current(), interval(options));
   const usage = await Usage.open(usagePathOf({ stateDir: options.repo.stateDir }), SERVER_VERSION);
-  const endpoints = new Endpoints();
+  const endpoints = new Endpoints(options.stopGraceMs);
   const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir(), usage, endpoints });
   return listen(app, options, () => {
     watcher.start();
@@ -80,7 +84,7 @@ export async function startServer(options: ServeOptions): Promise<Running> {
 export async function startService(options: ServiceStart): Promise<Running> {
   const hub = new Hub(new Repos(options.home), interval(options));
   const usage = await Usage.open(usagePathOf({ home: options.home }), SERVER_VERSION);
-  const endpoints = new Endpoints();
+  const endpoints = new Endpoints(options.stopGraceMs);
   const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, usage, endpoints, ...(options.defaults === undefined ? {} : { defaults: options.defaults }), ...(options.cli === undefined ? {} : { cli: options.cli }) });
   return listen(app, options, () => {
     hub.start();

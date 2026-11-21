@@ -6,7 +6,7 @@ export { Watcher, fingerprint, snapshot } from "./watcher.ts";
 export type { Listener, LiveState, QueuedLanding, RepoGetter, Snapshot } from "./watcher.ts";
 export { Hub } from "./hub.ts";
 export type { ListFollower } from "./hub.ts";
-export { Endpoints, addressOf } from "./endpoints.ts";
+export { Endpoints, Stopping, addressOf } from "./endpoints.ts";
 export type { Listed } from "./endpoints.ts";
 export { cliRoutes } from "./cli-api.ts";
 export type { CliAnswer, CliLine, CliRunner } from "./cli-api.ts";

@@ -1,5 +1,5 @@
 import { Hono, type Context } from "hono";
-import { ROLES, isRole, roleAnswer, type McpEndpoint, type Role } from "@tally/mcp";
+import { EndpointClosed, ROLES, isRole, roleAnswer, type McpEndpoint, type Role } from "@tally/mcp";
 
 const NAMED = ROLES.join(" and ");
 
@@ -15,10 +15,20 @@ export function roleRoutes(): Hono {
   return api;
 }
 
+const MOST_HANDOVERS = 3;
+
 export function serving(at: EndpointAt, role?: Role): (c: Context) => Promise<Response> {
   return async (c) => {
-    const endpoint = await at(c, role);
-    return endpoint instanceof Response ? endpoint : endpoint.fetch(c.req.raw);
+    for (let handed = 0; handed < MOST_HANDOVERS; handed += 1) {
+      const endpoint = await at(c, role);
+      if (endpoint instanceof Response) return endpoint;
+      try {
+        return await endpoint.fetch(c.req.raw);
+      } catch (error: unknown) {
+        if (!(error instanceof EndpointClosed)) throw error;
+      }
+    }
+    throw new EndpointClosed();
   };
 }
 

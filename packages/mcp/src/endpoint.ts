@@ -1,5 +1,6 @@
 import { InMemoryServerEventBus, WebStandardStreamableHTTPServerTransport, createMcpHandler, isLegacyRequest, type McpServer } from "@modelcontextprotocol/server";
-import { commandsRunIn, type Repo, type Usage } from "@tally/core";
+import { setTimeout as delay } from "node:timers/promises";
+import { TallyError, commandsRunIn, type Repo, type Usage } from "@tally/core";
 import { DECORATORS } from "./decorate.ts";
 import type { Role } from "./roles.ts";
 import { createAskServer } from "./ask.ts";
@@ -8,10 +9,50 @@ import { isSource, oneRepo, type RepoSource } from "./source.ts";
 
 export const MOST_BODY_BYTES = 4 * 1024 * 1024;
 
+export const STOP_GRACE_MS = 5_000;
+
+export interface Closing {
+  graceMs?: number;
+  handOver?: boolean;
+}
+
 export interface McpEndpoint {
   fetch: (request: Request) => Promise<Response>;
-  close: () => Promise<void>;
+  close: (closing?: Closing) => Promise<string[]>;
   listening: () => number;
+}
+
+export class EndpointClosed extends TallyError {
+  constructor() {
+    super("this MCP handler is closed; the request goes to the one that serves the address now");
+    this.name = "EndpointClosed";
+  }
+}
+
+interface InFlight {
+  done: Promise<unknown>;
+  copy: Request | undefined;
+}
+
+type State = "open" | "handing over" | "stopping" | "closed";
+
+async function described(flight: InFlight): Promise<string> {
+  const text = await flight.copy?.text().catch(() => "");
+  try {
+    const message = JSON.parse(text ?? "") as { method?: unknown; params?: { name?: unknown } };
+    return [message.method, message.params?.name].filter((part) => typeof part === "string").join(" ") || "a request";
+  } catch {
+    return "a request";
+  }
+}
+
+async function settledWithin(waiting: readonly Promise<unknown>[], graceMs: number): Promise<boolean> {
+  const timer = new AbortController();
+  const settled = Promise.allSettled(waiting).then(() => true);
+  const outlived = delay(graceMs, false, { signal: timer.signal }).catch(() => false);
+  const result = await Promise.race([settled, outlived]);
+  timer.abort();
+  return result;
 }
 
 type Older = WebStandardStreamableHTTPServerTransport;
@@ -58,12 +99,37 @@ export function endpointFor(build: (revision: Revision) => McpServer): McpEndpoi
     const answer = await transport.handleRequest(request);
     return request.method === "GET" ? holding(transport, request, answer) : answer;
   };
+  let state: State = "open";
+  let inFlight: ReadonlySet<InFlight> = new Set();
+  const serve = async (request: Request): Promise<Response> => {
+    const legacy = await isLegacyRequest(request, undefined, { maxRequestBodySize: MOST_BODY_BYTES });
+    if (state === "handing over") throw new EndpointClosed();
+    return legacy ? older(request) : newer.fetch(request);
+  };
   return {
-    fetch: async (request) => ((await isLegacyRequest(request, undefined, { maxRequestBodySize: MOST_BODY_BYTES })) ? older(request) : newer.fetch(request)),
-    close: async () => {
+    fetch: async (request) => {
+      if (state !== "open") throw new EndpointClosed();
+      const copy = request.method === "POST" ? request.clone() : undefined;
+      const flight: InFlight = { done: serve(request), copy };
+      inFlight = new Set([...inFlight, flight]);
+      try {
+        return await (flight.done as Promise<Response>);
+      } finally {
+        inFlight = new Set([...inFlight].filter((one) => one !== flight));
+        void flight.copy?.body?.cancel().catch(() => undefined);
+      }
+    },
+    close: async ({ graceMs = STOP_GRACE_MS, handOver = false }: Closing = {}) => {
+      if (state !== "open") return [];
+      state = handOver ? "handing over" : "stopping";
       const held = [...streams];
       streams = new Set();
-      await Promise.all([newer.close(), ...held.map((transport) => transport.close())]);
+      await Promise.all(held.map((transport) => transport.close()));
+      const finished = await settledWithin([...inFlight].map((flight) => flight.done), graceMs);
+      const left = finished ? [] : await Promise.all([...inFlight].map(described));
+      await newer.close();
+      state = "closed";
+      return left;
     },
     listening: () => bus.listenerCount + streams.size,
   };

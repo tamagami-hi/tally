@@ -27,9 +27,9 @@ vi.mock("@tally/mcp", async (importOriginal) => {
       made.all.push(seen);
       return {
         ...real,
-        close: async () => {
+        close: async (...closing: Parameters<typeof real.close>) => {
           seen.closed += 1;
-          await real.close();
+          return real.close(...closing);
         },
       };
     },
