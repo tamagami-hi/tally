@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { z } from "zod";
 import { TallyError } from "../errors.ts";
 import { readJson, writeJsonAtomic } from "../store/json.ts";
@@ -36,6 +36,13 @@ export const cyclesPath = (recordsDir: string): string => join(recordsDir, CYCLE
 
 export const cycleDir = (recordsDir: string, n: number): string => join(recordsDir, CYCLES_DIR, `cycle-${n}`);
 
+const CLOSED_FOLDER = /^cycle-([1-9]\d*)$/;
+
+export function refuseClosedFolder(recordsDir: string): void {
+  const closed = CLOSED_FOLDER.exec(basename(recordsDir));
+  if (closed !== null && basename(dirname(recordsDir)) === CYCLES_DIR) throw new TallyError(`cycle ${closed[1]} is closed, and a closed cycle is read only: ${recordsDir} is not written`);
+}
+
 export const closingPath = (recordsDir: string, n: number): string => join(cycleDir(recordsDir, n), CLOSING_FILE);
 
 export const FIRST_CYCLE: CyclesFile = { schema: 1, current: 1, cycles: [] };
@@ -49,4 +56,7 @@ export async function readCycles(recordsDir: string): Promise<CyclesFile> {
   }
 }
 
-export const writeCycles = (recordsDir: string, file: CyclesFile): Promise<void> => withLock(cyclesPath(recordsDir), () => writeJsonAtomic(cyclesPath(recordsDir), cyclesFileSchema.parse(file)));
+export async function writeCycles(recordsDir: string, file: CyclesFile): Promise<void> {
+  refuseClosedFolder(recordsDir);
+  await withLock(cyclesPath(recordsDir), () => writeJsonAtomic(cyclesPath(recordsDir), cyclesFileSchema.parse(file)));
+}
