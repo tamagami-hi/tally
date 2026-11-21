@@ -13,6 +13,7 @@
     "zod": "^4.2.0"
   },
   "devDependencies": {
-    "@types/proper-lockfile": "^4.1.4"
+    "@types/proper-lockfile": "^4.1.4",
+    "graceful-fs": "^4.2.11"
   }
 }

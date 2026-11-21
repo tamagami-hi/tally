@@ -7,7 +7,8 @@
   },
   "dependencies": {
     "@tally/core": "0.9.1",
+    "@tally/mcp": "0.9.1",
     "@tally/server": "0.9.1",
-    "@tally/mcp": "0.9.1"
+    "zod": "^4.2.0"
   }
 }

@@ -1,5 +1,5 @@
 import { readFile, readdir } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
@@ -10,6 +10,8 @@ const SDK_V1 = "@modelcontextprotocol/sdk";
 const OLDER_CLIENT_TEST = "packages/server/tests/older-sdk.test.ts";
 const SOURCE = /\.(ts|tsx|js|mjs)$/;
 const LEAST_ZOD_MINOR = 2;
+const IMPORTED = /^\s*(?:import|export)\b[^;'"]*?\bfrom\s*["']([^"'.][^"']*)["']|^\s*import\s*["']([^"'.][^"']*)["']|\bimport\(\s*["']([^"'.][^"']*)["']\s*\)/gm;
+const WORKSPACE = "@tally/";
 const IMPORTS_V1 = new RegExp(`(from|import|require)\\s*\\(?\\s*["']${SDK_V1.replace("/", "\\/")}`);
 
 interface Manifest {
@@ -29,6 +31,22 @@ async function packageNames(): Promise<string[]> {
 }
 
 const manifestOf = async (folder: string): Promise<Manifest> => JSON.parse(await readFile(join(folder, "package.json"), "utf8")) as Manifest;
+
+const packageOf = (specifier: string): string => specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/");
+
+async function undeclared(files: readonly string[], declared: ReadonlySet<string>): Promise<string[]> {
+  const found = [];
+  for (const file of files) {
+    for (const match of (await readFile(file, "utf8")).matchAll(IMPORTED)) {
+      const name = packageOf(match[1] ?? match[2] ?? match[3] ?? "");
+      if (isBuiltin(name) || name.startsWith(WORKSPACE) || declared.has(name)) continue;
+      found.push(`${relative(ROOT, file)}: ${name}`);
+    }
+  }
+  return [...new Set(found)];
+}
+
+const namesIn = (...lists: (Record<string, string> | undefined)[]): Set<string> => new Set(lists.flatMap((list) => Object.keys(list ?? {})));
 
 describe("the packages tally ships", () => {
   test("import nothing from version 1 of the SDK, in source or in tests, but the one test of an older client", async () => {
@@ -61,5 +79,17 @@ describe("the packages tally ships", () => {
     }
     expect([...resolved]).toHaveLength(1);
     expect([...resolved][0]?.startsWith(ROOT)).toBe(true);
+  });
+
+  test("declare every package their source imports, and every package their tests import, here or at the root for tests", async () => {
+    const root = await manifestOf(ROOT);
+    const missing: string[] = [];
+    for (const name of await packageNames()) {
+      const manifest = await manifestOf(join(PACKAGES, name));
+      missing.push(...(await undeclared(await filesUnder(join(PACKAGES, name, "src")), namesIn(manifest.dependencies))));
+      missing.push(...(await undeclared(await filesUnder(join(PACKAGES, name, "tests")), namesIn(manifest.dependencies, manifest.devDependencies, root.devDependencies))));
+    }
+
+    expect(missing).toEqual([]);
   });
 });
