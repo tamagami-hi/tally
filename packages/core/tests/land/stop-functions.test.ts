@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -7,9 +7,11 @@ import { stopFunctions } from "../../src/land/land-stop.ts";
 
 const LIMIT_MS = 30_000;
 
-function ran(command: string, args: readonly string[], detached = false): Promise<number> {
+const FORKING_SETSID = '#!/bin/sh\nif [ "$1" = --wait ]; then shift; "$@"; exit $?; fi\n"$@" &\nexit 0\n';
+
+function ran(command: string, args: readonly string[], detached = false, env: NodeJS.ProcessEnv = process.env): Promise<number> {
   return new Promise((done) => {
-    const child = spawn(command, args, { detached, stdio: "ignore" });
+    const child = spawn(command, args, { detached, stdio: "ignore", env });
     child.on("exit", (code) => done(code ?? 1));
   });
 }
@@ -52,10 +54,13 @@ describe("the landing script's check runner", () => {
     expect(await text(join(out, "wait"))).toBe((await ran("setsid", ["--wait", "true"])) === 0 ? "--wait" : "");
   });
 
-  test("records a failing check as failed when the script was started as a group leader", async () => {
+  test("records a failing check as failed where setsid forks and answers 0 at once, as for a group leader, since it asks setsid to wait", async () => {
     const { script, out } = await harness(["run_check sh -c 'sleep 1; exit 7'", 'echo "$?" > "$out/rc"']);
+    const bin = join(out, "bin");
+    await mkdir(bin);
+    await writeFile(join(bin, "setsid"), FORKING_SETSID, { mode: 0o755 });
 
-    await ran("sh", [script], true);
+    await ran("sh", [script], false, { ...process.env, PATH: `${bin}:${process.env["PATH"] ?? ""}` });
 
     expect(await text(join(out, "rc"))).toBe("7\n");
   }, LIMIT_MS);
