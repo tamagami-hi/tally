@@ -1,4 +1,4 @@
-import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import type { Client } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
 import { ANSWER_LIMIT } from "../src/decorators/sized.ts";
 import { manyRepos, reading, type RepoSource } from "../src/source.ts";

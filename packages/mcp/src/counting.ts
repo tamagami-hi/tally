@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "./respond.ts";
 import { getSession, isOperator, sessionSchema, type Outcome, type Scope, type Usage } from "@tally/core";
 import { sessionOf } from "./decorators/session-of.ts";
 import { wasCut } from "./decorators/sized.ts";

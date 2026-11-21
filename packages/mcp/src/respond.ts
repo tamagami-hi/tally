@@ -1,5 +1,7 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult as AnyCallToolResult } from "@modelcontextprotocol/server";
 import { messageOf } from "@tally/core";
+
+export type CallToolResult = AnyCallToolResult & { structuredContent?: Record<string, unknown> };
 
 export const jsonText = (value: unknown): string => JSON.stringify(value);
 

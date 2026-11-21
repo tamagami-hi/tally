@@ -56,8 +56,7 @@ describe("a service whose agents run the project's commands", () => {
 
     expect(await toolNamed(client, "land_run")).toBeUndefined();
     expect((await client.listTools()).tools.map((tool) => tool.name)).toContain("land_start");
-    expect(refused.isError).toBe(true);
-    expect(refused.text).toContain("land_run");
+    expect(refused).toMatchObject({ isError: true, code: -32602, text: "Tool land_run not found" });
     expect(await listEvidence(repo, "B2")).toEqual([]);
   });
 });

@@ -48,8 +48,7 @@ describe.each(Object.entries(ROLES))("the %s's address", (role, { tools, most })
     for (const from of [one.repo, many.source]) {
       const { call } = await connect(from, undefined, role as "builder" | "reviewer");
       const refused = await call("cycle_close", { sessionId: "s-none", summary: "x", said: "y" });
-      expect(refused.isError).toBe(true);
-      expect(refused.text).toContain("Tool cycle_close not found");
+      expect(refused).toMatchObject({ isError: true, code: -32602, text: "Tool cycle_close not found" });
     }
   });
 
@@ -84,8 +83,8 @@ describe("the roles' definitions", () => {
     const { repo } = await made();
     const usage = await Usage.open(join(await tmpDir("tally-usage-"), "usage.json"), "0.8.0");
     const server = createTallyServer(repo, DECORATORS, undefined, usage, "reviewer");
-    const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
-    const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+    const { InMemoryTransport } = await import("@modelcontextprotocol/server");
+    const { Client } = await import("@modelcontextprotocol/client");
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
     await server.connect(serverSide);
     const client = new Client({ name: "test", version: "0" });

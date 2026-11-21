@@ -1,4 +1,4 @@
-import { ToolSchema } from "@modelcontextprotocol/sdk/types.js";
+import { ToolSchema } from "@modelcontextprotocol/core";
 import { describe, expect, test } from "vitest";
 import { annotationsOf, metaOf } from "../src/meta.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";

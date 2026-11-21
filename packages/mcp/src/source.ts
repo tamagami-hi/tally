@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "./respond.ts";
 import { z } from "zod";
 import { CloseUnfinished, LiveRepo, TallyError, cycleView, finishPendingClose, getSession, gitOut, listSessions, realFolder, stateDirOf, type Repo, type Repos, type Session } from "@tally/core";
 import { isWriting } from "./calling.ts";

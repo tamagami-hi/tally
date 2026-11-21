@@ -1,5 +1,4 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport, ProtocolError } from "@modelcontextprotocol/client";
 import { createTallyServer } from "../../src/server.ts";
 import type { RepoSource } from "../../src/source.ts";
 import type { Repo } from "../../../core/src/store/records.ts";
@@ -11,6 +10,7 @@ export interface Called {
   text: string;
   isError: boolean;
   structured: Record<string, unknown>;
+  code?: number;
 }
 
 export type Call = (name: string, args?: Record<string, unknown>) => Promise<Called>;
@@ -22,9 +22,12 @@ export async function connect(from: Repo | RepoSource, place?: CommandPlace, rol
   const client = new Client({ name: "test", version: "0" });
   await client.connect(clientSide);
   const call: Call = async (name, args = {}) => {
-    const result = await client.callTool({ name, arguments: args });
+    const result = await client.callTool({ name, arguments: args }).catch((error: unknown) => {
+      if (error instanceof ProtocolError) return { content: [{ type: "text", text: error.message }], isError: true, code: error.code };
+      throw error;
+    });
     const content = result.content as { type: string; text?: string }[];
-    return { text: content.map((c) => c.text ?? "").join("\n"), isError: result.isError === true, structured: (result.structuredContent ?? {}) as Record<string, unknown> };
+    return { text: content.map((c) => c.text ?? "").join("\n"), isError: result.isError === true, structured: (result.structuredContent ?? {}) as Record<string, unknown>, ...("code" in result && typeof result.code === "number" ? { code: result.code } : {}) };
   };
   return { client, call };
 }

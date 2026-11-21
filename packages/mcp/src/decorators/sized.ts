@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "../respond.ts";
 import type { Decorator } from "../decorate.ts";
 import { newestFirst, wholePaths } from "../meta.ts";
 import { jsonText } from "../respond.ts";

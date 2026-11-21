@@ -1,8 +1,7 @@
 import { execFile } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
 import { createTallyServer } from "../src/server.ts";
 import { edit, landingFixture, type LandingFixture } from "../../core/tests/support/landing.ts";

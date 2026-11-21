@@ -1,7 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { toJsonSchemaCompat } from "@modelcontextprotocol/sdk/server/zod-json-schema-compat.js";
-import { ListToolsRequestSchema, type Tool, type ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import type { z } from "zod";
+import type { McpServer, Tool, ToolAnnotations } from "@modelcontextprotocol/server";
+import { z } from "zod";
 
 export interface ListedTool {
   name: string;
@@ -32,7 +30,7 @@ function withoutClosed(value: unknown): unknown {
 }
 
 export function inputOf(schema: z.ZodObject): Tool["inputSchema"] {
-  const { $schema: _left, ...input } = toJsonSchemaCompat(schema, { strictUnions: true, pipeStrategy: "input" });
+  const { $schema: _left, ...input } = z.toJSONSchema(schema, { target: "draft-2020-12", io: "input" });
   return withoutClosed(input) as Tool["inputSchema"];
 }
 
@@ -47,5 +45,5 @@ export function listEntry(tool: ListedTool): Tool {
 }
 
 export function listing(server: McpServer, tools: readonly ListedTool[]): void {
-  server.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: tools.map(listEntry) }));
+  server.server.setRequestHandler("tools/list", () => ({ tools: tools.map(listEntry) }));
 }

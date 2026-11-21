@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
 import { Records } from "../../core/src/store/records.ts";
 import { commitOn, landingFixture } from "../../core/tests/support/landing.ts";

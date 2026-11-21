@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "@modelcontextprotocol/server";
 import { describe, expect, test } from "vitest";
 import { DECORATORS, type Called } from "../src/decorate.ts";
 import { outcome } from "../src/decorators/outcome.ts";

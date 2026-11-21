@@ -1,5 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { McpServer } from "@modelcontextprotocol/server";
+import type { CallToolResult } from "./respond.ts";
 import { TallyError, type CommandPlace, type Usage } from "@tally/core";
 import { z } from "zod";
 import { countCall } from "./counting.ts";

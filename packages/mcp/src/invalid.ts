@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "./respond.ts";
 import type { z } from "zod";
 
 const placed = (issue: z.core.$ZodIssue): string => {

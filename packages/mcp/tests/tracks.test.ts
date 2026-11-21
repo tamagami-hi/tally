@@ -1,7 +1,6 @@
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
 import { createTallyServer, mcpHandler } from "../src/server.ts";
 import { manyRepos, type RepoSource } from "../src/source.ts";

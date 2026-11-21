@@ -69,9 +69,12 @@ describe("a bare POST where no command runs", () => {
 });
 
 describe("a bare call to a tool the address does not serve", () => {
-  test.each([["/mcp", "no_such_tool"], ["/mcp/builder", "cycle_close"], ["/r/alpha/mcp/reviewer", "cycle_close"]])("at %s is a refused result naming the tool", async (path, tool) => {
+  test.each([["/mcp", "no_such_tool"], ["/mcp/builder", "cycle_close"], ["/r/alpha/mcp/reviewer", "cycle_close"]])("at %s is the SDK's protocol error -32602 naming the tool, in one JSON body", async (path, tool) => {
     const { app } = await service();
 
-    await expectRefused(await bareCall(app, path, tool), `MCP error -32602: Tool ${tool} not found`);
+    const answer = await expectOneJsonBody(await bareCall(app, path, tool));
+
+    expect(answer.result).toBeUndefined();
+    expect(answer.error).toEqual({ code: -32602, message: `Tool ${tool} not found` });
   });
 });

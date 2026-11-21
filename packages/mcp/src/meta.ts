@@ -1,4 +1,4 @@
-import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/server";
 import type { CommandPlace } from "@tally/core";
 
 type Effect = "read" | "wait" | "add" | "replace" | "remove";

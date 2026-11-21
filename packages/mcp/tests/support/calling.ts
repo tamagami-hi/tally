@@ -1,5 +1,4 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import type { Decorator } from "../../src/decorate.ts";
 import { createTallyServer } from "../../src/server.ts";
 import type { Repo } from "../../../core/src/store/records.ts";

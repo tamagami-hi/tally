@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "../respond.ts";
 import { flushWhenFree, keepsContextAsRecords, listSessions, logActivity, messageOf, sessionSchema, type Repo, type Session } from "@tally/core";
 import type { Called, Decorator } from "../decorate.ts";
 import { writesNothing } from "../meta.ts";

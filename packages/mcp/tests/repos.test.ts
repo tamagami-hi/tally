@@ -1,7 +1,6 @@
 import { mkdir, stat, symlink } from "node:fs/promises";
 import { join } from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
 import { createTallyServer } from "../src/server.ts";
 import { manyRepos } from "../src/source.ts";

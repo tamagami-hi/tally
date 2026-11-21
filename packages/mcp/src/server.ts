@@ -1,8 +1,7 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import { McpServer, WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/server";
+import type { Tool } from "@modelcontextprotocol/server";
 import { TallyError, commandsRunIn, type CommandPlace, type Repo, type Usage } from "@tally/core";
-import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { Readable, Writable } from "node:stream";
 import { registerCheckTools } from "./tools/checks.ts";
 import { registerCommandTools } from "./tools/commands.ts";

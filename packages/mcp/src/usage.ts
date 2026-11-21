@@ -1,4 +1,4 @@
-import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { Tool } from "@modelcontextprotocol/server";
 import type { Known, ToolCount, UsageFile } from "@tally/core";
 
 export type Ranked = Omit<Known<ToolCount>, "lastDay"> & { name: string; listed: boolean; chars: number };
