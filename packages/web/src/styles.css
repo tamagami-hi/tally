@@ -108,7 +108,11 @@ h1, h2, h3, p { margin: 0; }
 .shell.landscape .head { grid-area: head; display: grid; gap: var(--gap); min-width: 0; }
 .shell.landscape .column-left { grid-area: left; min-height: 0; display: flex; }
 .shell.landscape .column-left > .panel, .shell.landscape .column-right > .panel { flex: 1; }
-.shell.landscape .column-main { grid-area: main; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); min-height: 0; }
+.shell.landscape .column-main { grid-area: main; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--gap); min-height: 0; min-width: 0; }
+.shell.landscape .column-main > .panel { min-width: 0; }
+.shell.landscape .panel-head { flex-wrap: wrap; row-gap: var(--gap-s); }
+.shell.landscape .panel-head .muted { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.shell.landscape .segmented { flex-wrap: wrap; }
 .shell.landscape .column-main.reading { grid-template-rows: minmax(0, 1fr); }
 .shell.landscape .column-right { grid-area: right; min-height: 0; display: flex; }
 .problems { background: var(--warn-soft); color: var(--warn); border-radius: var(--radius); padding: var(--pad-s) var(--pad); display: flex; gap: var(--pad-s); align-items: flex-start; }
@@ -282,7 +286,13 @@ h1, h2, h3, p { margin: 0; }
 .link:hover { text-decoration: underline; }
 .link.warn { color: var(--warn); }
 .frame { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 100dvh; }
-.frame-main { min-width: 0; display: grid; align-content: start; }
+.frame-main { min-width: 0; display: grid; align-content: start; container: frame-main / inline-size; }
+@container frame-main (max-width: 1300px) {
+  .shell.landscape { grid-template-columns: minmax(250px, 290px) minmax(0, 1fr) minmax(260px, 320px); }
+}
+@container frame-main (max-width: 1100px) {
+  .shell.landscape { grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) minmax(220px, 260px); }
+}
 .frame-main > .problems { margin: var(--pad-s) var(--pad) 0; }
 .sidebar { position: sticky; top: 0; height: 100dvh; width: 236px; padding: var(--pad-s); display: flex; flex-direction: column; gap: var(--gap); background: var(--panel); border-right: 1px solid var(--line); overflow: auto; scrollbar-width: thin; }
 .sidebar.collapsed { width: 40px; padding: var(--pad-s) var(--gap); align-items: center; }
