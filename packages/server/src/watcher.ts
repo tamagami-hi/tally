@@ -87,15 +87,17 @@ export class Watcher {
   private failure: string | undefined;
   private held: readonly Held[] = [];
   private readonly holdMs: number;
+  private readonly now: () => number;
   private halt: () => void = () => undefined;
   readonly stopped = new Promise<void>((done) => {
     this.halt = done;
   });
 
-  constructor(repo: Repo | RepoGetter, options: { intervalMs?: number; holdMs?: number } = {}) {
+  constructor(repo: Repo | RepoGetter, options: { intervalMs?: number; holdMs?: number; now?: () => number } = {}) {
     this.source = typeof repo === "function" ? repo : () => Promise.resolve(repo);
     this.intervalMs = options.intervalMs ?? DEFAULT_INTERVAL_MS;
     this.holdMs = options.holdMs ?? PROBLEM_HOLD_MS;
+    this.now = options.now ?? Date.now;
   }
 
   subscribe(listener: Listener): () => void {
@@ -129,7 +131,7 @@ export class Watcher {
   }
 
   private hold(problems: readonly string[]): string[] {
-    const now = Date.now();
+    const now = this.now();
     this.held = [...this.held.filter((one) => one.until > now), ...problems.map((text) => ({ text, until: now + this.holdMs }))];
     return this.held.map((one) => one.text);
   }

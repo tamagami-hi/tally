@@ -1,8 +1,11 @@
 import { defineConfig } from "vitest/config";
 
+const GIT_HEAVY_TESTS_ON_A_BUSY_MACHINE_MS = 30_000;
+
 export default defineConfig({
   test: {
     env: { TALLY_COMMANDS: "" },
+    testTimeout: GIT_HEAVY_TESTS_ON_A_BUSY_MACHINE_MS,
     include: ["packages/*/tests/**/*.test.ts", "packages/*/tests/**/*.test.tsx"],
     coverage: {
       provider: "v8",

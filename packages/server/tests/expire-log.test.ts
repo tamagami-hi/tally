@@ -10,6 +10,8 @@ const PATIENCE_MS = 15_000;
 const TEST_LIMIT_MS = 20_000;
 const STEP_MS = 40;
 const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+const HOLD_MS = 600;
+const PASSES_AFTER = 3;
 const UNLOGGED = /^gone's session on track data was ended as idle, but its expiry was not logged: .*not valid JSON/;
 
 async function quietWithBrokenLog() {
@@ -23,15 +25,23 @@ async function quietWithBrokenLog() {
   return { repo, live };
 }
 
-async function watching(repo: Repo, options: { holdMs?: number } = {}) {
-  const watcher = new Watcher(repo, { intervalMs: STEP_MS, ...options });
+async function until(done: () => boolean): Promise<void> {
+  const deadline = Date.now() + PATIENCE_MS;
+  while (!done() && Date.now() < deadline) await delay(STEP_MS);
+}
+
+async function watching(repo: Repo, options: { holdMs?: number; now?: () => number } = {}) {
+  let passes = 0;
+  const watcher = new Watcher(() => {
+    passes += 1;
+    return Promise.resolve(repo);
+  }, { intervalMs: STEP_MS, ...options });
   await watcher.current();
   const heard: Snapshot[] = [];
   watcher.subscribe((snapshot) => heard.push(snapshot));
   watcher.start();
-  const until = Date.now() + PATIENCE_MS;
-  while ((heard.length === 0 || watcher.lastFailure === undefined) && Date.now() < until) await delay(STEP_MS);
-  return { watcher, heard };
+  await until(() => heard.length > 0 && watcher.lastFailure !== undefined);
+  return { watcher, heard, passes: () => passes };
 }
 
 describe("the watcher and an expiry that cannot be logged", () => {
@@ -49,13 +59,17 @@ describe("the watcher and an expiry that cannot be logged", () => {
   test("keeps saying so on the passes after, until its hold runs out", async () => {
     const { repo } = await quietWithBrokenLog();
 
-    const { watcher } = await watching(repo, { holdMs: 600 });
-    await delay(STEP_MS * 5);
+    const clock = { now: Date.now() };
+    const { watcher, passes } = await watching(repo, { holdMs: HOLD_MS, now: () => clock.now });
+    const failedAt = passes();
+    await until(() => passes() >= failedAt + PASSES_AFTER);
+    const passed = passes();
     const held = watcher.lastFailure;
-    const until = Date.now() + PATIENCE_MS;
-    while (watcher.lastFailure !== undefined && Date.now() < until) await delay(STEP_MS);
+    clock.now += HOLD_MS + 1;
+    await until(() => watcher.lastFailure === undefined);
     await watcher.stop();
 
+    expect(passed).toBeGreaterThanOrEqual(failedAt + PASSES_AFTER);
     expect(held).toMatch(UNLOGGED);
     expect(watcher.lastFailure).toBeUndefined();
   }, TEST_LIMIT_MS);
