@@ -57,6 +57,10 @@ async function settledWithin(waiting: readonly Promise<unknown>[], graceMs: numb
 
 type Older = WebStandardStreamableHTTPServerTransport;
 
+const logged = (error: Error): void => {
+  process.stderr.write(`tally's MCP handler on 2026-07-28: ${error.message}\n`);
+};
+
 const EVENT_STREAM = "text/event-stream";
 
 const isEventStream = (answer: Response): boolean => (answer.headers.get("content-type") ?? "").startsWith(EVENT_STREAM);
@@ -82,7 +86,7 @@ function watched(body: ReadableStream<Uint8Array>, ended: () => void): ReadableS
 
 export function endpointFor(build: (revision: Revision) => McpServer): McpEndpoint {
   const bus = new InMemoryServerEventBus();
-  const newer = createMcpHandler(() => build("modern"), { legacy: "reject", responseMode: "json", bus, maxRequestBodySize: MOST_BODY_BYTES });
+  const newer = createMcpHandler(() => build("modern"), { legacy: "reject", responseMode: "auto", bus, maxRequestBodySize: MOST_BODY_BYTES, onerror: logged });
   let streams: ReadonlySet<Older> = new Set();
   const letGo = (transport: Older): void => {
     streams = new Set([...streams].filter((held) => held !== transport));
