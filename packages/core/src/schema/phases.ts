@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Exact } from "./kept.ts";
+import { whoSchema, type Exact } from "./kept.ts";
 
 export const PHASES_FILE = "phases.json";
 
@@ -10,9 +10,9 @@ export const phaseSchema = z.looseObject({
   goal: z.string().min(1).optional(),
   decision: z.string().min(1).optional(),
   openedAt: z.string().optional(),
-  openedBy: z.object({ track: z.string().min(1), agent: z.string().min(1) }).optional(),
+  openedBy: whoSchema.optional(),
   closedAt: z.string().optional(),
-  closedBy: z.object({ track: z.string().min(1), agent: z.string().min(1) }).optional(),
+  closedBy: whoSchema.optional(),
   summary: z.string().optional(),
   commit: z.string().optional(),
 });

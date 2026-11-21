@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Exact } from "./kept.ts";
+import { whoSchema, type Exact } from "./kept.ts";
 
 export const TRACKS_FILE = "tracks.json";
 export const DEFAULT_WORKTREE_ROOT = ".temp/worktrees";
@@ -12,13 +12,13 @@ export const openedTrackSchema = z.looseObject({
   parent: z.string().min(1).optional(),
   purpose: z.string().min(1),
   paths: z.array(z.string().min(1)).optional(),
-  openedBy: z.object({ track: z.string().min(1), agent: z.string().min(1) }),
+  openedBy: whoSchema,
   openedAt: z.string(),
   closedAt: z.string().optional(),
-  closedBy: z.object({ track: z.string().min(1), agent: z.string().min(1) }).optional(),
+  closedBy: whoSchema.optional(),
   closedWhy: z.string().optional(),
   keptFolders: z.array(z.string().min(1)).optional(),
-  widened: z.array(z.looseObject({ paths: z.array(z.string().min(1)), by: z.object({ track: z.string().min(1), agent: z.string().min(1) }), at: z.string() })).optional(),
+  widened: z.array(z.looseObject({ paths: z.array(z.string().min(1)), by: whoSchema, at: z.string() })).optional(),
 });
 
 export const tracksFileSchema = z.looseObject({
