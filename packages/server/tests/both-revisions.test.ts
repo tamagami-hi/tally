@@ -22,7 +22,7 @@ const through = (app: Awaited<ReturnType<typeof service>>["app"]): Fetching => a
 
 describe.each(REVISIONS)("the same service on %s", (revision) => {
   test("counts a call once with the address it came by, and a refused call as invalid", async () => {
-    const usage = await Usage.open(join(await tmpDir("tally-usage-"), USAGE_FILE), "0.9.2");
+    const usage = await Usage.open(join(await tmpDir("tally-usage-"), USAGE_FILE), "0.9.3");
     const { app } = await service(usage);
     const call = callerAt(through(app), "/mcp/builder", revision);
 

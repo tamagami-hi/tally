@@ -10,7 +10,7 @@ const through = (app: Awaited<ReturnType<typeof service>>["app"]): Fetching => a
 
 describe.each(REVISIONS)("the trial's address /mcp/ask on %s", (revision) => {
   test("lists ask_trial alone, which no other address lists, and counts nothing", async () => {
-    const usage = await Usage.open(join(await tmpDir("tally-usage-"), USAGE_FILE), "0.9.2");
+    const usage = await Usage.open(join(await tmpDir("tally-usage-"), USAGE_FILE), "0.9.3");
     const { app } = await service(usage);
 
     const listed = await namesAt(through(app), "/mcp/ask", revision);

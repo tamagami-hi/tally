@@ -7,7 +7,7 @@ import { connect, keepingContextAsRecords } from "./support/connect.ts";
 import { newerInit } from "./support/newer.ts";
 import { mcpEndpoint } from "../src/endpoint.ts";
 
-const VERSION = "0.9.2";
+const VERSION = "0.9.3";
 
 const PACKAGES = ["../../../package.json", "../../core/package.json", "../../cli/package.json", "../package.json", "../../server/package.json", "../../web/package.json"];
 const SINCE_0_2 = ["phase_add", "phase_close", "phase_list", "records_commit", "rule_tailor", "rulebook_adopt", "rulebook_get"];
@@ -19,7 +19,7 @@ const SINCE_0_9 = ["evidence_manual", "release_list", "release_mark", "trial_end
 const versionOf = async (path: string): Promise<string> => (JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { version: string }).version;
 
 describe("the server's version", () => {
-  test("is every package's, 0.9.2, and the handshake carries it on both revisions", async () => {
+  test("is every package's, 0.9.3, and the handshake carries it on both revisions", async () => {
     const { repo } = await makeTracked();
     const { client } = await connect(repo);
     const endpoint = mcpEndpoint(repo);

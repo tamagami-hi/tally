@@ -17,7 +17,7 @@ const ACCEPTS: ElicitResult = { action: "accept", content: { confirm: true } };
 
 async function askingOnce() {
   const { repo } = await makeTracked();
-  const usage = await Usage.open(join(await tmpDir("tally-usage-"), USAGE_FILE), "0.9.2");
+  const usage = await Usage.open(join(await tmpDir("tally-usage-"), USAGE_FILE), "0.9.3");
   const build = (): McpServer => {
     const server = new McpServer({ name: "tally", version: "0" });
     const tools = decorating(server, oneRepo(repo), { usage });
