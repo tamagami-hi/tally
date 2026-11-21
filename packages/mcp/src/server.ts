@@ -34,13 +34,15 @@ import { ROLE_PROTOCOL, SERVER_NAME, type Role } from "./roles.ts";
 export { SERVER_NAME } from "./roles.ts";
 export { SERVER_VERSION } from "./server-info.ts";
 
-export function createTallyServer(from: Repo | RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = commandsRunIn(), usage?: Usage, role?: Role): McpServer {
+export type Revision = "legacy" | "modern";
+
+export function createTallyServer(from: Repo | RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = commandsRunIn(), usage?: Usage, role?: Role, revision: Revision = "legacy"): McpServer {
   const source = isSource(from) ? from : oneRepo(from);
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: role === undefined ? source.instructions : ROLE_PROTOCOL[role] });
   const tools = decorating(server, source, { decorators, place, usage, ...(role === undefined ? {} : { role }) });
   registerAll(tools, source, place, role);
   listing(server, tools.listed());
-  server.server.registerCapabilities({ tools: { listChanged: false } });
+  server.server.registerCapabilities({ tools: { listChanged: revision === "modern" } });
   return server;
 }
 

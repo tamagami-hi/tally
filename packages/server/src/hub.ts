@@ -15,6 +15,8 @@ export interface RepoSummary {
   problem?: string;
 }
 
+export type ListFollower = (roots: ReadonlyMap<string, string>) => Promise<void>;
+
 interface Watched {
   root: string;
   watcher: Watcher;
@@ -25,6 +27,7 @@ export class Hub {
   private readonly intervalMs: number | undefined;
   private watched: ReadonlyMap<string, Watched> = new Map();
   private listTimer: NodeJS.Timeout | undefined;
+  private followers: readonly ListFollower[] = [];
 
   constructor(repos: Repos, options: { intervalMs?: number } = {}) {
     this.repos = repos;
@@ -51,11 +54,16 @@ export class Hub {
     return rows;
   }
 
+  follow(follower: ListFollower): void {
+    this.followers = [...this.followers, follower];
+  }
+
   async sync(): Promise<void> {
     const roots = new Map((await this.repos.entries()).map((entry) => [entry.name, entry.root]));
     const gone = [...this.watched].filter(([name, watched]) => roots.get(name) !== watched.root);
     this.watched = new Map([...this.watched].filter(([name, watched]) => roots.get(name) === watched.root));
     await Promise.all(gone.map(([, watched]) => watched.watcher.stop()));
+    await Promise.all(this.followers.map((follower) => follower(roots)));
   }
 
   start(): void {

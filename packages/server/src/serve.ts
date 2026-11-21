@@ -6,6 +6,7 @@ import { LiveRepo, Repos, Usage, usagePathOf, type Repo, type StartDefaults } fr
 import { SERVER_VERSION } from "@tally/mcp";
 import { createApp } from "./app.ts";
 import type { CliRunner } from "./cli-api.ts";
+import { Endpoints } from "./endpoints.ts";
 import { Hub } from "./hub.ts";
 import { createServiceApp } from "./service.ts";
 import { Watcher } from "./watcher.ts";
@@ -64,11 +65,13 @@ export async function startServer(options: ServeOptions): Promise<Running> {
   const live = new LiveRepo(options.repo);
   const watcher = new Watcher(() => live.current(), interval(options));
   const usage = await Usage.open(usagePathOf({ stateDir: options.repo.stateDir }), SERVER_VERSION);
-  const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir(), usage });
+  const endpoints = new Endpoints(usage);
+  const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir(), usage, endpoints });
   return listen(app, options, () => {
     watcher.start();
     usage.start();
   }, async () => {
+    await endpoints.close();
     await watcher.stop();
     await usage.stop();
   });
@@ -77,11 +80,13 @@ export async function startServer(options: ServeOptions): Promise<Running> {
 export async function startService(options: ServiceStart): Promise<Running> {
   const hub = new Hub(new Repos(options.home), interval(options));
   const usage = await Usage.open(usagePathOf({ home: options.home }), SERVER_VERSION);
-  const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, usage, ...(options.defaults === undefined ? {} : { defaults: options.defaults }), ...(options.cli === undefined ? {} : { cli: options.cli }) });
+  const endpoints = new Endpoints(usage);
+  const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, usage, endpoints, ...(options.defaults === undefined ? {} : { defaults: options.defaults }), ...(options.cli === undefined ? {} : { cli: options.cli }) });
   return listen(app, options, () => {
     hub.start();
     usage.start();
   }, async () => {
+    await endpoints.close();
     await hub.stop();
     await usage.stop();
   });

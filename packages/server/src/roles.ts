@@ -1,8 +1,9 @@
 import { Hono, type Context } from "hono";
-import { ROLES, isRole, mcpEndpoint, roleAnswer, type RepoSource, type Role } from "@tally/mcp";
-import type { Usage } from "@tally/core";
+import { ROLES, isRole, roleAnswer, type McpEndpoint, type Role } from "@tally/mcp";
 
 const NAMED = ROLES.join(" and ");
+
+export type EndpointAt = (c: Context, role?: Role) => Promise<McpEndpoint | Response>;
 
 export function roleRoutes(): Hono {
   const api = new Hono();
@@ -14,11 +15,13 @@ export function roleRoutes(): Hono {
   return api;
 }
 
-export function servingRoles(app: Hono, path: string, source: (c: Context) => Promise<RepoSource | Response>, usage: Usage | undefined): void {
-  for (const role of ROLES) {
-    app.all(`${path}/${role}`, async (c) => {
-      const from = await source(c);
-      return from instanceof Response ? from : mcpEndpoint(from, usage, role as Role).fetch(c.req.raw);
-    });
-  }
+export function serving(at: EndpointAt, role?: Role): (c: Context) => Promise<Response> {
+  return async (c) => {
+    const endpoint = await at(c, role);
+    return endpoint instanceof Response ? endpoint : endpoint.fetch(c.req.raw);
+  };
+}
+
+export function servingRoles(app: Hono, path: string, at: EndpointAt): void {
+  for (const role of ROLES) app.all(`${path}/${role}`, serving(at, role));
 }
