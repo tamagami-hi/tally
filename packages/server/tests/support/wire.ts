@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Client, ProtocolError, StreamableHTTPClientTransport, type ClientCapabilities } from "@modelcontextprotocol/client";
 import type { Hono } from "hono";
 
 export const BARE_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
@@ -34,4 +35,25 @@ export function surfaceOf(tools: readonly unknown[]): Surface {
 
 export async function bareSurface(app: Hono, path: string): Promise<Surface> {
   return surfaceOf((await answerOf(await bare(app, path, "tools/list", {}))).result?.tools ?? []);
+}
+
+export const OLDER_REVISIONS = ["2025-03-26", "2025-06-18", "2025-11-25"] as const;
+export const NEWER_REVISION = "2026-07-28";
+
+export const intoApp = (app: Hono) => (url: string | URL | Request, init?: RequestInit): Promise<Response> => Promise.resolve(app.request(new Request(url, init)));
+
+export async function newerClient(app: Hono, path: string, capabilities: ClientCapabilities = {}): Promise<Client> {
+  const client = new Client({ name: "newer", version: "0" }, { capabilities, versionNegotiation: { mode: { pin: NEWER_REVISION } } });
+  await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1${path}`), { fetch: intoApp(app) }));
+  return client;
+}
+
+export async function refusalOf(client: Client, name: string, args: Record<string, unknown>): Promise<{ isError: boolean; text: string; code?: number }> {
+  try {
+    const result = await client.callTool({ name, arguments: args });
+    return { isError: result.isError === true, text: ((result.content ?? []) as { text?: string }[]).map((part) => part.text ?? "").join("\n") };
+  } catch (error: unknown) {
+    if (error instanceof ProtocolError) return { isError: true, text: error.message, code: error.code };
+    throw error;
+  }
 }

@@ -2,7 +2,8 @@ import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
-import { createTallyServer, mcpHandler } from "../src/server.ts";
+import { mcpEndpoint } from "../src/endpoint.ts";
+import { createTallyServer } from "../src/server.ts";
 import { manyRepos, type RepoSource } from "../src/source.ts";
 import { addRepo } from "../../core/src/repos/list.ts";
 import { Repos } from "../../core/src/repos/repos.ts";
@@ -138,7 +139,7 @@ describe("a new track on a server for every repository", () => {
 describe("the HTTP handler of one repository", () => {
   test("sees a track opened in an earlier request", async () => {
     const { repo, root } = await makeTracked();
-    const handle = mcpHandler(repo);
+    const handle = mcpEndpoint(repo).fetch;
     const post = async (name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> => {
       const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } });
       const response = await handle(new Request("http://127.0.0.1/mcp", { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body }));

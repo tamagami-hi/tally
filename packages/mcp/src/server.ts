@@ -1,5 +1,5 @@
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { McpServer, WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/server";
+import { McpServer } from "@modelcontextprotocol/server";
 import type { Tool } from "@modelcontextprotocol/server";
 import { TallyError, commandsRunIn, type CommandPlace, type Repo, type Usage } from "@tally/core";
 import type { Readable, Writable } from "node:stream";
@@ -77,17 +77,6 @@ export async function serveStdio(from: Repo | RepoSource, usage?: Usage, streams
   const server = createTallyServer(from, DECORATORS, commandsRunIn(), usage);
   await server.connect(new StdioServerTransport(streams?.input, streams?.output));
   return server;
-}
-
-export function mcpHandler(from: Repo | RepoSource, usage?: Usage, role?: Role): (request: Request) => Promise<Response> {
-  const source = isSource(from) ? from : oneRepo(from);
-  const place = commandsRunIn();
-  return async (request) => {
-    const server = createTallyServer(source, DECORATORS, place, usage, role);
-    const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
-    await server.connect(transport);
-    return transport.handleRequest(request);
-  };
 }
 
 const LISTING_ONLY: RepoSource = {

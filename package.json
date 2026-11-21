@@ -17,6 +17,7 @@
     "coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/node": "^24.3.0",
     "@vitest/coverage-v8": "^4.0.0",
     "typescript": "^5.9.0",

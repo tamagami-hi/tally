@@ -1,5 +1,5 @@
 import { Hono, type Context } from "hono";
-import { ROLES, isRole, mcpHandler, roleAnswer, type RepoSource, type Role } from "@tally/mcp";
+import { ROLES, isRole, mcpEndpoint, roleAnswer, type RepoSource, type Role } from "@tally/mcp";
 import type { Usage } from "@tally/core";
 
 const NAMED = ROLES.join(" and ");
@@ -18,7 +18,7 @@ export function servingRoles(app: Hono, path: string, source: (c: Context) => Pr
   for (const role of ROLES) {
     app.all(`${path}/${role}`, async (c) => {
       const from = await source(c);
-      return from instanceof Response ? from : mcpHandler(from, usage, role as Role)(c.req.raw);
+      return from instanceof Response ? from : mcpEndpoint(from, usage, role as Role).fetch(c.req.raw);
     });
   }
 }

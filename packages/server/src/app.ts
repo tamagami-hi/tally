@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { LiveRepo, type Repo, type Usage } from "@tally/core";
-import { mcpHandler, oneRepo, usageNow } from "@tally/mcp";
+import { mcpEndpoint, oneRepo, usageNow } from "@tally/mcp";
 import { roleRoutes, servingRoles } from "./roles.ts";
 import { eventStream, repoRoutes } from "./repo-api.ts";
 import { staticFiles } from "./static.ts";
@@ -22,8 +22,8 @@ export function createApp({ repo, watcher, webDir, usage }: AppOptions): Hono {
   app.route("/api", roleRoutes());
   app.route("/api", repoRoutes(async () => ({ repo: await live.current(), watcher })));
   app.get("/api/*", (c) => c.json({ error: "not found" }, 404));
-  const mcp = mcpHandler(repo, usage);
-  app.all("/mcp", (c) => mcp(c.req.raw));
+  const mcp = mcpEndpoint(repo, usage);
+  app.all("/mcp", (c) => mcp.fetch(c.req.raw));
   servingRoles(app, "/mcp", async () => oneRepo(repo), usage);
   app.get("/events", (c) => eventStream(c, watcher));
   app.get("/*", staticFiles(webDir));
