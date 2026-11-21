@@ -31,19 +31,31 @@ export class EndpointClosed extends TallyError {
 
 interface InFlight {
   done: Promise<unknown>;
-  copy: Request | undefined;
+  described: () => string;
 }
 
 type State = "open" | "handing over" | "stopping" | "closed";
 
-async function described(flight: InFlight): Promise<string> {
-  const text = await flight.copy?.text().catch(() => "");
-  try {
-    const message = JSON.parse(text ?? "") as { method?: unknown; params?: { name?: unknown } };
-    return [message.method, message.params?.name].filter((part) => typeof part === "string").join(" ") || "a request";
-  } catch {
-    return "a request";
+const A_REQUEST = "a request";
+
+function namedIn(method: unknown, name: unknown): string | undefined {
+  const parts = [method, name].filter((part): part is string => typeof part === "string" && part !== "");
+  return parts.length === 0 ? undefined : parts.join(" ");
+}
+
+function describing(request: Request): () => string {
+  let known = namedIn(request.headers.get("mcp-method"), request.headers.get("mcp-name"));
+  if (request.method === "POST") {
+    void request
+      .clone()
+      .text()
+      .then((text) => {
+        const message = JSON.parse(text) as { method?: unknown; params?: { name?: unknown } | null };
+        known = namedIn(message.method, message.params?.name) ?? known;
+      })
+      .catch(() => undefined);
   }
+  return () => known ?? A_REQUEST;
 }
 
 async function settledWithin(waiting: readonly Promise<unknown>[], graceMs: number): Promise<boolean> {
@@ -107,20 +119,19 @@ export function endpointFor(build: (revision: Revision) => McpServer): McpEndpoi
   let inFlight: ReadonlySet<InFlight> = new Set();
   const serve = async (request: Request): Promise<Response> => {
     const legacy = await isLegacyRequest(request, undefined, { maxRequestBodySize: MOST_BODY_BYTES });
-    if (state === "handing over") throw new EndpointClosed();
+    if (state === "handing over" || state === "closed") throw new EndpointClosed();
     return legacy ? older(request) : newer.fetch(request);
   };
   return {
     fetch: async (request) => {
       if (state !== "open") throw new EndpointClosed();
-      const copy = request.method === "POST" ? request.clone() : undefined;
-      const flight: InFlight = { done: serve(request), copy };
+      const described = describing(request);
+      const flight: InFlight = { done: serve(request), described };
       inFlight = new Set([...inFlight, flight]);
       try {
         return await (flight.done as Promise<Response>);
       } finally {
         inFlight = new Set([...inFlight].filter((one) => one !== flight));
-        void flight.copy?.body?.cancel().catch(() => undefined);
       }
     },
     close: async ({ graceMs = STOP_GRACE_MS, handOver = false }: Closing = {}) => {
@@ -130,7 +141,7 @@ export function endpointFor(build: (revision: Revision) => McpServer): McpEndpoi
       streams = new Set();
       await Promise.all(held.map((transport) => transport.close()));
       const finished = await settledWithin([...inFlight].map((flight) => flight.done), graceMs);
-      const left = finished ? [] : await Promise.all([...inFlight].map(described));
+      const left = finished ? [] : [...inFlight].map((flight) => flight.described());
       await newer.close();
       state = "closed";
       return left;

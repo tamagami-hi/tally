@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import type { Hono } from "hono";
 import { LiveRepo, Repos, Usage, usagePathOf, type Repo, type StartDefaults } from "@tally/core";
-import { SERVER_VERSION } from "@tally/mcp";
+import { SERVER_VERSION, STOP_GRACE_MS } from "@tally/mcp";
 import { createApp } from "./app.ts";
 import type { CliRunner } from "./cli-api.ts";
 import { Endpoints } from "./endpoints.ts";
@@ -51,13 +51,13 @@ function listen(app: Hono, options: Listening, started: () => void, stopping: ()
         close: async () => {
           const closed = new Promise<void>((done) => server.close(() => done()));
           const sweep = setInterval(() => server.closeIdleConnections(), IDLE_SWEEP_MS);
+          const cut = setTimeout(() => server.closeAllConnections(), (options.stopGraceMs ?? STOP_GRACE_MS) + CUT_AFTER_MS);
           try {
             await stopping();
-            const cut = setTimeout(() => server.closeAllConnections(), CUT_AFTER_MS);
             await closed;
-            clearTimeout(cut);
           } finally {
             clearInterval(sweep);
+            clearTimeout(cut);
           }
         },
       });
