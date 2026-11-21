@@ -22,7 +22,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("the tool list of 0.9.1, read over the wire", () => {
+describe("the tool list as 0.9.1 gave it, read over the wire", () => {
   test.each(RECORDED_IN_091)("is the same at %s", async (path, recorded) => {
     const { app } = await service();
 
