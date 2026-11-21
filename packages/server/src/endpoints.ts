@@ -18,6 +18,24 @@ export class Stopping extends TallyError {
   }
 }
 
+const UNAVAILABLE = 503;
+const SERVER_ERROR = -32000;
+const RETRY_AFTER_SECONDS = "1";
+
+async function idOf(request: Request): Promise<string | number | null> {
+  try {
+    const message = (await request.clone().json()) as { id?: unknown };
+    return typeof message.id === "string" || typeof message.id === "number" ? message.id : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function unavailable(request: Request): Promise<Response> {
+  const body = { jsonrpc: "2.0", id: await idOf(request), error: { code: SERVER_ERROR, message: new Stopping().message } };
+  return new Response(JSON.stringify(body), { status: UNAVAILABLE, headers: { "content-type": "application/json", "retry-after": RETRY_AFTER_SECONDS } });
+}
+
 const sameListing = (one: Listed | undefined, other: Listed | undefined): boolean => one?.name === other?.name && one?.root === other?.root;
 
 export class Endpoints {

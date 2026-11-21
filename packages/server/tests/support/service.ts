@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Hono } from "hono";
 import { afterEach } from "vitest";
+import { Endpoints } from "../../src/endpoints.ts";
 import { Hub } from "../../src/hub.ts";
 import { createServiceApp } from "../../src/service.ts";
 import { addRepo } from "../../../core/src/repos/list.ts";
@@ -17,6 +18,7 @@ export interface Service {
   app: Hono;
   alpha: Tracked;
   beta: Tracked;
+  endpoints: Endpoints;
 }
 
 const hubs: Hub[] = [];
@@ -38,5 +40,6 @@ export async function service(usage?: Usage): Promise<Service> {
   const workspace = join(alpha.root, "..");
   const hub = new Hub(new Repos(home), { intervalMs: 50 });
   hubs.push(hub);
-  return { home, workspace, hub, app: createServiceApp({ hub, webDir: web, workspace, ...(usage === undefined ? {} : { usage }) }), alpha, beta };
+  const endpoints = new Endpoints();
+  return { home, workspace, hub, endpoints, app: createServiceApp({ hub, webDir: web, workspace, endpoints, ...(usage === undefined ? {} : { usage }) }), alpha, beta };
 }
