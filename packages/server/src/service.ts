@@ -1,11 +1,11 @@
 import { Hono, type Context } from "hono";
-import { NotListed, TallyError, messageOf, type StartDefaults, type Usage } from "@tally/core";
+import type { StartDefaults, Usage } from "@tally/core";
 import { ASK_ADDRESS, SERVER_VERSION, askEndpoint, boundRepo, manyRepos, mcpEndpoint, usageNow } from "@tally/mcp";
 import { Endpoints, addressOf } from "./endpoints.ts";
 import { roleRoutes, serving, servingRoles, type EndpointAt } from "./roles.ts";
 import { cliRoutes, type CliRunner } from "./cli-api.ts";
 import { listFolders } from "./folders.ts";
-import { Forbidden, loopbackOnly } from "./guard.ts";
+import { guarded } from "./guard.ts";
 import type { Hub } from "./hub.ts";
 import { operatorRoutes } from "./operator.ts";
 import { eventStream, repoRoutes } from "./repo-api.ts";
@@ -21,16 +21,8 @@ export interface ServiceOptions {
   endpoints?: Endpoints;
 }
 
-const statusOf = (error: TallyError): 400 | 403 | 404 => (error instanceof NotListed ? 404 : error instanceof Forbidden ? 403 : 400);
-
 export function createServiceApp({ hub, webDir, workspace, defaults, cli, usage, endpoints = new Endpoints() }: ServiceOptions): Hono {
-  const app = new Hono();
-  app.use("*", loopbackOnly());
-  app.onError((error, c) => {
-    if (error instanceof TallyError) return c.json({ error: messageOf(error) }, statusOf(error));
-    process.stderr.write(`tally failed on ${c.req.method} ${new URL(c.req.url).pathname}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
-    return c.json({ error: "tally failed; the service's log has the detail" }, 500);
-  });
+  const app = guarded(new Hono());
   app.get("/api/health", (c) => c.json({ ok: true, version: SERVER_VERSION }));
   app.get("/api/usage", (c) => c.json(usageNow(usage)));
   app.get("/api/repos", async (c) => {

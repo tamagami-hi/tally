@@ -1,5 +1,5 @@
-import type { Context, MiddlewareHandler } from "hono";
-import { TallyError } from "@tally/core";
+import type { Context, Hono, MiddlewareHandler } from "hono";
+import { NotListed, TallyError, messageOf } from "@tally/core";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 const OPERATOR_HEADER = "x-tally-operator";
@@ -41,4 +41,16 @@ export function operatorOnly(c: Context): void {
   const marked = c.req.header(OPERATOR_HEADER) !== undefined;
   const typed = (c.req.header("content-type") ?? "").toLowerCase().startsWith(JSON_TYPE);
   if (!marked || !typed) throw new Forbidden("this is the operator's action; it is made from the board");
+}
+
+const statusOf = (error: TallyError): 400 | 403 | 404 => (error instanceof NotListed ? 404 : error instanceof Forbidden ? 403 : 400);
+
+export function guarded(app: Hono): Hono {
+  app.use("*", loopbackOnly());
+  app.onError((error, c) => {
+    if (error instanceof TallyError) return c.json({ error: messageOf(error) }, statusOf(error));
+    process.stderr.write(`tally failed on ${c.req.method} ${new URL(c.req.url).pathname}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
+    return c.json({ error: "tally failed; the service's log has the detail" }, 500);
+  });
+  return app;
 }

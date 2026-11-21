@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { LiveRepo, type Repo, type Usage } from "@tally/core";
 import { mcpEndpoint, oneRepo, usageNow } from "@tally/mcp";
 import { Endpoints, addressOf } from "./endpoints.ts";
+import { guarded } from "./guard.ts";
 import { roleRoutes, serving, servingRoles, type EndpointAt } from "./roles.ts";
 import { eventStream, repoRoutes } from "./repo-api.ts";
 import { staticFiles } from "./static.ts";
@@ -18,7 +19,7 @@ export interface AppOptions {
 }
 
 export function createApp({ repo, watcher, webDir, usage, endpoints = new Endpoints() }: AppOptions): Hono {
-  const app = new Hono();
+  const app = guarded(new Hono());
   const live = new LiveRepo(repo);
   app.get("/api/usage", (c) => c.json(usageNow(usage)));
   app.route("/api", roleRoutes());
