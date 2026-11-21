@@ -8,7 +8,7 @@ import { addRepo, removeRepo } from "../../core/src/repos/list.ts";
 import { Records } from "../../core/src/store/records.ts";
 import { tmpDir } from "../../core/tests/support/tmp.ts";
 import { makeTracked } from "../../core/tests/support/tracked.ts";
-import { LISTENING, newerInit, readUntil, until } from "../../mcp/tests/support/newer.ts";
+import { LISTENING, newerInit, readUntil } from "../../mcp/tests/support/newer.ts";
 
 interface Made {
   closed: number;
@@ -93,19 +93,16 @@ describe("the service's MCP handlers", () => {
     expect(made.all.every((one) => one.closed === 1)).toBe(true);
   });
 
-  test("let go of what a listen stream held when its client goes away", async () => {
+  test("hold nothing for a listen stream sent over a socket, which is acknowledged and ended at once", async () => {
     made.all = [];
     const home = await tmpDir("tally-home-");
     const running = await startService({ home, workspace: await tmpDir("tally-workspace-"), port: 0, host: "127.0.0.1", webDir: home, intervalMs: 50 });
-    const gone = new AbortController();
 
-    const listened = await fetch(new URL("mcp", running.url), newerInit("subscriptions/listen", LISTENING, gone.signal));
-    await readUntil(listened.body, "acknowledged");
+    const listened = await fetch(new URL("mcp", running.url), newerInit("subscriptions/listen", LISTENING));
+    const heard = await readUntil(listened.body, "never");
     const held = made.all.reduce((sum, one) => sum + one.listening(), 0);
-    gone.abort();
-    const released = await until(() => made.all.every((one) => one.listening() === 0));
     await running.close();
 
-    expect([held, released]).toEqual([1, true]);
+    expect([heard.includes('"notifications":{}'), heard.includes('"resultType":"complete"'), held]).toEqual([true, true, 0]);
   });
 });

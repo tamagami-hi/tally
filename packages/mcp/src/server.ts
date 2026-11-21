@@ -36,13 +36,13 @@ export { SERVER_VERSION } from "./server-info.ts";
 
 export type Revision = "legacy" | "modern";
 
-export function createTallyServer(from: Repo | RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = commandsRunIn(), usage?: Usage, role?: Role, revision: Revision = "legacy"): McpServer {
+export function createTallyServer(from: Repo | RepoSource, decorators: readonly Decorator[] = DECORATORS, place: CommandPlace = commandsRunIn(), usage?: Usage, role?: Role): McpServer {
   const source = isSource(from) ? from : oneRepo(from);
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: role === undefined ? source.instructions : ROLE_PROTOCOL[role] });
   const tools = decorating(server, source, { decorators, place, usage, ...(role === undefined ? {} : { role }) });
   registerAll(tools, source, place, role);
   listing(server, tools.listed());
-  server.server.registerCapabilities({ tools: { listChanged: revision === "modern" } });
+  server.server.registerCapabilities({ tools: { listChanged: false } });
   return server;
 }
 
@@ -82,7 +82,7 @@ export interface StdioServing {
 export function serveStdio(from: Repo | RepoSource, usage?: Usage, streams?: Streams): StdioServing {
   const source = isSource(from) ? from : oneRepo(from);
   const place = commandsRunIn();
-  return serveOnStdio((opened) => createTallyServer(source, DECORATORS, place, usage, undefined, opened.era), { transport: new StdioServerTransport(streams?.input, streams?.output) });
+  return serveOnStdio(() => createTallyServer(source, DECORATORS, place, usage), { transport: new StdioServerTransport(streams?.input, streams?.output) });
 }
 
 const LISTING_ONLY: RepoSource = {

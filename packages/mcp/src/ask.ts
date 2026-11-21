@@ -28,6 +28,6 @@ export function createAskServer(revision: Revision, asking: Omit<Asking, "carrie
   const tools = decorating(server, ASKS_NO_REPOSITORY, { decorators: DECORATORS, meta: (tool) => (tool === ASK_TRIAL ? ASK_META : undefined) });
   registerAskTrial(tools, { ...asking, carries: revision === "modern" });
   listing(server, tools.listed());
-  server.server.registerCapabilities({ tools: { listChanged: revision === "modern" } });
+  server.server.registerCapabilities({ tools: { listChanged: false } });
   return server;
 }

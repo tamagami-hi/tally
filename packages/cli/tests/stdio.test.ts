@@ -27,7 +27,7 @@ const settled = (running: Promise<number>, ms: number): Promise<string> => Promi
 
 interface Line {
   id?: number;
-  result?: { tools?: unknown[]; supportedVersions?: string[]; protocolVersion?: string; isError?: boolean; content?: { text?: string }[] };
+  result?: { tools?: unknown[]; supportedVersions?: string[]; capabilities?: unknown; protocolVersion?: string; isError?: boolean; content?: { text?: string }[] };
   error?: { message: string };
 }
 
@@ -65,6 +65,7 @@ describe("tally mcp on stdio", () => {
     await serving;
 
     expect(discovered.result?.supportedVersions).toContain(NEWER);
+    expect(discovered.result?.capabilities).toEqual({ tools: { listChanged: false } });
     expect(listed.result?.tools).toHaveLength(LISTED);
     expect(read.result?.isError).toBeUndefined();
     expect(refused.result?.isError).toBe(true);

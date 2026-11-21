@@ -35,14 +35,14 @@ describe.each(ADDRESSES)("both revisions at %s", (path) => {
     expect(opened.result).toMatchObject({ protocolVersion: LATEST_OLDER });
   });
 
-  test("declares tools.listChanged false on the 2025 revisions, as before, and true on 2026-07-28, where a listen stream is held", async () => {
+  test("declares tools.listChanged false on both revisions, since tally's list changes only with a release", async () => {
     const { app } = await service();
     const client = await newerClient(app, path);
 
     const opened = await answerOf(await bare(app, path, "initialize", initializing(LATEST_OLDER)));
 
     expect((opened.result as { capabilities: unknown }).capabilities).toEqual({ tools: { listChanged: false } });
-    expect(client.getServerCapabilities()).toMatchObject({ tools: { listChanged: true } });
+    expect(client.getServerCapabilities()).toEqual({ tools: { listChanged: false } });
     await client.close();
   });
 

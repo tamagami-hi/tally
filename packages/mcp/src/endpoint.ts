@@ -14,15 +14,11 @@ export interface McpEndpoint {
   listening: () => number;
 }
 
-export interface EndpointTimings {
-  keepAliveMs?: number;
-}
-
 type Older = WebStandardStreamableHTTPServerTransport;
 
-export function endpointFor(build: (revision: Revision) => McpServer, timings: EndpointTimings = {}): McpEndpoint {
+export function endpointFor(build: (revision: Revision) => McpServer): McpEndpoint {
   const bus = new InMemoryServerEventBus();
-  const newer = createMcpHandler(() => build("modern"), { legacy: "reject", responseMode: "json", bus, maxRequestBodySize: MOST_BODY_BYTES, ...timings });
+  const newer = createMcpHandler(() => build("modern"), { legacy: "reject", responseMode: "json", bus, maxRequestBodySize: MOST_BODY_BYTES });
   let streams: ReadonlySet<Older> = new Set();
   const letGo = (transport: Older): void => {
     streams = new Set([...streams].filter((held) => held !== transport));
@@ -47,10 +43,10 @@ export function endpointFor(build: (revision: Revision) => McpServer, timings: E
   };
 }
 
-export function mcpEndpoint(from: Repo | RepoSource, usage?: Usage, role?: Role, timings: EndpointTimings = {}): McpEndpoint {
+export function mcpEndpoint(from: Repo | RepoSource, usage?: Usage, role?: Role): McpEndpoint {
   const source = isSource(from) ? from : oneRepo(from);
   const place = commandsRunIn();
-  return endpointFor((revision) => createTallyServer(source, DECORATORS, place, usage, role, revision), timings);
+  return endpointFor(() => createTallyServer(source, DECORATORS, place, usage, role));
 }
 
-export const askEndpoint = (timings: EndpointTimings = {}): McpEndpoint => endpointFor((revision) => createAskServer(revision), timings);
+export const askEndpoint = (): McpEndpoint => endpointFor((revision) => createAskServer(revision));

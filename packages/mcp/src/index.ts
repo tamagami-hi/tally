@@ -1,7 +1,7 @@
 export { SERVER_NAME, SERVER_VERSION, createTallyServer, listedEntries, serveStdio, usageNow } from "./server.ts";
 export { MOST_BODY_BYTES, askEndpoint, endpointFor, mcpEndpoint } from "./endpoint.ts";
 export { ASK_ADDRESS, createAskServer } from "./ask.ts";
-export type { EndpointTimings, McpEndpoint } from "./endpoint.ts";
+export type { McpEndpoint } from "./endpoint.ts";
 export type { Revision, StdioServing, Streams } from "./server.ts";
 export { usageRanking } from "./usage.ts";
 export type { Ranked, Ranking } from "./usage.ts";
