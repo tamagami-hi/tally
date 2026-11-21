@@ -28,6 +28,8 @@ export class Hub {
   private watched: ReadonlyMap<string, Watched> = new Map();
   private listTimer: NodeJS.Timeout | undefined;
   private followers: readonly ListFollower[] = [];
+  private stopped = false;
+  private listing: Promise<void> = Promise.resolve();
 
   constructor(repos: Repos, options: { intervalMs?: number } = {}) {
     this.repos = repos;
@@ -68,8 +70,11 @@ export class Hub {
 
   start(): void {
     if (this.listTimer !== undefined) return;
-    void this.watchAll();
-    this.listTimer = setInterval(() => void this.watchAll(), this.intervalMs ?? DEFAULT_INTERVAL_MS);
+    this.stopped = false;
+    this.listing = this.watchAll();
+    this.listTimer = setInterval(() => {
+      this.listing = this.watchAll();
+    }, this.intervalMs ?? DEFAULT_INTERVAL_MS);
     this.listTimer.unref();
   }
 
@@ -83,8 +88,10 @@ export class Hub {
   }
 
   async stop(): Promise<void> {
+    this.stopped = true;
     if (this.listTimer !== undefined) clearInterval(this.listTimer);
     this.listTimer = undefined;
+    await this.listing;
     const all = [...this.watched.values()];
     this.watched = new Map();
     await Promise.all(all.map((watched) => watched.watcher.stop()));
@@ -107,6 +114,7 @@ export class Hub {
     if (known !== undefined && known.root === root) return known.watcher;
     if (known !== undefined) await known.watcher.stop();
     const watcher = new Watcher(() => this.repos.get(name), this.intervalMs === undefined ? {} : { intervalMs: this.intervalMs });
+    if (this.stopped) return watcher;
     watcher.start();
     this.watched = new Map([...this.watched, [name, { root, watcher }]]);
     return watcher;
