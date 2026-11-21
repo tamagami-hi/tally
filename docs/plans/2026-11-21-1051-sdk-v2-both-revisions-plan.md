@@ -2,7 +2,21 @@
 
 **Written:** 2026-11-21 10:51 IST (2026-11-21 05:21 UTC)
 **Base:** `main` at `cbf8661`, version 0.9.1 (2,153 tests in 299 files, 81 MCP tools, `tools/list` 79,623 characters and 78,313 where no command runs; the builder's list 25,647 and the reviewer's 18,094).
-**Status:** written; not built.
+**Status:** built on 2026-11-21 as version 0.9.2 with its fix round, 0.9.3, in the 34 commits from `f442735` to `354dc7a` (2,301 tests and one gated check in 323 files, 81 MCP tools, `tools/list` 79,623 characters and 78,313 where no command runs, the same byte for byte as 0.9.1). Not in the service yet. Every part is built. The text below is the plan as it was written before the build. Where the build differs:
+- **The version is 0.9.3.** The parts were built as 0.9.2 and reviewed. A fix round followed the review of the whole tip, and by the operator's counting that round is the next number. 0.9.2 was not released by itself.
+- **No listen stream is held** (row 7 of section 3, and B.3). This plan assumed that a `subscriptions/listen` stream stays open, to be held and let go. That was wrong. The SDK ends such a stream at once when the server declares `tools.listChanged: false`, and the operator's client, told `false`, opens none: it was run against both declarations. Tally declares `false` on both revisions, which is true, and holds nothing for a session. B.3's measure with 50 held streams was taken before that and describes a service that does not exist.
+- **The stop** (B.2). Closing the SDK's handler aborts a 2026-07-28 call in flight, which this plan did not know. A stop waits up to five seconds for the calls in flight on both revisions, names in the log each call it gives up on, and cuts what is left half a second later; the cut is armed when the stop begins, so a request whose body never arrives cannot hold it. A request that arrives meanwhile is refused with 503 and a sentence that says to call again. A request that meets a handler closed under it, because its repository left the list or was listed again at another folder, is handed to the handler that serves the address now.
+- **An older client's GET** is held only while its event stream is open, so a refused one holds nothing. Such a stream now carries a keep-alive comment every 15 seconds, which comes with version 2 of the SDK.
+- **The handler's `responseMode` is the SDK's default, `auto`,** and not `json` (B.1). With `json` the SDK warned on the console each time a handler was made. No tool of tally sends a message before its result, and a test holds every answer on 2026-07-28 to one JSON body.
+- **The server of one repository** has the service's guard and answers an error as the service does. This plan did not ask for that; the review did.
+- **Part C's tests** drive the command's own function over pipes, and not the built command, since no test depends on a build. `npm run smoke` and the private driver run the built command.
+- **Part E took two changes.** After the first, one line of the Overall panel still ran under the Graph panel at a window of 1024 px with the list open; the fix round cured it.
+- **F.1** is one window of 30 seconds for every test, in place of a longer time on each test that runs git. Its proof at the end also found a real leak, a watcher started after the hub's stop, which is fixed.
+- **F.3** is in the three functions this plan named and nowhere else, and one of them has no caller.
+- **The sealed state of `ask_trial` lives an hour;** this plan named no time.
+- **Found by the review and left as in 0.9.1:** on stdio an answer still pending when the input ends is not written, and `tally mcp` does not end when its input closes with an error.
+
+`DESIGN.md` section 26 has each of these, with what was measured.
 **Builds as:** one release, 0.9.2, by one builder on one branch.
 **Checked:** against the installed SDK (2.4.0) and against a real client on 2026-11-21, which section 1 reports; against the MCP builder guide's page for version 2 of the SDK on the same day, which is section 8.
 **This repository is public.** This file names no private project. Keep it that way when you edit it: the private names and paths are in the local notes, which git ignores.
