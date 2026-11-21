@@ -144,7 +144,9 @@ export const newestFirst = (tool: string): boolean => TOOL_META[tool]?.newestFir
 
 export const wholePaths = (tool: string): readonly string[] => TOOL_META[tool]?.whole ?? [];
 
+export const changesNothing = (meta: ToolMeta): boolean => meta.effect === "read" || meta.effect === "wait";
+
 export const writesNothing = (tool: string, place: CommandPlace = "service"): boolean => {
-  const effect = metaOf(tool, place)?.effect;
-  return effect === "read" || effect === "wait";
+  const meta = metaOf(tool, place);
+  return meta !== undefined && changesNothing(meta);
 };

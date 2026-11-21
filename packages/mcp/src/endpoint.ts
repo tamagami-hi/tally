@@ -2,6 +2,7 @@ import { InMemoryServerEventBus, WebStandardStreamableHTTPServerTransport, creat
 import { commandsRunIn, type Repo, type Usage } from "@tally/core";
 import { DECORATORS } from "./decorate.ts";
 import type { Role } from "./roles.ts";
+import { createAskServer } from "./ask.ts";
 import { createTallyServer, type Revision } from "./server.ts";
 import { isSource, oneRepo, type RepoSource } from "./source.ts";
 
@@ -19,10 +20,7 @@ export interface EndpointTimings {
 
 type Older = WebStandardStreamableHTTPServerTransport;
 
-export function mcpEndpoint(from: Repo | RepoSource, usage?: Usage, role?: Role, timings: EndpointTimings = {}): McpEndpoint {
-  const source = isSource(from) ? from : oneRepo(from);
-  const place = commandsRunIn();
-  const build = (revision: Revision): McpServer => createTallyServer(source, DECORATORS, place, usage, role, revision);
+export function endpointFor(build: (revision: Revision) => McpServer, timings: EndpointTimings = {}): McpEndpoint {
   const bus = new InMemoryServerEventBus();
   const newer = createMcpHandler(() => build("modern"), { legacy: "reject", responseMode: "json", bus, maxRequestBodySize: MOST_BODY_BYTES, ...timings });
   let streams: ReadonlySet<Older> = new Set();
@@ -48,3 +46,11 @@ export function mcpEndpoint(from: Repo | RepoSource, usage?: Usage, role?: Role,
     listening: () => bus.listenerCount + streams.size,
   };
 }
+
+export function mcpEndpoint(from: Repo | RepoSource, usage?: Usage, role?: Role, timings: EndpointTimings = {}): McpEndpoint {
+  const source = isSource(from) ? from : oneRepo(from);
+  const place = commandsRunIn();
+  return endpointFor((revision) => createTallyServer(source, DECORATORS, place, usage, role, revision), timings);
+}
+
+export const askEndpoint = (timings: EndpointTimings = {}): McpEndpoint => endpointFor((revision) => createAskServer(revision), timings);

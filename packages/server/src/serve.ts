@@ -65,7 +65,7 @@ export async function startServer(options: ServeOptions): Promise<Running> {
   const live = new LiveRepo(options.repo);
   const watcher = new Watcher(() => live.current(), interval(options));
   const usage = await Usage.open(usagePathOf({ stateDir: options.repo.stateDir }), SERVER_VERSION);
-  const endpoints = new Endpoints(usage);
+  const endpoints = new Endpoints();
   const app = createApp({ repo: options.repo, watcher, webDir: options.webDir ?? defaultWebDir(), usage, endpoints });
   return listen(app, options, () => {
     watcher.start();
@@ -80,7 +80,7 @@ export async function startServer(options: ServeOptions): Promise<Running> {
 export async function startService(options: ServiceStart): Promise<Running> {
   const hub = new Hub(new Repos(options.home), interval(options));
   const usage = await Usage.open(usagePathOf({ home: options.home }), SERVER_VERSION);
-  const endpoints = new Endpoints(usage);
+  const endpoints = new Endpoints();
   const app = createServiceApp({ hub, webDir: options.webDir ?? defaultWebDir(), workspace: options.workspace, usage, endpoints, ...(options.defaults === undefined ? {} : { defaults: options.defaults }), ...(options.cli === undefined ? {} : { cli: options.cli }) });
   return listen(app, options, () => {
     hub.start();

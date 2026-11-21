@@ -1,5 +1,5 @@
-import { TallyError, messageOf, type Usage } from "@tally/core";
-import { mcpEndpoint, type McpEndpoint, type RepoSource, type Role } from "@tally/mcp";
+import { TallyError, messageOf } from "@tally/core";
+import type { McpEndpoint, Role } from "@tally/mcp";
 
 export interface Listed {
   name: string;
@@ -22,18 +22,13 @@ function closing(endpoint: McpEndpoint): Promise<void> {
 export class Endpoints {
   private held: ReadonlyMap<string, Held> = new Map();
   private stopped = false;
-  private readonly usage: Usage | undefined;
 
-  constructor(usage?: Usage) {
-    this.usage = usage;
-  }
-
-  at(address: string, source: () => RepoSource, role?: Role, listed?: Listed): McpEndpoint {
+  at(address: string, make: () => McpEndpoint, listed?: Listed): McpEndpoint {
     if (this.stopped) throw new TallyError("tally is stopping; call again once it is back");
     const known = this.held.get(address);
     if (known !== undefined && sameListing(known.listed, listed)) return known.endpoint;
     if (known !== undefined) void closing(known.endpoint);
-    const endpoint = mcpEndpoint(source(), this.usage, role);
+    const endpoint = make();
     this.held = new Map([...this.held, [address, { listed, endpoint }]]);
     return endpoint;
   }

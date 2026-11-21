@@ -9,7 +9,7 @@ import { sharing } from "./decorators/sharing.ts";
 import { sized } from "./decorators/sized.ts";
 import type { ListedTool } from "./listing.ts";
 import { asCall } from "./calling.ts";
-import { annotationsOf, metaOf, writesNothing } from "./meta.ts";
+import { annotationsOf, changesNothing, metaOf, type ToolMeta } from "./meta.ts";
 import { invalidInput, unknownArguments } from "./invalid.ts";
 import { paramText } from "./params.ts";
 import { isInRole, type Role } from "./roles.ts";
@@ -56,6 +56,7 @@ export interface Serving {
   place?: CommandPlace;
   usage?: Usage | undefined;
   role?: Role;
+  meta?: (tool: string, place: CommandPlace) => ToolMeta | undefined;
 }
 
 const ANY_INPUT = z.looseObject({});
@@ -64,12 +65,12 @@ const WHOLE = "whole";
 const objectOf = (args: unknown): Record<string, unknown> => (typeof args === "object" && args !== null ? (args as Record<string, unknown>) : {});
 
 export function decorating(server: McpServer, source: RepoSource, serving: Serving = {}): Decorated {
-  const { decorators = DECORATORS, place = "service", usage, role } = serving;
+  const { decorators = DECORATORS, place = "service", usage, role, meta: metaFor = metaOf } = serving;
   const via = role ?? WHOLE;
   const registered: ListedTool[] = [];
   const register = server.registerTool.bind(server) as (name: string, config: unknown, handler: Handler) => unknown;
   const registerTool = (name: string, config: Config, handler: Handler): unknown => {
-    const meta = metaOf(name, place);
+    const meta = metaFor(name, place);
     if (meta === undefined) throw new TallyError(`the tool ${name} has no title: add it to the table in meta.ts`);
     if (!isInRole(role, name)) return undefined;
     const shape = described(name, config.inputSchema ?? {});
@@ -86,7 +87,7 @@ export function decorating(server: McpServer, source: RepoSource, serving: Servi
         return result;
       }
       const given = parsed.data;
-      const answered = await asCall(!writesNothing(name, place), () => handler(given, extra));
+      const answered = await asCall(!changesNothing(meta), () => handler(given, extra));
       if (isInputRequiredResult(answered)) return answered;
       let result = answered;
       for (const decorate of decorators) result = await decorate({ tool: name, args: given, params: Object.keys(shape), result, source, place });

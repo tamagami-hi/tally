@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { NotListed, TallyError, messageOf, type StartDefaults, type Usage } from "@tally/core";
-import { SERVER_VERSION, boundRepo, manyRepos, usageNow } from "@tally/mcp";
+import { ASK_ADDRESS, SERVER_VERSION, askEndpoint, boundRepo, manyRepos, mcpEndpoint, usageNow } from "@tally/mcp";
 import { Endpoints, addressOf } from "./endpoints.ts";
 import { roleRoutes, serving, servingRoles, type EndpointAt } from "./roles.ts";
 import { cliRoutes, type CliRunner } from "./cli-api.ts";
@@ -23,7 +23,7 @@ export interface ServiceOptions {
 
 const statusOf = (error: TallyError): 400 | 403 | 404 => (error instanceof NotListed ? 404 : error instanceof Forbidden ? 403 : 400);
 
-export function createServiceApp({ hub, webDir, workspace, defaults, cli, usage, endpoints = new Endpoints(usage) }: ServiceOptions): Hono {
+export function createServiceApp({ hub, webDir, workspace, defaults, cli, usage, endpoints = new Endpoints() }: ServiceOptions): Hono {
   const app = new Hono();
   app.use("*", loopbackOnly());
   app.onError((error, c) => {
@@ -46,14 +46,15 @@ export function createServiceApp({ hub, webDir, workspace, defaults, cli, usage,
   app.route("/api", repoRoutes(() => hub.default()));
   app.all("/api/*", (c) => c.json({ error: "not found" }, 404));
   hub.follow((roots) => endpoints.keepListed(roots));
-  const whole: EndpointAt = async (_c, role) => endpoints.at(addressOf("/mcp", role), () => manyRepos(hub.repos), role);
+  const whole: EndpointAt = async (_c, role) => endpoints.at(addressOf("/mcp", role), () => mcpEndpoint(manyRepos(hub.repos), usage, role));
   app.all("/mcp", serving(whole));
+  app.all(ASK_ADDRESS, serving(async () => endpoints.at(ASK_ADDRESS, () => askEndpoint())));
   servingRoles(app, "/mcp", whole);
   const bound: EndpointAt = async (c: Context, role) => {
     const name = c.req.param("name") ?? "";
     const entry = (await hub.repos.entries()).find((listed) => listed.name === name);
     if (entry === undefined) return c.json({ error: `no repository ${name} is listed; repo_list names those that are` }, 404);
-    return endpoints.at(addressOf(`/r/${name}/mcp`, role), () => boundRepo(hub.repos, name), role, { name, root: entry.root });
+    return endpoints.at(addressOf(`/r/${name}/mcp`, role), () => mcpEndpoint(boundRepo(hub.repos, name), usage, role), { name, root: entry.root });
   };
   app.all("/r/:name/mcp", serving(bound));
   servingRoles(app, "/r/:name/mcp", bound);

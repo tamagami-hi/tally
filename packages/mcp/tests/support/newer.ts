@@ -8,12 +8,12 @@ export const ENVELOPE = {
 
 const PATIENCE_ON_A_BUSY_MACHINE_MS = 15_000;
 
-export function newerInit(method: string, params: Record<string, unknown>, signal?: AbortSignal): RequestInit {
+export function newerInit(method: string, params: Record<string, unknown>, signal?: AbortSignal, capabilities: Record<string, unknown> = {}): RequestInit {
   const name = typeof params["name"] === "string" ? { "mcp-name": params["name"] } : {};
   return {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-method": method, "mcp-protocol-version": NEWER, ...name },
-    body: JSON.stringify({ jsonrpc: "2.0", id: method === "subscriptions/listen" ? "listen:0" : 1, method, params: { ...params, _meta: ENVELOPE } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: method === "subscriptions/listen" ? "listen:0" : 1, method, params: { ...params, _meta: { ...ENVELOPE, "io.modelcontextprotocol/clientCapabilities": capabilities } } }),
     ...(signal === undefined ? {} : { signal }),
   };
 }
